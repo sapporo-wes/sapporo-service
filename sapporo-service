@@ -1,11 +1,11 @@
 #!/bin/bash
+set -eu
+
 SCRIPT_DIR=$(cd $(dirname $0) && pwd)
 cd $SCRIPT_DIR
 DOCKER_COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
 DOCKER_COMPOSE_DEV_FILE="$SCRIPT_DIR/etc/docker-compose.dev.yml"
 TOKEN_LIST_FILE="$SCRIPT_DIR/src/app/token_list.txt"
-UID=$(id -u)
-GID=$(id -g)
 DOCKER_GID=$(cat /etc/group | grep docker | cut -d ":" -f 3)
 PIP_PACKAGES="coverage cwltool Flask PyYAML requests uWSGI yq"
 
@@ -50,6 +50,9 @@ function check_docker_compose() {
     exit 1
   fi
 }
+
+check_docker
+check_docker_compose
 
 function show_service_up_usage() {
   cat <<EOS
@@ -137,8 +140,6 @@ function service_up() {
       ;;
     esac
   done
-  check_docker
-  check_docker_compose
 
   printf "Start SAPPORO-service up...\n\n"
   cat <<EOS
@@ -149,13 +150,14 @@ function service_up() {
   Token Auth         : ${SAPPORO_SERVICE_TOKEN_AUTH:-False}
 EOS
   printf "\n"
-  if [[ $(docker network ls | grep 'sapporo-network' | wc -l) == 0 ]]; then
+  if [[ $(docker network ls | grep 'sapporo-network' | wc -l | awk '{print $1}') == 0 ]]; then
     echo "Creating the Docker network: sapporo-network"
     docker network create sapporo-network
   fi
-  PWD=$SCRIPT_DIR \
-    UID=$UID \
-    GID=$GID \
+  env \
+    PWD=$SCRIPT_DIR \
+    UID=$(id -u) \
+    GID=$(id -g) \
     DOCKER_GID=$DOCKER_GID \
     SAPPORO_SERVICE_DEBUG=${SAPPORO_SERVICE_DEBUG:-False} \
     SAPPORO_SERVICE_PORT=${SAPPORO_SERVICE_PORT:-1122} \
@@ -175,8 +177,6 @@ EOS
 }
 
 function service_down() {
-  check_docker
-  check_docker_compose
   printf "Start SAPPORO-service down...\n"
   docker-compose down
   printf "Finish SAPPORO-service down...\n"
@@ -185,18 +185,7 @@ function service_down() {
 
 function service_clean() {
   printf "Start SAPPORO-service clean...\n"
-  rm -rf $SCRIPT_DIR/etc/nginx/cache/*
-  rm -rf $SCRIPT_DIR/etc/nginx/run/*
-  rm -rf $SCRIPT_DIR/etc/uwsgi/uwsgi.sock
-  rm -rf $SCRIPT_DIR/log/app/*
-  rm -rf $SCRIPT_DIR/log/nginx/*
-  for file in $(ls $SCRIPT_DIR/run | grep -v cache); do
-    rm -rf $SCRIPT_DIR/run/$file
-  done
-  rm -rf $SCRIPT_DIR/run/cache/*
-  rm -rf $SCRIPT_DIR/src/app/secret_key.txt
-  rm -rf $SCRIPT_DIR/src/app/token_list.txt
-  find $SCRIPT_DIR/src -type d | grep pycache | xargs rm -rf
+  git clean -fdx
   printf "Finish SAPPORO-service clean...\n"
   exit 0
 }
@@ -389,8 +378,6 @@ function service_dev_up() {
       ;;
     esac
   done
-  check_docker
-  check_docker_compose
   cd $SCRIPT_DIR/etc
 
   printf "Start SAPPORO-service dev up...\n\n"
@@ -402,13 +389,14 @@ function service_dev_up() {
   Token Auth         : ${SAPPORO_SERVICE_TOKEN_AUTH:-False}
 EOS
   printf "\n"
-  if [[ $(docker network ls | grep 'sapporo-network' | wc -l) == 0 ]]; then
+  if [[ $(docker network ls | grep 'sapporo-network' | wc -l | awk '{print $1}') == 0 ]]; then
     echo "Creating the Docker network: sapporo-network"
     docker network create sapporo-network
   fi
-  PWD=$SCRIPT_DIR/etc \
-    UID=$UID \
-    GID=$GID \
+  env \
+    PWD=$SCRIPT_DIR \
+    UID=$(id -u) \
+    GID=$(id -g) \
     DOCKER_GID=$DOCKER_GID \
     SAPPORO_SERVICE_DEBUG=${SAPPORO_SERVICE_DEBUG:-True} \
     SAPPORO_SERVICE_PORT=${SAPPORO_SERVICE_PORT:-1122} \
@@ -424,8 +412,6 @@ EOS
 }
 
 function service_dev_down() {
-  check_docker
-  check_docker_compose
   cd $SCRIPT_DIR/etc
   printf "Start SAPPORO-service dev down...\n"
   docker-compose -f $DOCKER_COMPOSE_DEV_FILE down
@@ -435,20 +421,12 @@ function service_dev_down() {
 
 function service_dev_clean() {
   printf "Start SAPPORO-service dev clean...\n"
-  rm -rf $SCRIPT_DIR/log/app/*
-  for file in $(ls $SCRIPT_DIR/run | grep -v cache); do
-    rm -rf $SCRIPT_DIR/run/$file
-  done
-  rm -rf $SCRIPT_DIR/run/cache/*
-  rm -rf $SCRIPT_DIR/src/app/secret_key.txt
-  rm -rf $SCRIPT_DIR/src/app/token_list.txt
-  find $SCRIPT_DIR/src -type d | grep pycache | xargs rm -rf
+  git clean -fdx
   printf "Finish SAPPORO-service dev clean...\n"
   exit 0
 }
 
 function service_dev_freeze() {
-  check_docker
   printf "Start SAPPORO-service dev freeze...\n"
   docker run -d --rm \
     --workdir /opt/SAPPORO/SAPPORO-service/etc \
@@ -476,7 +454,6 @@ pip freeze > requirements.txt"
 }
 
 function service_dev_test() {
-  check_docker
   printf "Start SAPPORO-service dev test...\n"
   mkdir -p $SCRIPT_DIR/etc/coverage_html
   DOCKER_IMAGE=$(grep "image: suecharo/sapporo-service" $DOCKER_COMPOSE_FILE | sed -e "s/    image: //g")
@@ -513,7 +490,6 @@ function service_dev_test() {
 }
 
 function service_dev_build() {
-  check_docker
   printf "Start SAPPORO-service dev build...\n"
   docker build --no-cache -t suecharo/sapporo-service:$1 .
   printf "Finish SAPPORO-service dev build...\n"
