@@ -1,0 +1,13 @@
+workflows:
+  - workflow_name: trimming_and_qc
+    workflow_version: 561154b0dfcb359740f1e031d3d13d7225aa1262
+    workflow_location: https://raw.githubusercontent.com/suecharo/SAPPORO_test_workflow/master/workflow/trimming-and-qc/trimming-and-qc-upload/trimming-and-qc-upload.cwl
+    workflow_parameters_template_location: https://raw.githubusercontent.com/suecharo/SAPPORO_test_workflow/master/workflow/trimming-and-qc/trimming-and-qc-upload/trimming-and-qc-upload.yml
+    language_type: CWL
+    language_version: v1.1
+  - workflow_name: bwa_mapping_pe
+    workflow_version: 561154b0dfcb359740f1e031d3d13d7225aa1262
+    workflow_location: https://raw.githubusercontent.com/suecharo/SAPPORO_test_workflow/master/workflow/bwa-mapping-pe/bwa-mapping-pe-upload/bwa-mapping-pe-upload.cwl
+    workflow_parameters_template_location: https://raw.githubusercontent.com/suecharo/SAPPORO_test_workflow/master/workflow/bwa-mapping-pe/bwa-mapping-pe-upload/bwa-mapping-pe-upload.yml
+    language_type: CWL
+    language_version: v1.1

@@ -1,0 +1,34 @@
+version: "3"
+services:
+  app:
+    image: suecharo/sapporo-service:v0.3.6
+    container_name: sapporo-service-app-dev
+    restart: always
+    volumes:
+      - /tmp:/tmp
+      - /usr/bin/docker:/usr/bin/docker
+      - /var/lib/docker:/var/lib/docker
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${PWD}/../log/app:/opt/SAPPORO/SAPPORO-service/log/app
+      - ${PWD}/../run:/opt/SAPPORO/SAPPORO-service/run
+      - ${PWD}/../run/cache:/.cache
+      - ${PWD}/../service-info.yml:/opt/SAPPORO/SAPPORO-service/service-info.yml
+      - ${PWD}/../src:/opt/SAPPORO/SAPPORO-service/src
+      - ${PWD}/../workflow-info.yml:/opt/SAPPORO/SAPPORO-service/workflow-info.yml
+    environment:
+      - DEBUG=${SAPPORO_SERVICE_DEBUG:-True} # Flask debug mode
+      - GET_RUNS=${SAPPORO_SERVICE_GET_RUNS:-True}
+      - TOKEN_AUTH=${SAPPORO_SERVICE_TOKEN_AUTH:-False}
+      - LOG_LEVEL=${SAPPORO_SERVICE_LOG_LEVEL:-DEBUG} # DEBUG or INFO
+    user: ${UID:-0}:${DOCKER_GID:-999} # Docker group
+    command:
+      ["/usr/local/bin/python3", "/opt/SAPPORO/SAPPORO-service/src/run.py"]
+    networks:
+      - sapporo
+    ports:
+      - ${SAPPORO_SERVICE_PORT:-1122}:8080
+
+networks:
+  sapporo:
+    external:
+      name: sapporo-network

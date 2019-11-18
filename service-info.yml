@@ -1,0 +1,10 @@
+workflow_engines:
+  - engine_name: cwltool
+    engine_version: 1.0.20190831161204
+    workflow_types:
+      - language_type: CWL
+        language_version: v1.0
+      - language_type: CWL
+        language_version: v1.1
+auth_instructions_url: https://dummy_auth_instructions_url/
+contact_info_url: https://dummy_contact_info_url/
