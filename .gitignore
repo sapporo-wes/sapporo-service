@@ -215,8 +215,8 @@ dmypy.json
 
 ### Our settings
 etc/coverage_html/
-etc/nginx/cache
-etc/nginx/run
+etc/nginx/cache/
+etc/nginx/run/
 etc/uwsgi/uwsgi.sock
 log/
 run/
