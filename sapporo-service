@@ -431,7 +431,7 @@ function service_dev_freeze() {
   docker run -d --rm \
     --workdir /opt/SAPPORO/SAPPORO-service/etc \
     -v $SCRIPT_DIR/etc/requirements.txt:/opt/SAPPORO/SAPPORO-service/etc/requirements.txt \
-    -u $UID:$GID \
+    -u $(id -u):$(id -g) \
     --name sapporo-service-dev-freeze \
     python:slim \
     tail -f /dev/null
@@ -444,7 +444,7 @@ apt install -y build-essential curl iproute2 jq procps tree &&
 pip install -U pip wheel setuptools
 pip install $PIP_PACKAGES"
   docker exec \
-    -u $UID:$GID \
+    -u $(id -u):$(id -g) \
     sapporo-service-dev-freeze \
     sh -c "
 pip freeze > requirements.txt"
@@ -468,20 +468,20 @@ function service_dev_test() {
     -v $SCRIPT_DIR/service-info.yml:/opt/SAPPORO/SAPPORO-service/service-info.yml \
     -v $SCRIPT_DIR/src:/opt/SAPPORO/SAPPORO-service/src \
     -v $SCRIPT_DIR/workflow-info.yml:/opt/SAPPORO/SAPPORO-service/workflow-info.yml \
-    -u $UID:$GID \
+    -u $(id -u):$(id -g) \
     --name sapporo-service-dev-test \
     $DOCKER_IMAGE \
     tail -f /dev/null
   docker exec \
-    -u $UID:$GID \
+    -u $(id -u):$(id -g) \
     sapporo-service-dev-test \
     coverage run -m unittest discover /opt/SAPPORO/SAPPORO-service/src
   docker exec \
-    -u $UID:$GID \
+    -u $(id -u):$(id -g) \
     sapporo-service-dev-test \
     coverage report
   docker exec \
-    -u $UID:$GID \
+    -u $(id -u):$(id -g) \
     sapporo-service-dev-test \
     coverage html
   docker kill sapporo-service-dev-test
