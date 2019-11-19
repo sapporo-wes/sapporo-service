@@ -394,7 +394,7 @@ EOS
     docker network create sapporo-network
   fi
   env \
-    PWD=$SCRIPT_DIR \
+    PWD=$SCRIPT_DIR/etc \
     UID=$(id -u) \
     GID=$(id -g) \
     DOCKER_GID=$DOCKER_GID \
