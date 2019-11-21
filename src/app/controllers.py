@@ -13,7 +13,6 @@ bp_app = Blueprint("app", __name__)
 
 
 @bp_app.route("/service-info", methods=["GET"])
-@token_auth
 def get_service_info():
     data = read_service_info()
     response = jsonify(data)
