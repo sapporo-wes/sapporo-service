@@ -12,7 +12,8 @@ function run_wf() {
 
 function run_cwltool() {
   echo "RUNNING" >$status
-  cwltool --custom-net=sapporo-network --outdir $run_dir $workflow $workflow_parameters 1>$stdout 2>$stderr || eval 'echo "EXECUTOR_ERROR" >$status; exit 1'
+  local container="commonworkflowlanguage/cwltool:1.0.20191022103248"
+  ${DOCKER_CMD} ${container} --custom-net=sapporo-network workflow workflow_parameters 1>${stdout} 2>${stderr} || eval 'echo "EXECUTOR_ERROR" >$status; exit 1'
   echo "COMPLETE" >$status
   exit 0
 }
@@ -64,6 +65,12 @@ upload_url="${run_dir}/upload_url.txt"
 stdout="${run_dir}/stdout.log"
 stderr="${run_dir}/stderr.log"
 execution_engine=$(cat ${run_order} | yq -r '.execution_engine_name')
+
+D_NETWORK_OPT="--network=sapporo-network"
+D_SOCK="-v /var/run/docker.sock:/var/run/docker.sock"
+D_LIB="-v /var/lib/docker:/var/lib/docker"
+D_TMP="-v /tmp:/tmp"
+DOCKER_CMD="docker run -i --rm ${D_NETWORK_OPT} ${D_SOCK} ${D_LIB} ${D_TMP} -v ${run_dir}:/work -w=/work"
 
 trap 'echo "SYSTEM_ERROR" >${status_file}; exit 1' 1 2 3 15
 trap 'cancel' 10
