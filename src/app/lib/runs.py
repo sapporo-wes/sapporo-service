@@ -128,8 +128,9 @@ def _fork_run(uuid):
     run_shell_stderr_file = run_dir.joinpath(RUN_SHELL_STDERR_FILE_NAME)
     cmd = "/bin/bash {} {}".format(RUN_EXECUTION_SCRIPT_PATH, uuid)
     l_cmd = shlex.split(cmd)
-    proc = Popen(l_cmd, stdout=run_shell_stdout_file,
-                 stderr=run_shell_stderr_file)
+    with run_shell_stdout_file.open(mode="w") as f_stdout, \
+            run_shell_stderr_file.open(mode="w") as f_stderr:
+        proc = Popen(l_cmd, stdout=f_stdout, stderr=f_stderr)
     run_dir = RUN_BASE_DIR.joinpath(uuid[:2]).joinpath(uuid)
     with run_dir.joinpath(PID_INFO_FILE_NAME).open(mode="w") as f:
         f.write(str(proc.pid))
