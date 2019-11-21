@@ -1,13 +1,13 @@
 workflows:
   - workflow_name: trimming_and_qc
-    workflow_version: v1.0.0
-    workflow_location: https://raw.githubusercontent.com/ddbj/SAPPORO_test_workflow/master/workflow/trimming-and-qc/trimming-and-qc-upload/trimming-and-qc-upload.cwl
-    workflow_parameters_template_location: https://raw.githubusercontent.com/ddbj/SAPPORO_test_workflow/master/workflow/trimming-and-qc/trimming-and-qc-upload/trimming-and-qc-upload.yml
+    workflow_version: v1.0.1
+    workflow_location: https://raw.githubusercontent.com/ddbj/SAPPORO_test_workflow/master/workflow/trimming-and-qc/trimming-and-qc-no-upload/trimming-and-qc-no-upload.cwl
+    workflow_parameters_template_location: https://raw.githubusercontent.com/ddbj/SAPPORO_test_workflow/master/workflow/trimming-and-qc/trimming-and-qc-no-upload/trimming-and-qc-no-upload.yml
     language_type: CWL
     language_version: v1.1
   - workflow_name: bwa_mapping_pe
-    workflow_version: v1.0.0
-    workflow_location: https://raw.githubusercontent.com/ddbj/SAPPORO_test_workflow/master/workflow/bwa-mapping-pe/bwa-mapping-pe-upload/bwa-mapping-pe-upload.cwl
-    workflow_parameters_template_location: https://raw.githubusercontent.com/ddbj/SAPPORO_test_workflow/master/workflow/bwa-mapping-pe/bwa-mapping-pe-upload/bwa-mapping-pe-upload.yml
+    workflow_version: v1.0.1
+    workflow_location: https://raw.githubusercontent.com/ddbj/SAPPORO_test_workflow/master/workflow/bwa-mapping-pe/bwa-mapping-pe-no-upload/bwa-mapping-pe-no-upload.cwl
+    workflow_parameters_template_location: https://raw.githubusercontent.com/ddbj/SAPPORO_test_workflow/master/workflow/bwa-mapping-pe/bwa-mapping-pe-no-upload/bwa-mapping-pe-no-upload.yml
     language_type: CWL
     language_version: v1.1
