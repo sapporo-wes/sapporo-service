@@ -78,7 +78,7 @@ Option:
 
 It is described in the Swagger format in `./api-definition/SAPPORO-service-api-definition.yml`. Please confirm by the following method.
 
-- [SAPPORO - Swagger UI](https://ddbj.github.io/SAPPORO/SAPPORO-service/api-definition/swagger-ui)
+- [SAPPORO - Swagger UI](https://ddbj.github.io/SAPPORO-service/api-definition/swagger-ui/)
 
 #### GET /service-info
 
