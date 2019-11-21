@@ -13,7 +13,7 @@ function run_wf() {
 function run_cwltool() {
   echo "RUNNING" >$status
   local container="commonworkflowlanguage/cwltool:1.0.20191022103248"
-  ${DOCKER_CMD} ${container} --custom-net=sapporo-network $workflow $workflow_parameters 1>${stdout} 2>${stderr} || eval 'echo "EXECUTOR_ERROR" >$status; exit 1'
+  ${DOCKER_CMD} ${container} --custom-net=sapporo-network ${workflow} ${workflow_parameters} 1>${stdout} 2>${stderr} || eval 'echo "EXECUTOR_ERROR" >$status; exit 1'
   echo "COMPLETE" >$status
   exit 0
 }
