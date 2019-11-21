@@ -69,7 +69,7 @@ def generate_run_order(request):
     run_order = deepcopy(dict(request.form))
     run_order["workflow_parameters"] = request.files["workflow_parameters"].stream.read(  # NOQA
     ).decode("utf-8")
-    run_order["workflow_parameters"] = request.files["upload_info"].stream.read(  # NOQA
+    run_order["upload_info"] = request.files["upload_info"].stream.read(  # NOQA
     ).decode("utf-8")
     run_order["workflow_location"], run_order["workflow_version"], run_order["workflow_content"], run_order[  # NOQA
         "language_type"], run_order["language_version"] = _fetch_workflow_file(run_order["workflow_name"])  # NOQA
