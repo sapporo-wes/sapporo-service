@@ -14,10 +14,5 @@ upload_protocols:
       - secret_access_key
       - bucket
       - upload_dir
-  - protocol_name: ftp
-    parameters:
-      - url
-      - username
-      - password
 auth_instructions_url: https://dummy_auth_instructions_url/
 contact_info_url: https://dummy_contact_info_url/
