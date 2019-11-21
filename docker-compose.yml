@@ -22,7 +22,20 @@ services:
       - TOKEN_AUTH=${SAPPORO_SERVICE_TOKEN_AUTH:-False}
       - LOG_LEVEL=${SAPPORO_SERVICE_LOG_LEVEL:-INFO} # DEBUG or INFO
     user: ${UID:-0}:${DOCKER_GID:-999} # Docker group
-    command: ["uwsgi", "${PWD}/etc/uwsgi/uwsgi.ini"]
+    command:
+      [
+        "uwsgi",
+        "--logto",
+        "${PWD}/log/app/uwsgi.log",
+        "--chdir",
+        "${PWD}/src",
+        "--pidfile",
+        "${PWD}/log/app/uwsgi.pid",
+        "--socket",
+        "${PWD}/etc/uwsgi/uwsgi.sock",
+        "${PWD}/etc/uwsgi/uwsgi.ini",
+      ]
+
     working_dir: ${PWD}
     networks:
       - sapporo
