@@ -9,13 +9,15 @@ from subprocess import PIPE, Popen
 from uuid import uuid4
 
 import yaml
+
 from flask import abort
 
 from .util import (PID_INFO_FILE_NAME, RUN_BASE_DIR, RUN_EXECUTION_SCRIPT_PATH,
-                   RUN_ORDER_FILE_NAME, STATUS_FILE_NAME, STDERR_FILE_NAME,
-                   STDOUT_FILE_NAME, UPLOAD_URL_FILE_NAME, WORKFLOW_FILE_NAME,
-                   WORKFLOW_PARAMETERS_FILE_NAME, read_service_info,
-                   read_workflow_info)
+                   RUN_ORDER_FILE_NAME, RUN_SHELL_STDERR_FILE_NAME,
+                   RUN_SHELL_STDOUT_FILE_NAME, STATUS_FILE_NAME,
+                   STDERR_FILE_NAME, STDOUT_FILE_NAME, UPLOAD_URL_FILE_NAME,
+                   WORKFLOW_FILE_NAME, WORKFLOW_PARAMETERS_FILE_NAME,
+                   read_service_info, read_workflow_info)
 from .workflows import fetch_file
 
 
@@ -121,9 +123,13 @@ def _prepare_run_dir(uuid, run_order):
 
 
 def _fork_run(uuid):
+    run_dir = RUN_BASE_DIR.joinpath(uuid[:2]).joinpath(uuid)
+    run_shell_stdout_file = run_dir.joinpath(RUN_SHELL_STDOUT_FILE_NAME)
+    run_shell_stderr_file = run_dir.joinpath(RUN_SHELL_STDERR_FILE_NAME)
     cmd = "/bin/bash {} {}".format(RUN_EXECUTION_SCRIPT_PATH, uuid)
     l_cmd = shlex.split(cmd)
-    proc = Popen(l_cmd)
+    proc = Popen(l_cmd, stdout=run_shell_stdout_file,
+                 stderr=run_shell_stderr_file)
     run_dir = RUN_BASE_DIR.joinpath(uuid[:2]).joinpath(uuid)
     with run_dir.joinpath(PID_INFO_FILE_NAME).open(mode="w") as f:
         f.write(str(proc.pid))

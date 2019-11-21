@@ -25,6 +25,8 @@ PID_INFO_FILE_NAME = "run.pid"
 UPLOAD_URL_FILE_NAME = "upload_url.txt"
 STDOUT_FILE_NAME = "stdout.log"
 STDERR_FILE_NAME = "stderr.log"
+RUN_SHELL_STDOUT_FILE_NAME = "run_shell.stdout.log"
+RUN_SHELL_STDERR_FILE_NAME = "run_shell.stderr.log"
 
 RUN_EXECUTION_SCRIPT_PATH = SERVICE_BASE_DIR.joinpath("src/run_workflow.sh")
 
