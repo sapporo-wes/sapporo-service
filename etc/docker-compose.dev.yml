@@ -1,7 +1,7 @@
 version: "3"
 services:
   app:
-    image: suecharo/sapporo-service:v0.4.1
+    image: suecharo/sapporo-service:v0.4.2
     container_name: sapporo-service-app-dev
     restart: always
     volumes:
