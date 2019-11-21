@@ -12,10 +12,11 @@ import yaml
 
 from flask import abort
 
-from .util import (PID_INFO_FILE_NAME, RUN_BASE_DIR, RUN_EXECUTION_SCRIPT_PATH,
-                   RUN_ORDER_FILE_NAME, RUN_SHELL_STDERR_FILE_NAME,
-                   RUN_SHELL_STDOUT_FILE_NAME, STATUS_FILE_NAME,
-                   STDERR_FILE_NAME, STDOUT_FILE_NAME, UPLOAD_URL_FILE_NAME,
+from .util import (OUTPUT_DIR_NAME, PID_INFO_FILE_NAME, RUN_BASE_DIR,
+                   RUN_EXECUTION_SCRIPT_PATH, RUN_ORDER_FILE_NAME,
+                   RUN_SHELL_STDERR_FILE_NAME, RUN_SHELL_STDOUT_FILE_NAME,
+                   STATUS_FILE_NAME, STDERR_FILE_NAME, STDOUT_FILE_NAME,
+                   UPLOAD_INFO_FILE_NAME, UPLOAD_URL_FILE_NAME,
                    WORKFLOW_FILE_NAME, WORKFLOW_PARAMETERS_FILE_NAME,
                    read_service_info, read_workflow_info)
 from .workflows import fetch_file
@@ -40,6 +41,8 @@ def validate_post_runs_request(request):
     run_order = dict(request.form)
     if "workflow_parameters" not in request.files:
         abort(400, "Workflow parameter file not attached.")
+    if "upload_info" not in request.files:
+        abort(400, "Upload info file not attached.")
     for param in ["workflow_name", "execution_engine_name"]:
         if param not in run_order:
             abort(400, "Param: {} is not included.".format(param))
@@ -58,12 +61,15 @@ def generate_run_order(request):
         "language_version": str,
         "execution_engine_name": str,
         "execution_engine_version": str,
+        "upload_info": str,
         "start_time": str (datetime -> str),
         "end_time": str (datetime -> str),
     }
     """
     run_order = deepcopy(dict(request.form))
     run_order["workflow_parameters"] = request.files["workflow_parameters"].stream.read(  # NOQA
+    ).decode("utf-8")
+    run_order["workflow_parameters"] = request.files["upload_info"].stream.read(  # NOQA
     ).decode("utf-8")
     run_order["workflow_location"], run_order["workflow_version"], run_order["workflow_content"], run_order[  # NOQA
         "language_type"], run_order["language_version"] = _fetch_workflow_file(run_order["workflow_name"])  # NOQA
@@ -105,7 +111,8 @@ def execute(run_order):
 
 def _prepare_run_dir(uuid, run_order):
     run_dir = RUN_BASE_DIR.joinpath(uuid[:2]).joinpath(uuid)
-    run_dir.mkdir(parents=True)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    run_dir.joinpath(OUTPUT_DIR_NAME).mkdir(parents=True, exist_ok=True)
     with run_dir.joinpath(STATUS_FILE_NAME).open(mode="w") as f:
         f.write("QUEUED")
     with run_dir.joinpath(RUN_ORDER_FILE_NAME).open(mode="w") as f:
@@ -114,6 +121,8 @@ def _prepare_run_dir(uuid, run_order):
         f.write(run_order["workflow_content"])
     with run_dir.joinpath(WORKFLOW_PARAMETERS_FILE_NAME).open(mode="w") as f:
         f.write(run_order["workflow_parameters"])
+    with run_dir.joinpath(UPLOAD_INFO_FILE_NAME).open(mode="w") as f:
+        f.write(run_order["upload_info"])
     run_dir.joinpath(PID_INFO_FILE_NAME).touch()
     run_dir.joinpath(UPLOAD_URL_FILE_NAME).touch()
     run_dir.joinpath(STDOUT_FILE_NAME).touch()

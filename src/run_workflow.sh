@@ -13,7 +13,19 @@ function run_wf() {
 function run_cwltool() {
   echo "RUNNING" >$status
   local container="commonworkflowlanguage/cwltool:1.0.20191022103248"
-  ${DOCKER_CMD} ${container} --custom-net=sapporo-network workflow workflow_parameters 1>${stdout} 2>${stderr} || eval 'echo "EXECUTOR_ERROR" >$status; exit 1'
+  ${DOCKER_CMD} ${container} --custom-net=sapporo-network --outdir /work/output workflow workflow_parameters 1>${stdout} 2>${stderr} || eval 'echo "EXECUTOR_ERROR" >$status; exit 1'
+  if [[$(cat ${upload_info} | yq .protocol_name) == "s3"]]; then
+    local endpoint=$(cat ${upload_info} | yq .parameters.endpoint)
+    local access_key=$(cat ${upload_info} | yq .parameters.access_key)
+    local secret_access_key=$(cat ${upload_info} | yq .parameters.secret_access_key)
+    local bucket=$(cat ${upload_info} | yq .parameters.bucket)
+    local upload_dir=$(cat ${upload_info} | yq .parameters.upload_dir)
+    export AWS_ACCESS_KEY_ID=${access_key}
+    export AWS_SECRET_ACCESS_KEY=${secret_access_key}
+    aws --endpoint="http://${endpoint}" s3 cp --recursive ${output} "s3://${bucket}/${upload_dir}/"
+    printf "http://${endpoint}/${bucket}/${upload_dir}" >${upload_url}
+  fi
+
   echo "COMPLETE" >$status
   exit 0
 }
@@ -59,6 +71,7 @@ output_dir="${run_dir}/output"
 run_order="${run_dir}/run_order.yml"
 workflow="${run_dir}/workflow"
 workflow_parameters="${run_dir}/workflow_parameters"
+upload_info="${run_dir}/upload_info"
 status="${run_dir}/status.txt"
 pid_info="${run_dir}/run.pid"
 upload_url="${run_dir}/upload_url.txt"
