@@ -39,6 +39,14 @@ paths:
           description: ""
           schema:
             $ref: "#/definitions/RunListResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "403":
+          description: Forbidden
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         "500":
           description: An unexpected error occurred.
           schema:
@@ -51,10 +59,18 @@ paths:
         This endpoint creates a new workflow run and
         returns a `run_id` and `status` to monitor its progress.
       responses:
-        "200":
+        "201":
           description: ""
           schema:
             $ref: "#/definitions/RunResponse"
+        "400":
+          description: ""
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         "500":
           description: An unexpected error occurred.
           schema:
@@ -92,6 +108,14 @@ paths:
           description: ""
           schema:
             $ref: "#/definitions/RunLog"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "404":
+          description: Not Found
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         "500":
           description: An unexpected error occurred.
           schema:
@@ -107,10 +131,22 @@ paths:
     post:
       summary: Cancel a running workflow.
       responses:
-        "200":
+        "201":
           description: ""
           schema:
             $ref: "#/definitions/RunResponse"
+        "400":
+          description: ""
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "404":
+          description: Not Found
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         "500":
           description: An unexpected error occurred.
           schema:
@@ -132,6 +168,10 @@ paths:
           description: ""
           schema:
             $ref: "#/definitions/WorkflowList"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
         "500":
           description: An unexpected error occurred.
           schema:
