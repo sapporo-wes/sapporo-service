@@ -9,20 +9,34 @@ services:
       - /usr/bin/docker:/usr/bin/docker
       - /var/lib/docker:/var/lib/docker
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${PWD}/etc/uwsgi:/opt/SAPPORO/SAPPORO-service/etc/uwsgi
-      - ${PWD}/log/app:/opt/SAPPORO/SAPPORO-service/log/app
-      - ${PWD}/run:/opt/SAPPORO/SAPPORO-service/run
+      - ${PWD}/etc/uwsgi:${PWD}/etc/uwsgi
+      - ${PWD}/log/app:${PWD}/log/app
+      - ${PWD}/run:${PWD}/run
       - ${PWD}/run/cache:/.cache
-      - ${PWD}/service-info.yml:/opt/SAPPORO/SAPPORO-service/service-info.yml
-      - ${PWD}/src:/opt/SAPPORO/SAPPORO-service/src
-      - ${PWD}/workflow-info.yml:/opt/SAPPORO/SAPPORO-service/workflow-info.yml
+      - ${PWD}/service-info.yml:${PWD}/service-info.yml
+      - ${PWD}/src:${PWD}/src
+      - ${PWD}/workflow-info.yml:${PWD}/workflow-info.yml
     environment:
       - DEBUG=${SAPPORO_SERVICE_DEBUG:-False} # Flask debug mode
       - GET_RUNS=${SAPPORO_SERVICE_GET_RUNS:-True}
       - TOKEN_AUTH=${SAPPORO_SERVICE_TOKEN_AUTH:-False}
       - LOG_LEVEL=${SAPPORO_SERVICE_LOG_LEVEL:-INFO} # DEBUG or INFO
     user: ${UID:-0}:${DOCKER_GID:-999} # Docker group
-    command: ["uwsgi", "/opt/SAPPORO/SAPPORO-service/etc/uwsgi/uwsgi.ini"]
+    command:
+      [
+        "uwsgi",
+        "--logto",
+        "${PWD}/log/app/uwsgi.log",
+        "--chdir",
+        "${PWD}/src",
+        "--pidfile",
+        "${PWD}/log/app/uwsgi.pid",
+        "--socket",
+        "${PWD}/etc/uwsgi/uwsgi.sock",
+        "${PWD}/etc/uwsgi/uwsgi.ini",
+      ]
+
+    working_dir: ${PWD}
     networks:
       - sapporo
   web:
