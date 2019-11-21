@@ -7,6 +7,8 @@ function run_wf() {
     run_nextflow
   elif [[ ${execution_engine} == "toil" ]]; then
     run_toil
+  elif [[ ${execution_engine} == "snakemake" ]]; then
+    run_snakemake
   fi
 }
 
@@ -26,6 +28,14 @@ function run_toil() {
   :
 }
 
+function run_snakemake() {
+  echo "RUNNING" >$status
+  local container="snakemake/snakemake:v5.8.1"
+  ${DOCKER_CMD} ${container} snakemake --snakefile workflow 1>${stdout} 2>${stderr} || eval 'echo "EXECUTOR_ERROR" >$status; exit 1'
+  echo "COMPLETE" >$status
+  exit 0
+}
+
 function cancel() {
   if [[ ${execution_engine} == "cwltool" ]]; then
     cancel_cwltool
@@ -33,6 +43,8 @@ function cancel() {
     cancel_nextflow
   elif [[ ${execution_engine} == "toil" ]]; then
     cancel_toil
+  elif [[ ${execution_engine} == "snakemake" ]]; then
+    cancel_snakemake
   fi
 }
 
@@ -46,6 +58,10 @@ function cancel_nextflow() {
 
 function cancel_toil() {
   :
+}
+
+function cancel_snakemake() {
+  exit 0
 }
 
 # =============
