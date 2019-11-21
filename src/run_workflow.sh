@@ -12,7 +12,7 @@ function run_wf() {
 
 function run_cwltool() {
   echo "RUNNING" >$status
-  cwltool --custom-net=sapporo-network --outdir $run_dir $workflow $workflow_parameters 1>$stdout 2>$stderr || echo "EXECUTOR_ERROR" >$status && exit 1
+  cwltool --custom-net=sapporo-network --outdir $run_dir $workflow $workflow_parameters 1>$stdout 2>$stderr || eval 'echo "EXECUTOR_ERROR" >$status; exit 1'
   echo "COMPLETE" >$status
   exit 0
 }
@@ -65,7 +65,7 @@ stdout="${run_dir}/stdout.log"
 stderr="${run_dir}/stderr.log"
 execution_engine=$(cat ${run_order} | yq -r '.execution_engine_name')
 
-trap 'echo "SYSTEM_ERROR" > ${status_file}; exit 1' 1 2 3 15
+trap 'echo "SYSTEM_ERROR" >${status_file}; exit 1' 1 2 3 15
 trap 'cancel' 10
 
 run_wf
