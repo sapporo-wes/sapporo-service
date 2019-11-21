@@ -2,7 +2,7 @@
 
 function run_wf() {
   if [[ ${execution_engine} == "cwltool" ]]; then
-    run_cwltool
+    run_cwltool_container
   elif [[ ${execution_engine} == "nextflow" ]]; then
     run_nextflow
   elif [[ ${execution_engine} == "toil" ]]; then
@@ -67,5 +67,23 @@ execution_engine=$(cat ${run_order} | yq -r '.execution_engine_name')
 
 trap 'echo "SYSTEM_ERROR" >${status_file}; exit 1' 1 2 3 15
 trap 'cancel' 10
+
+# For runners in containers =============
+
+D_NETWORK_OPT="--network=sapporo-network"
+D_SOCK="-v /var/run/docker.sock:/var/run/docker.sock"
+D_LIB="-v /var/lib/docker:/var/lib/docker"
+D_TMP="-v /tmp:/tmp"
+DOCKER_CMD="docker run -i --rm ${D_NETWORK_OPT} ${D_SOCK} ${D_LIB} ${D_TMP} -v $(cd $run_dir && pwd):/work -w=/work"
+
+function run_cwltool_container() {
+  echo "RUNNING" >$status
+  local container="commonworkflowlanguage/cwltool:1.0.20191022103248"
+  ${DOCKER_CMD} ${container} --custom-net=sapporo-network workflow workflow_parameters 1>stdout.log 2>stderr.log || eval 'echo "EXECUTOR_ERROR" > $status; exit 1'
+  echo "COMPLETE" >$status
+  exit 0
+}
+
+# =============
 
 run_wf
