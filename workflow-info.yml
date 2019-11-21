@@ -11,3 +11,9 @@ workflows:
     workflow_parameters_template_location: https://raw.githubusercontent.com/ddbj/SAPPORO_test_workflow/master/workflow/bwa-mapping-pe/bwa-mapping-pe-upload/bwa-mapping-pe-upload.yml
     language_type: CWL
     language_version: v1.1
+  - workflow_name: helloworld_cromwell
+    workflow_version: v1.0.0
+    workflow_location: https://gist.githubusercontent.com/manabuishii/192570d725305ef3445364df923981cd/raw/7891e98f1b726e43347e01e3f09abd1bf62c72d5/helloworld-cromwell.wdl
+    workflow_parameters_template_location: https://raw.githubusercontent.com/ddbj/SAPPORO_test_workflow/master/workflow/bwa-mapping-pe/bwa-mapping-pe-upload/bwa-mapping-pe-upload.yml
+    language_type: WDL
+    language_version: 47

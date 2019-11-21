@@ -6,5 +6,10 @@ workflow_engines:
         language_version: v1.0
       - language_type: CWL
         language_version: v1.1
+  - engine_name: cromwell
+    engine_version: 47
+    workflow_types:
+      - language_type: WDL
+        language_version: 47
 auth_instructions_url: https://dummy_auth_instructions_url/
 contact_info_url: https://dummy_contact_info_url/
