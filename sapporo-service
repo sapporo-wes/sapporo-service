@@ -7,7 +7,7 @@ DOCKER_COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
 DOCKER_COMPOSE_DEV_FILE="$SCRIPT_DIR/etc/docker-compose.dev.yml"
 TOKEN_LIST_FILE="$SCRIPT_DIR/src/app/token_list.txt"
 DOCKER_GID=$(cat /etc/group | grep docker | cut -d ":" -f 3)
-PIP_PACKAGES="coverage Flask PyYAML requests uWSGI yq"
+PIP_PACKAGES="awscli coverage Flask PyYAML requests uWSGI yq"
 
 function show_base_usage() {
   cat <<EOS
