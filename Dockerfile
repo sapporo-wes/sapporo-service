@@ -5,7 +5,6 @@ RUN apt update && \
     awscli \
     build-essential \
     curl \
-    groff \
     iproute2 \
     jq \
     procps \
