@@ -7,6 +7,8 @@ function run_wf() {
     run_nextflow
   elif [[ ${execution_engine} == "toil" ]]; then
     run_toil
+  elif [[ ${execution_engine} == "cromwell" ]]; then
+    run_cromwell
   fi
 }
 
@@ -26,6 +28,14 @@ function run_toil() {
   :
 }
 
+function run_cromwell() {
+  echo "RUNNING" >$status
+  local container="broadinstitute/cromwell:47"
+  ${DOCKER_CMD} ${container} run workflow  1>${stdout} 2>${stderr} || eval 'echo "EXECUTOR_ERROR" >$status; exit 1'
+  echo "COMPLETE" >$status
+  exit 0
+}
+
 function cancel() {
   if [[ ${execution_engine} == "cwltool" ]]; then
     cancel_cwltool
@@ -33,6 +43,8 @@ function cancel() {
     cancel_nextflow
   elif [[ ${execution_engine} == "toil" ]]; then
     cancel_toil
+  elif [[ ${execution_engine} == "cromwell" ]]; then
+    cancel_cromwell
   fi
 }
 
@@ -48,6 +60,9 @@ function cancel_toil() {
   :
 }
 
+function cancel_cromwell() {
+  exit 0
+}
 # =============
 
 SCRIPT_DIR=$(cd $(dirname $0) && pwd)
