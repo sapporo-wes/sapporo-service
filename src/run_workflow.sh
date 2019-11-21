@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eEux
+set -eEx
 
 function run_wf() {
   if [[ ${execution_engine} == "cwltool" ]]; then
@@ -15,7 +15,7 @@ function run_cwltool() {
   echo "RUNNING" >${status}
   local container="commonworkflowlanguage/cwltool:1.0.20191022103248"
   ${DOCKER_CMD} ${container} --custom-net=sapporo-network --outdir /work/output workflow workflow_parameters 1>${stdout} 2>${stderr}
-  if [[ "${protocol_name}" == "s3" ]]; then
+  if [[ "${upload_protocol_name}" == "s3" ]]; then
     s3_upload
   fi
   echo "COMPLETE" >${status}
