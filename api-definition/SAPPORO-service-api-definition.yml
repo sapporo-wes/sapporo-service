@@ -221,7 +221,8 @@ definitions:
               type: array
               items:
                 type: string
-                example: [endpoint, access_key, secret_access_key]
+                example:
+                  [endpoint, access_key, secret_access_key, bucket, upload_dir]
       auth_instructions_url:
         type: string
         example: https://dummy_auth_instructions_url/
