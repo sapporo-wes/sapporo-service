@@ -1,4 +1,5 @@
 #!/bin/bash
+set -x
 
 function run_wf() {
   if [[ ${execution_engine} == "cwltool" ]]; then
@@ -14,15 +15,16 @@ function run_cwltool() {
   echo "RUNNING" >$status
   local container="commonworkflowlanguage/cwltool:1.0.20191022103248"
   ${DOCKER_CMD} ${container} --custom-net=sapporo-network --outdir /work/output workflow workflow_parameters 1>${stdout} 2>${stderr} || eval 'echo "EXECUTOR_ERROR" >$status; exit 1'
-  if [[$(cat ${upload_info} | yq .protocol_name) == "s3"]]; then
-    local endpoint=$(cat ${upload_info} | yq .parameters.endpoint)
-    local access_key=$(cat ${upload_info} | yq .parameters.access_key)
-    local secret_access_key=$(cat ${upload_info} | yq .parameters.secret_access_key)
-    local bucket=$(cat ${upload_info} | yq .parameters.bucket)
-    local upload_dir=$(cat ${upload_info} | yq .parameters.upload_dir)
+  local protocol_name=$(cat ${upload_info} | yq -r .protocol_name)
+  if [[ "${protocol_name}" == "s3" ]]; then
+    local endpoint=$(cat ${upload_info} | yq -r .parameters.endpoint)
+    local access_key=$(cat ${upload_info} | yq -r .parameters.access_key)
+    local secret_access_key=$(cat ${upload_info} | yq -r .parameters.secret_access_key)
+    local bucket=$(cat ${upload_info} | yq -r .parameters.bucket)
+    local upload_dir=$(cat ${upload_info} | yq -r .parameters.upload_dir)
     export AWS_ACCESS_KEY_ID=${access_key}
     export AWS_SECRET_ACCESS_KEY=${secret_access_key}
-    aws --endpoint="http://${endpoint}" s3 cp --recursive ${output} "s3://${bucket}/${upload_dir}/"
+    aws --endpoint="http://${endpoint}" s3 cp --recursive ${output_dir} "s3://${bucket}/${upload_dir}/" || eval 'echo "EXECUTOR_ERROR" >$status; exit 1'
     printf "http://${endpoint}/${bucket}/${upload_dir}" >${upload_url}
   fi
 
