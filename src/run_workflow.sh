@@ -32,7 +32,11 @@ function run_nextflow() {
 }
 
 function run_toil() {
-  :
+  echo "RUNNING" >$status
+  local container="quay.io/ucsc_cgl/toil:3.21.0"
+  ${DOCKER_CMD} -e TOIL_WORKDIR=/tmp ${container} toil-cwl-runner workflow workflow_parameters 1>${stdout} 2>${stderr} || eval 'echo "EXECUTOR_ERROR" >$status; exit 1'
+  echo "COMPLETE" >$status
+  exit 0
 }
 
 function cancel() {
