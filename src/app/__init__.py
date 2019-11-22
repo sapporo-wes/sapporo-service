@@ -8,7 +8,7 @@ from .controllers import bp_app
 from .util import fix_errorhandler, set_logger
 
 
-def create_app():
+def create_app() -> Flask:
     app = Flask(__name__)
     app.config.from_mapping(d_config)
     app.register_blueprint(bp_app, url_prefix="/")

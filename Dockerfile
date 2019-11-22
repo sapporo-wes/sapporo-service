@@ -2,6 +2,7 @@ FROM python:3.7.5-slim-buster
 
 RUN apt update && \
     apt install -y \
+    awscli \
     build-essential \
     curl \
     iproute2 \

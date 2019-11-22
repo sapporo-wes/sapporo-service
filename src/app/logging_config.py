@@ -1,10 +1,11 @@
 #!/usr/local/bin/python3
 # coding: utf-8
 from copy import deepcopy
+from typing import Any, Dict
 
 from .lib.util import LOG_FILE_PATH
 
-TEMPLATE = {
+TEMPLATE: Dict[str, Any] = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {

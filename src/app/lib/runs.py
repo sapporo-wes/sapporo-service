@@ -3,31 +3,32 @@
 import os
 import shlex
 import signal
-from copy import deepcopy
 from datetime import datetime
 from subprocess import PIPE, Popen
+from typing import Any, Dict, List, Tuple
 from uuid import uuid4
 
 import yaml
 
-from flask import abort
+from flask import Request, abort
 
-from .util import (PID_INFO_FILE_NAME, RUN_BASE_DIR, RUN_EXECUTION_SCRIPT_PATH,
-                   RUN_ORDER_FILE_NAME, RUN_SHELL_STDERR_FILE_NAME,
-                   RUN_SHELL_STDOUT_FILE_NAME, STATUS_FILE_NAME,
-                   STDERR_FILE_NAME, STDOUT_FILE_NAME, UPLOAD_URL_FILE_NAME,
+from .util import (OUTPUT_DIR_NAME, PID_INFO_FILE_NAME, RUN_BASE_DIR,
+                   RUN_EXECUTION_SCRIPT_PATH, RUN_ORDER_FILE_NAME,
+                   RUN_SHELL_STDERR_FILE_NAME, RUN_SHELL_STDOUT_FILE_NAME,
+                   STATUS_FILE_NAME, STDERR_FILE_NAME, STDOUT_FILE_NAME,
+                   UPLOAD_INFO_FILE_NAME, UPLOAD_URL_FILE_NAME,
                    WORKFLOW_FILE_NAME, WORKFLOW_PARAMETERS_FILE_NAME,
                    read_service_info, read_workflow_info)
 from .workflows import fetch_file
 
 
 # GET /runs
-def get_run_status_list():
+def get_run_status_list() -> List[Dict[str, str]]:
     run_status_list = []
     for status_file in RUN_BASE_DIR.glob("**/{}".format(STATUS_FILE_NAME)):
         run_status = dict()
         run_status["run_id"] = status_file.parent.name
-        _update_end_time(run_status["run_id"])
+        update_end_time(run_status["run_id"])
         with status_file.open(mode="r") as f:
             run_status["status"] = f.read().strip()
         run_status_list.append(run_status)
@@ -36,7 +37,7 @@ def get_run_status_list():
 
 
 # POST /runs
-def validate_post_runs_request(request):
+def validate_post_runs_request(request: Request) -> None:
     run_order = dict(request.form)
     if "workflow_parameters" not in request.files:
         abort(400, "Workflow parameter file not attached.")
@@ -46,7 +47,7 @@ def validate_post_runs_request(request):
 
 
 # POST /runs
-def generate_run_order(request):
+def generate_run_order(request: Request) -> Dict[str, str]:
     """
     run_order = {
         "workflow_name": str,
@@ -58,54 +59,70 @@ def generate_run_order(request):
         "language_version": str,
         "execution_engine_name": str,
         "execution_engine_version": str,
+        "upload_info": str,
         "start_time": str (datetime -> str),
         "end_time": str (datetime -> str),
     }
     """
-    run_order = deepcopy(dict(request.form))
-    run_order["workflow_parameters"] = request.files["workflow_parameters"].stream.read(  # NOQA
-    ).decode("utf-8")
-    run_order["workflow_location"], run_order["workflow_version"], run_order["workflow_content"], run_order[  # NOQA
-        "language_type"], run_order["language_version"] = _fetch_workflow_file(run_order["workflow_name"])  # NOQA
-    run_order["execution_engine_version"] = _validate_engine(
-        run_order["execution_engine_name"], run_order["language_type"], run_order["language_version"])  # NOQA
+    run_order: Dict[str, str] = dict(request.form)
+    run_order["workflow_parameters"] = \
+        request.files["workflow_parameters"].stream.read().decode("utf-8")
+    run_order["upload_info"] = \
+        request.files["upload_info"].stream.read().decode("utf-8")
+    run_order["workflow_location"], \
+        run_order["workflow_version"], \
+        run_order["workflow_content"], \
+        run_order["language_type"], \
+        run_order["language_version"] = \
+        fetch_workflow_file(run_order["workflow_name"])
+    run_order["execution_engine_version"] = \
+        validate_engine(run_order["execution_engine_name"],
+                        run_order["language_type"],
+                        run_order["language_version"])
     run_order["start_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     run_order["end_time"] = ""
 
     return run_order
 
 
-def _fetch_workflow_file(workflow_name):
+def fetch_workflow_file(workflow_name: str) -> Tuple[str, str, str, str, str]:
     workflow_info = read_workflow_info()
     for workflow in workflow_info["workflows"]:
         if workflow["workflow_name"] == workflow_name:
             workflow_content = fetch_file(workflow["workflow_location"])
-            return workflow["workflow_location"], workflow["workflow_version"], workflow_content, workflow["language_type"], workflow["language_version"]  # NOQA
+            return workflow["workflow_location"], \
+                workflow["workflow_version"], \
+                workflow_content, \
+                workflow["language_type"], \
+                workflow["language_version"]
     abort(400, "Workflow does not exist: {}".format(workflow_name))
 
 
-def _validate_engine(engine, language_type, language_version):
+def validate_engine(engine: str, language_type: str, language_version: str) \
+        -> Any:
     service_info = read_service_info()
     for workflow_engine in service_info["workflow_engines"]:
         if workflow_engine["engine_name"] == engine:
             for type_version in workflow_engine["workflow_types"]:
-                if type_version["language_type"] == language_type and type_version["language_version"] == language_version:  # NOQA
+                if type_version["language_type"] == language_type and \
+                        type_version["language_version"] == language_version:
                     return workflow_engine["engine_version"]
     abort(400, "Workflow engine parameter is incorrect.")
 
 
 # POST /runs
-def execute(run_order):
+def execute(run_order: Dict[str, str]) -> Dict[str, str]:
     uuid = str(uuid4())
-    _prepare_run_dir(uuid, run_order)
-    _fork_run(uuid)
+    prepare_run_dir(uuid, run_order)
+    fork_run(uuid)
 
     return {"run_id": uuid, "status": "PENDING"}
 
 
-def _prepare_run_dir(uuid, run_order):
+def prepare_run_dir(uuid: str, run_order: Dict[str, str]) -> None:
     run_dir = RUN_BASE_DIR.joinpath(uuid[:2]).joinpath(uuid)
-    run_dir.mkdir(parents=True)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    run_dir.joinpath(OUTPUT_DIR_NAME).mkdir(parents=True, exist_ok=True)
     with run_dir.joinpath(STATUS_FILE_NAME).open(mode="w") as f:
         f.write("QUEUED")
     with run_dir.joinpath(RUN_ORDER_FILE_NAME).open(mode="w") as f:
@@ -114,15 +131,15 @@ def _prepare_run_dir(uuid, run_order):
         f.write(run_order["workflow_content"])
     with run_dir.joinpath(WORKFLOW_PARAMETERS_FILE_NAME).open(mode="w") as f:
         f.write(run_order["workflow_parameters"])
+    with run_dir.joinpath(UPLOAD_INFO_FILE_NAME).open(mode="w") as f:
+        f.write(run_order["upload_info"])
     run_dir.joinpath(PID_INFO_FILE_NAME).touch()
     run_dir.joinpath(UPLOAD_URL_FILE_NAME).touch()
     run_dir.joinpath(STDOUT_FILE_NAME).touch()
     run_dir.joinpath(STDERR_FILE_NAME).touch()
 
-    return True
 
-
-def _fork_run(uuid):
+def fork_run(uuid: str) -> None:
     run_dir = RUN_BASE_DIR.joinpath(uuid[:2]).joinpath(uuid)
     run_shell_stdout_file = run_dir.joinpath(RUN_SHELL_STDOUT_FILE_NAME)
     run_shell_stderr_file = run_dir.joinpath(RUN_SHELL_STDERR_FILE_NAME)
@@ -137,9 +154,9 @@ def _fork_run(uuid):
 
 
 # GET /runs/<uuid:run_id>
-def get_run_info(run_id):
-    _update_end_time(run_id)
-    run_info = dict()
+def get_run_info(run_id: str) -> Dict[str, str]:
+    update_end_time(run_id)
+    run_info: Dict[str, str] = dict()
     run_info["run_id"] = run_id
     run_dir = list(RUN_BASE_DIR.glob("**/{}".format(run_id)))[0]
     with run_dir.joinpath(STATUS_FILE_NAME).open(mode="r") as f:
@@ -157,7 +174,7 @@ def get_run_info(run_id):
     return run_info
 
 
-def _update_end_time(run_id):
+def update_end_time(run_id: str) -> None:
     run_dir = list(RUN_BASE_DIR.glob("**/{}".format(run_id)))[0]
     status_file = run_dir.joinpath(STATUS_FILE_NAME)
     with status_file.open(mode="r") as f:
@@ -165,14 +182,15 @@ def _update_end_time(run_id):
     if run_status not in ["QUEUED", "RUNNING"]:
         with run_dir.joinpath(RUN_ORDER_FILE_NAME).open(mode="r") as f:
             run_order = yaml.load(f, Loader=yaml.SafeLoader)
-            run_order["end_time"] = datetime.fromtimestamp(
-                status_file.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+            file_time = status_file.stat().st_mtime
+            run_order["end_time"] = \
+                datetime.fromtimestamp(file_time).strftime("%Y-%m-%d %H:%M:%S")
         with run_dir.joinpath(RUN_ORDER_FILE_NAME).open(mode="w") as f:
             f.write(yaml.dump(run_order, default_flow_style=False))
 
 
 # POST /runs/<uuid:run_id>/cancel
-def cancel_run(run_id):
+def cancel_run(run_id: str) -> Dict[str, str]:
     run_dir = list(RUN_BASE_DIR.glob("**/{}".format(run_id)))[0]
     status_file = run_dir.joinpath(STATUS_FILE_NAME)
     with status_file.open(mode="r") as f:
