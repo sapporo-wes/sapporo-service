@@ -6,7 +6,13 @@ workflow_engines:
         language_version: v1.0
       - language_type: CWL
         language_version: v1.1
-upload_protocols:
+  - engine_name: toil
+    engine_version: 3.21.0
+    workflow_types:
+      - language_type: CWL
+        language_version: v1.0
+      - language_type: CWL
+        language_version: v1.1upload_protocols:
   - protocol_name: s3
     parameters:
       - endpoint
