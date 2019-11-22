@@ -21,7 +21,7 @@ function run_cwltool() {
 function run_nextflow() {
   echo "RUNNING" >$status
   local container="nextflow/nextflow:19.10.0"
-  ${DOCKER_CMD} ${container} nextflow run workflow 1>${stdout} 2>${stderr} || eval 'echo "EXECUTOR_ERROR" >$status; exit 1'
+  ${DOCKER_CMD} ${container} nextflow run workflow -params-file workflow_parameters 1>${stdout} 2>${stderr} || eval 'echo "EXECUTOR_ERROR" >$status; exit 1'
   echo "COMPLETE" >$status
   exit 0
   :
