@@ -23,15 +23,15 @@ paths:
           description: ""
           schema:
             $ref: "#/definitions/ServiceInfo"
-        "400":
-          description: The request is malformed.
+        "500":
+          description: An unexpected error occurred.
           schema:
             $ref: "#/definitions/ErrorResponse"
       tags:
         - WorkflowExecutionService
   /runs:
     get:
-      summary: List the workflow runs.
+      summary: Get the list of runs.
       description: |-
         Get a list of workflow runs that the service has executed or is executing.
       responses:
@@ -39,8 +39,16 @@ paths:
           description: ""
           schema:
             $ref: "#/definitions/RunListResponse"
-        "400":
-          description: The request is malformed.
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "403":
+          description: Forbidden
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: An unexpected error occurred.
           schema:
             $ref: "#/definitions/ErrorResponse"
       tags:
@@ -51,20 +59,16 @@ paths:
         This endpoint creates a new workflow run and
         returns a `run_id` and `status` to monitor its progress.
       responses:
-        "200":
+        "201":
           description: ""
           schema:
             $ref: "#/definitions/RunResponse"
         "400":
-          description: The request is malformed.
+          description: ""
           schema:
             $ref: "#/definitions/ErrorResponse"
         "401":
-          description: The request is unauthorized.
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-        "403":
-          description: The requester is not authorized to perform this action.
+          description: Unauthorized
           schema:
             $ref: "#/definitions/ErrorResponse"
         "500":
@@ -84,6 +88,10 @@ paths:
           name: workflow_parameters
           type: file
           format: "text/plane"
+        - in: formData
+          name: upload_info
+          type: file
+          format: "text/plane"
       tags:
         - WorkflowExecutionService
   /runs/{run_id}:
@@ -100,8 +108,16 @@ paths:
           description: ""
           schema:
             $ref: "#/definitions/RunLog"
-        "400":
-          description: The request is malformed.
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "404":
+          description: Not Found
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: An unexpected error occurred.
           schema:
             $ref: "#/definitions/ErrorResponse"
       parameters:
@@ -115,12 +131,24 @@ paths:
     post:
       summary: Cancel a running workflow.
       responses:
-        "200":
+        "201":
           description: ""
           schema:
             $ref: "#/definitions/RunResponse"
         "400":
-          description: The request is malformed.
+          description: ""
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "404":
+          description: Not Found
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: An unexpected error occurred.
           schema:
             $ref: "#/definitions/ErrorResponse"
       parameters:
@@ -140,8 +168,12 @@ paths:
           description: ""
           schema:
             $ref: "#/definitions/WorkflowList"
-        "400":
-          description: The request is malformed.
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: An unexpected error occurred.
           schema:
             $ref: "#/definitions/ErrorResponse"
       tags:
@@ -177,6 +209,20 @@ definitions:
                 simply contains an array of one or more version strings
         description: >-
           The engine(s) used by this WES service, key is engine name (e.g. Cromwell) and value is version
+      upload_protocols:
+        type: array
+        items:
+          type: object
+          properties:
+            protocol_name:
+              type: string
+              example: s3
+            parameters:
+              type: array
+              items:
+                type: string
+                example:
+                  [endpoint, access_key, secret_access_key, bucket, upload_dir]
       auth_instructions_url:
         type: string
         example: https://dummy_auth_instructions_url/
@@ -209,8 +255,7 @@ definitions:
         example: COMPLETE
         description: The status of the run e.g. (PENDING, RUNNING, FINISH, CANCELED, COMPLETE, SYSTEM_ERROR, EXECUTOR_ERROR)
     description: >-
-      A list of workflow runs that the service has executed or is executing.
-      The list is filtered to only include runs that the caller has permission to see.
+      A run information that the service has executed or is executing.
   RunLog:
     type: object
     properties:
@@ -278,39 +323,41 @@ definitions:
         type: string
         example: v1.0
     description: Available workflow types supported by a given instance of the service.
+  Workflow:
+    type: object
+    properties:
+      workflow_name:
+        type: string
+        example: bwa_mapping_pe
+      workflow_version:
+        type: string
+        example: 0c33f861553629b1e6fb4161686ab47670c9ed97
+        description: Such as a GitHub commit id.
+      workflow_location:
+        type: string
+        example: "https://github.com/suecharo/SAPPORO/raw/develop/SAPPORO-service/test_workflow/bwa_mapping_pe.cwl"
+      workflow_content:
+        type: string
+        description: Workflow file's content.
+      workflow_parameters_template_location:
+        type: string
+        example: "https://github.com/suecharo/SAPPORO/raw/develop/SAPPORO-service/test_workflow/bwa_mapping_pe_run_template.yml"
+      workflow_parameters_template:
+        type: string
+        description: Workflow template file's content.
+      language_type:
+        type: string
+        example: CWL
+      language_version:
+        type: string
+        example: v1.0
   WorkflowList:
     type: object
     properties:
       workflows:
         type: array
         items:
-          type: object
-          properties:
-            workflow_name:
-              type: string
-              example: bwa_mapping_pe
-            workflow_version:
-              type: string
-              example: 0c33f861553629b1e6fb4161686ab47670c9ed97
-              description: Such as a GitHub commit id.
-            workflow_location:
-              type: string
-              example: "https://github.com/suecharo/SAPPORO/raw/develop/SAPPORO-service/test_workflow/bwa_mapping_pe.cwl"
-            workflow_content:
-              type: string
-              description: Workflow file's content.
-            workflow_parameters_template_location:
-              type: string
-              example: "https://github.com/suecharo/SAPPORO/raw/develop/SAPPORO-service/test_workflow/bwa_mapping_pe_run_template.yml"
-            workflow_parameters_template:
-              type: string
-              description: Workflow template file's content.
-            language_type:
-              type: string
-              example: CWL
-            language_version:
-              type: string
-              example: v1.0
+          $ref: "#/definitions/Workflow"
   ErrorResponse:
     description: >-
       An object that can optionally include information about the error.

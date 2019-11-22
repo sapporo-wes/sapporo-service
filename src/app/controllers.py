@@ -1,5 +1,7 @@
 #!/usr/local/bin/python3
 # coding: utf-8
+from typing import Any
+
 from flask import Blueprint, abort, jsonify, request
 
 from .config import GET_RUNS
@@ -13,8 +15,7 @@ bp_app = Blueprint("app", __name__)
 
 
 @bp_app.route("/service-info", methods=["GET"])
-@token_auth
-def get_service_info():
+def get_service_info() -> Any:
     data = read_service_info()
     response = jsonify(data)
     response.status_code = 200
@@ -23,7 +24,7 @@ def get_service_info():
 
 @bp_app.route("/workflows", methods=["GET"])
 @token_auth
-def get_workflows_list():
+def get_workflows_list() -> Any:
     data = generate_workflow_list()
     response = jsonify(data)
     response.status_code = 200
@@ -32,7 +33,7 @@ def get_workflows_list():
 
 @bp_app.route("/runs", methods=["GET"])
 @token_auth
-def get_runs():
+def get_runs() -> Any:
     if GET_RUNS:
         data = get_run_status_list()
         response = jsonify(data)
@@ -44,7 +45,7 @@ def get_runs():
 
 @bp_app.route("/runs", methods=["POST"])
 @token_auth
-def post_runs():
+def post_runs() -> Any:
     validate_post_runs_request(request)
     run_order = generate_run_order(request)
     data = execute(run_order)
@@ -55,7 +56,7 @@ def post_runs():
 
 @bp_app.route("/runs/<uuid:run_id>", methods=["GET"])
 @token_auth
-def get_runs_uuid(run_id):
+def get_runs_uuid(run_id: str) -> Any:
     data = get_run_info(run_id)
     response = jsonify(data)
     response.status_code = 200
@@ -64,7 +65,7 @@ def get_runs_uuid(run_id):
 
 @bp_app.route("/runs/<uuid:run_id>/cancel", methods=["POST"])
 @token_auth
-def post_runs_cancel(run_id):
+def post_runs_cancel(run_id: str) -> Any:
     data = cancel_run(run_id)
     response = jsonify(data)
     response.status_code = 201
