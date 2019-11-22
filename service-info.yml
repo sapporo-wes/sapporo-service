@@ -16,3 +16,5 @@ upload_protocols:
       - upload_dir
 auth_instructions_url: https://dummy_auth_instructions_url/
 contact_info_url: https://dummy_contact_info_url/
+supported_wes_versions:
+  - SapporoWES-v1.0.0

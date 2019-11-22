@@ -3,11 +3,12 @@
 import os
 import secrets
 from distutils.util import strtobool
+from typing import Dict, Optional, Union
 
 from .lib.util import SECRET_KEY_FILE_PATH
 
 
-def str2bool(arg):
+def str2bool(arg: Optional[str]) -> bool:
     if isinstance(arg, str):
         try:
             if strtobool(arg):
@@ -26,7 +27,7 @@ def str2bool(arg):
             return False
 
 
-def generate_secret_key():
+def generate_secret_key() -> str:
     if SECRET_KEY_FILE_PATH.exists():
         with SECRET_KEY_FILE_PATH.open(mode="r") as f:
             for line in f.readlines():
@@ -40,9 +41,9 @@ def generate_secret_key():
     return secret_key
 
 
-def generate_d_config():
-    d_config = dict()
-    d_config["DEBUG"] = str2bool(os.environ.get("DEBUG", True))
+def generate_d_config() -> Dict[str, Union[str, bool]]:
+    d_config: Dict[str, Union[str, bool]] = dict()
+    d_config["DEBUG"] = str2bool(os.environ.get("DEBUG", "True"))
     if d_config["DEBUG"]:
         d_config["ENV"] = "development"
         d_config["TESTING"] = True
@@ -59,6 +60,6 @@ def generate_d_config():
 
 
 d_config = generate_d_config()
-GET_RUNS = str2bool(os.environ.get("GET_RUNS", True))
-TOKEN_AUTH = str2bool(os.environ.get("TOKEN_AUTH", False))
+GET_RUNS = str2bool(os.environ.get("GET_RUNS", "True"))
+TOKEN_AUTH = str2bool(os.environ.get("TOKEN_AUTH", "False"))
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "DEBUG")
