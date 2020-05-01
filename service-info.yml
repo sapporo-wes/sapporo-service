@@ -12,7 +12,7 @@ workflow_engines:
       - language_type: CWL
         language_version: v1.0
       - language_type: CWL
-        language_version: v1.1upload_protocols:
+        language_version: v1.1
   - engine_name: nextflow
     engine_version: 19.10.0
     workflow_types:
