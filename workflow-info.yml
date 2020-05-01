@@ -23,3 +23,9 @@ workflows:
     workflow_parameters_template_location: https://gist.githubusercontent.com/manabuishii/055d78232a9d7d1e2061a6a3248f901c/raw/9af2ed20c6b0fef1fccaeca377f1d15e0afe45ce/basic-nf-parameter-template.yml
     language_type: Nextflow
     language_version: 19.10.0
+  - workflow_name: helloworld_cromwell
+    workflow_version: v1.0.0
+    workflow_location: https://gist.githubusercontent.com/manabuishii/192570d725305ef3445364df923981cd/raw/7891e98f1b726e43347e01e3f09abd1bf62c72d5/helloworld-cromwell.wdl
+    workflow_parameters_template_location: https://raw.githubusercontent.com/ddbj/SAPPORO_test_workflow/master/workflow/bwa-mapping-pe/bwa-mapping-pe-upload/bwa-mapping-pe-upload.yml
+    language_type: WDL
+    language_version: 47

@@ -18,6 +18,11 @@ workflow_engines:
     workflow_types:
       - language_type: Nextflow
         language_version: 19.10.0
+  - engine_name: cromwell
+    engine_version: 47
+    workflow_types:
+      - language_type: WDL
+        language_version: 47
 upload_protocols:
   - protocol_name: s3
     parameters:
