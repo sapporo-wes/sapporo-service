@@ -561,6 +561,14 @@ definitions:
           The workflow CWL or WDL document.
           When `workflow_attachments` is used to attach files, the `workflow_url` may be a relative path
           to one of the attachments.
+      workflow_name:
+        type: string
+        description: >-
+          OPTIONAL
+
+          The `workflow_name` is only used when SAPPORO is in the mode to
+          execute only registered workflows. In the original EWS, it is
+          OPTIONAL. To see the registered workflows, use `GET /service-info`.
     description: |-
       To execute a workflow, send a run request including all the details needed to begin downloading
       and executing a given workflow.
