@@ -127,6 +127,11 @@ paths:
         `workflow_attachment`.
 
 
+        The `workflow_name` is only used when SAPPORO is in the mode to
+        execute only registered workflows. In the original EWS, it is
+        OPTIONAL. To see the registered workflows, use `GET /service-info`.
+
+
         The `workflow_params` JSON object specifies input parameters,
         such as input files. The exact format of the JSON object
         depends on the conventions of the workflow language being
@@ -198,6 +203,10 @@ paths:
 
         - in: formData
           name: workflow_url
+          type: string
+
+        - in: formData
+          name: workflow_name
           type: string
 
         - in: formData
