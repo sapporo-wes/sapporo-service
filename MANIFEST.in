@@ -1,2 +1,3 @@
+include sapporo/run.sh
 include sapporo/service-info.json
 include sapporo/workflows.json
