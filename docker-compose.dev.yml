@@ -12,9 +12,9 @@ services:
     environment:
       - SAPPORO_HOST=0.0.0.0
       - SAPPORO_PORT=8080
-      - SAPPORO_DEBUG=False
+      - SAPPORO_DEBUG=True
     ports:
       - 8080:8080
     restart: always
     working_dir: ${PWD}
-    command: ["sapporo"]
+    command: ["/bin/bash", "./entrypoint.dev.sh"]
