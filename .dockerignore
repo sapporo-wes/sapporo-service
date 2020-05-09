@@ -1,0 +1,8 @@
+.dockerignore
+.git
+.github
+.gitignore
+docker-compose.dev.yml
+docker-compose.yml
+Dockerfile
+run
