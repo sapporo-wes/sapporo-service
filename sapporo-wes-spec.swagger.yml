@@ -197,6 +197,10 @@ paths:
           format: application/json
 
         - in: formData
+          name: workflow_engine_name
+          type: string
+
+        - in: formData
           name: workflow_engine_parameters
           type: string
           format: application/json
@@ -544,6 +548,12 @@ definitions:
         description: |-
           OPTIONAL
           A key-value map of arbitrary metadata outside the scope of `workflow_params` but useful to track with this run request
+      workflow_engine_name:
+        type: string
+        description: >-
+          OPTIONAL
+
+          Specify the name of the workflow engine to run workflow.
       workflow_engine_parameters:
         type: object
         additionalProperties:

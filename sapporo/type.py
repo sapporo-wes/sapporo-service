@@ -247,6 +247,8 @@ class RunRequest(TypedDict):
     tags:
         A key-value map of arbitrary metadata outside the scope of
         `workflow_params` but useful to track with this run request
+    workflow_engine_name:
+        Specify the name of the workflow engine to run workflow.
     workflow_engine_parameters:
         Additional parameters can be sent to the workflow engine using this
         field. Default values for these parameters can be obtained using the
@@ -275,6 +277,7 @@ class RunRequest(TypedDict):
     workflow_type: str
     workflow_type_version: str
     tags: str
+    workflow_engine_name: str
     workflow_engine_parameters: str
     workflow_url: str
     workflow_name: str
