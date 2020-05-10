@@ -13,6 +13,9 @@ services:
       - SAPPORO_HOST=0.0.0.0
       - SAPPORO_PORT=8080
       - SAPPORO_DEBUG=True
+      - SAPPORO_RUN_DIR=${PWD}/run
+      - SAPPORO_GET_RUNS=True
+      - SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS=False
     ports:
       - 8080:8080
     restart: always
