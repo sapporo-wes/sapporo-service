@@ -1,0 +1,23 @@
+{
+  "workflow_type_versions": {
+    "CWL": {
+      "workflow_type_version": []
+    }
+  },
+  "supported_wes_versions": ["1.0.0"],
+  "supported_filesystem_protocols": ["http", "https", "file"],
+  "workflow_engine_versions": {
+    "cwltool": ""
+  },
+  "default_workflow_engine_parameters": [],
+  "system_state_counts": {},
+  "auth_instructions_url": "https://github.com/suecharo/genpei",
+  "contact_info_url": "https://github.com/suecharo/genpei",
+  "tags": {
+    "wes_name": "sapporo",
+    "debug": "",
+    "run_dir": "",
+    "get_runs": "",
+    "registered_only_mode": ""
+  }
+}
