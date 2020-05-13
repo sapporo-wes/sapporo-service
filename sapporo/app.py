@@ -136,7 +136,7 @@ def handle_default_port(port: Optional[List[str]]) -> int:
 
 def handle_default_debug(debug: bool) -> bool:
     if debug is False:
-        return bool(os.environ.get("SAPPORO_DEBUG", False))
+        return str2bool(os.environ.get("SAPPORO_DEBUG", False))
 
     return True
 
@@ -158,16 +158,22 @@ def handle_default_get_runs(disable_get_runs: bool) -> bool:
     if disable_get_runs:
         return False
     else:
-        return bool(os.environ.get("SAPPORO_GET_RUNS", True))
+        return str2bool(os.environ.get("SAPPORO_GET_RUNS", True))
 
 
 def handle_default_registered_only_mode(run_only_registered_workflows: bool) \
         -> bool:
     if run_only_registered_workflows is False:
-        return bool(os.environ.get("SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS",
-                                   False))
+        return str2bool(os.environ.get("SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS",
+                                       False))
 
     return True
+
+
+def str2bool(val: Union[str, bool]) -> bool:
+    if isinstance(val, bool):
+        return val
+    return False if val.lower() in ["false", "no", "n"] else bool(val)
 
 
 def fix_errorhandler(app: Flask) -> Flask:
@@ -194,6 +200,8 @@ def fix_errorhandler(app: Flask) -> Flask:
                    "unable to complete your request.",
             "status_code": 500,
         }
+        if current_app.config["TESTING"]:
+            res_body["msg"] = format_exc()
         response: Response = jsonify(res_body)
         response.status_code = 500
         return response
@@ -204,13 +212,13 @@ def fix_errorhandler(app: Flask) -> Flask:
 def create_app(params: Dict[str, Union[str, int, Path]]) -> Flask:
     app = Flask(__name__)
     app.register_blueprint(app_bp)
-    fix_errorhandler(app)
-    app.config["RUN_DIR"] = params.run_dir
-    app.config["GET_RUNS"] = params.get_runs
-    app.config["REGISTERED_ONLY_MODE"] = params.registered_only_mode
-    app.config["SERVICE_INFO"] = params.service_info
-    app.config["WORKFLOWS_FETCH_CONFIG"] = params.workflows_fetch_config
-    app.config["RUN_SH"] = params.run_sh
+    # fix_errorhandler(app)
+    app.config["RUN_DIR"] = params["run_dir"]
+    app.config["GET_RUNS"] = params["get_runs"]
+    app.config["REGISTERED_ONLY_MODE"] = params["registered_only_mode"]
+    app.config["SERVICE_INFO"] = params["service_info"]
+    app.config["WORKFLOWS_FETCH_CONFIG"] = params["workflows_fetch_config"]
+    app.config["RUN_SH"] = params["run_sh"]
 
     return app
 
@@ -219,7 +227,9 @@ def main(sys_args: List[str]) -> None:
     args: Namespace = parse_args(sys_args)
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
     app: Flask = create_app(params)
-    app.run(host=params.host, port=params.port, debug=params.debug)
+    app.run(host=params["host"],  # type: ignore
+            port=params["port"],  # type: ignore
+            debug=params["debug"])  # type: ignore
 
 
 if __name__ == "__main__":

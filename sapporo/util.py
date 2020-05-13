@@ -8,12 +8,12 @@ from uuid import uuid4
 
 from flask import current_app
 
-from sapporo.const import RUN_DIR_STRUCTURE, SERVICE_INFO_JSON, WORKFLOWS_JSON
+from sapporo.const import RUN_DIR_STRUCTURE
 from sapporo.type import ServiceInfo, State, Workflow
 
 
 def generate_service_info() -> ServiceInfo:
-    with SERVICE_INFO_JSON.open(mode="r") as f:
+    with current_app.config["SERVICE_INFO"].open(mode="r") as f:
         service_info: ServiceInfo = json.load(f)
 
     if current_app.config["REGISTERED_ONLY_MODE"]:
@@ -81,7 +81,9 @@ def count_system_state() -> Dict[str, int]:
 
 def get_workflows() -> List[Workflow]:
     workflows: List[Workflow]
-    with WORKFLOWS_JSON.open(mode="r") as f:
-        workflows = json.load(f)
+    # with WORKFLOWS.open(mode="r") as f:
+    #     workflows = json.load(f)
+
+    workflows = []  # TODO fix
 
     return workflows
