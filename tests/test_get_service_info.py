@@ -30,9 +30,9 @@ def test_original_wes_mode(delete_env_vars: None) -> None:
     assert res_data["supported_wes_versions"][0] == "1.0.0"
     assert "system_state_counts" in res_data
     assert "tags" in res_data
-    assert res_data["tags"]["debug"] == "False"
-    assert res_data["tags"]["get_runs"] == "True"
-    assert res_data["tags"]["registered_only_mode"] == "False"
+    assert bool(res_data["tags"]["debug"]) is False
+    assert bool(res_data["tags"]["get_runs"]) is True
+    assert bool(res_data["tags"]["registered_only_mode"]) is False
     assert "run_dir" in res_data["tags"]
     assert res_data["tags"]["wes_name"] == "sapporo"
     assert "workflow_engine_versions" in res_data
@@ -63,9 +63,9 @@ def test_registered_only_mode(delete_env_vars: None) -> None:
     assert res_data["supported_wes_versions"][0] == "sapporo-wes-1.1"
     assert "system_state_counts" in res_data
     assert "tags" in res_data
-    assert res_data["tags"]["debug"] == "True"
-    assert res_data["tags"]["get_runs"] == "False"
-    assert res_data["tags"]["registered_only_mode"] == "True"
+    assert bool(res_data["tags"]["debug"]) is True
+    assert bool(res_data["tags"]["get_runs"]) is False
+    assert bool(res_data["tags"]["registered_only_mode"]) is True
     assert "run_dir" in res_data["tags"]
     assert res_data["tags"]["wes_name"] == "sapporo"
     assert "workflow_engine_versions" in res_data
