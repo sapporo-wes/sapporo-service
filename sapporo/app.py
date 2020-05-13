@@ -66,7 +66,6 @@ def parse_args(sys_args: List[str]) -> Namespace:
     )
     parser.add_argument(
         "--service-info",
-        type=str,
         nargs=1,
         metavar="",
         help="Specify `service-info.json`. The supported_wes_versions, " +
@@ -75,14 +74,12 @@ def parse_args(sys_args: List[str]) -> Namespace:
     )
     parser.add_argument(
         "--workflows-fetch-config",
-        type=str,
         nargs=1,
         metavar="",
         help="Specify `workflows-fetch-config.json`."
     )
     parser.add_argument(
         "--run-sh",
-        type=str,
         nargs=1,
         metavar="",
         help="Specify `run.sh`."
@@ -212,7 +209,7 @@ def fix_errorhandler(app: Flask) -> Flask:
 def create_app(params: Dict[str, Union[str, int, Path]]) -> Flask:
     app = Flask(__name__)
     app.register_blueprint(app_bp)
-    # fix_errorhandler(app)
+    fix_errorhandler(app)
     app.config["RUN_DIR"] = params["run_dir"]
     app.config["GET_RUNS"] = params["get_runs"]
     app.config["REGISTERED_ONLY_MODE"] = params["registered_only_mode"]
@@ -223,8 +220,8 @@ def create_app(params: Dict[str, Union[str, int, Path]]) -> Flask:
     return app
 
 
-def main(sys_args: List[str]) -> None:
-    args: Namespace = parse_args(sys_args)
+def main() -> None:
+    args: Namespace = parse_args(sys.argv[1:])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
     app: Flask = create_app(params)
     app.run(host=params["host"],  # type: ignore
@@ -233,4 +230,4 @@ def main(sys_args: List[str]) -> None:
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()
