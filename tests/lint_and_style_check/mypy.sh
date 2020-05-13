@@ -10,6 +10,7 @@ BASE_DIR=$(
 
 mypy --strict \
     --allow-untyped-calls \
+    --allow-untyped-decorators \
     --ignore-missing-imports \
     --no-warn-unused-ignores \
     ${BASE_DIR}
