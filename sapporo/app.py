@@ -2,20 +2,23 @@
 # coding: utf-8
 import argparse
 import os
+import sys
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from traceback import format_exc
-from typing import List, Optional
+from typing import Dict, List, Optional, Union
 
 from flask import Flask, Response, current_app, jsonify
 from werkzeug.exceptions import HTTPException
 
-from sapporo.const import DEFAULT_HOST, DEFAULT_PORT, DEFAULT_RUN_DIR
+from sapporo.const import (DEFAULT_HOST, DEFAULT_PORT, DEFAULT_RUN_DIR,
+                           DEFAULT_RUN_SH, DEFAULT_SERVICE_INFO,
+                           DEFAULT_WORKFLOWS_FETCH_CONFIG)
 from sapporo.controller import app_bp
 from sapporo.type import ErrorResponse
 
 
-def parse_args() -> Namespace:
+def parse_args(sys_args: List[str]) -> Namespace:
     parser: ArgumentParser = argparse.ArgumentParser(
         description="Implementation of a GA4GH workflow execution " +
                     "service that can easily support various " +
@@ -23,16 +26,16 @@ def parse_args() -> Namespace:
 
     parser.add_argument(
         "--host",
-        nargs=1,
         type=str,
+        nargs=1,
         metavar="",
         help=f"Host address of Flask. (default: {DEFAULT_HOST})"
     )
     parser.add_argument(
         "-p",
         "--port",
-        nargs=1,
         type=int,
+        nargs=1,
         metavar="",
         help=f"Port of Flask. (default: {DEFAULT_PORT})"
     )
@@ -44,8 +47,8 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "-r",
         "--run-dir",
-        nargs=1,
         type=str,
+        nargs=1,
         metavar="",
         help="Specify the run dir. (default: ./run)"
     )
@@ -61,10 +64,60 @@ def parse_args() -> Namespace:
              "workflows using `GET /service-info`, and specify " +
              "`workflow_name` in the `POST /run`."
     )
+    parser.add_argument(
+        "--service-info",
+        type=str,
+        nargs=1,
+        metavar="",
+        help="Specify `service-info.json`. The supported_wes_versions, " +
+             "system_state_counts and workflows are overwritten in the " +
+             "application."
+    )
+    parser.add_argument(
+        "--workflows-fetch-config",
+        type=str,
+        nargs=1,
+        metavar="",
+        help="Specify `workflows-fetch-config.json`."
+    )
+    parser.add_argument(
+        "--run-sh",
+        type=str,
+        nargs=1,
+        metavar="",
+        help="Specify `run.sh`."
+    )
 
-    args: Namespace = parser.parse_args()
+    args: Namespace = parser.parse_args(sys_args)
 
     return args
+
+
+def handle_default_params(args: Namespace) -> Dict[str, Union[str, int, Path]]:
+    params: Dict[str, Union[str, int, Path]] = {
+        "host": handle_default_host(args.host),
+        "port": handle_default_port(args.port),
+        "debug": handle_default_debug(args.debug),
+        "run_dir": handle_default_path(args.run_dir,
+                                       "SAPPORO_RUN_DIR",
+                                       DEFAULT_RUN_DIR),
+        "get_runs": handle_default_get_runs(args.disable_get_runs),
+        "registered_only_mode":
+            handle_default_registered_only_mode(
+                args.run_only_registered_workflows),
+        "service_info": handle_default_path(args.service_info,
+                                            "SAPPORO_SERVICE_INFO",
+                                            DEFAULT_SERVICE_INFO),
+        "workflows_fetch_config":
+            handle_default_path(args.workflows_fetch_config,
+                                "SAPPORO_WORKFLOWS_FETCH_CONFIG",
+                                DEFAULT_WORKFLOWS_FETCH_CONFIG),
+        "run_sh": handle_default_path(args.run_sh,
+                                      "SAPPORO_RUN_SH",
+                                      DEFAULT_RUN_SH),
+    }
+
+    return params
 
 
 def handle_default_host(host: Optional[List[str]]) -> str:
@@ -85,19 +138,20 @@ def handle_default_debug(debug: bool) -> bool:
     if debug is False:
         return bool(os.environ.get("SAPPORO_DEBUG", False))
 
-    return debug
+    return True
 
 
-def handle_default_run_dir(run_dir: Optional[List[str]]) -> Path:
-    run_dir_path: Path
-    if run_dir is None:
-        run_dir_path = Path(os.environ.get("SAPPORO_RUN_DIR", DEFAULT_RUN_DIR))
+def handle_default_path(input_arg: Optional[List[str]], env_var: str,
+                        default_val: Path) -> Path:
+    handled_path: Path
+    if input_arg is None:
+        handled_path = Path(os.environ.get(env_var, default_val))
     else:
-        run_dir_path = Path(run_dir[0])
-    if not run_dir_path.is_absolute():
-        run_dir_path = Path.cwd().joinpath(run_dir_path).resolve()
+        handled_path = Path(input_arg[0])
+    if not handled_path.is_absolute():
+        handled_path = Path.cwd().joinpath(handled_path).resolve()
 
-    return run_dir_path
+    return handled_path
 
 
 def handle_default_get_runs(disable_get_runs: bool) -> bool:
@@ -109,11 +163,11 @@ def handle_default_get_runs(disable_get_runs: bool) -> bool:
 
 def handle_default_registered_only_mode(run_only_registered_workflows: bool) \
         -> bool:
-    if run_only_registered_workflows:
-        return True
-    else:
+    if run_only_registered_workflows is False:
         return bool(os.environ.get("SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS",
                                    False))
+
+    return True
 
 
 def fix_errorhandler(app: Flask) -> Flask:
@@ -147,36 +201,26 @@ def fix_errorhandler(app: Flask) -> Flask:
     return app
 
 
-def create_app(run_dir: Path, get_runs: bool, registered_only_mode: bool) \
-        -> Flask:
+def create_app(params: Dict[str, Union[str, int, Path]]) -> Flask:
     app = Flask(__name__)
     app.register_blueprint(app_bp)
     fix_errorhandler(app)
-    app.config["RUN_DIR"] = run_dir
-    app.config["GET_RUNS"] = get_runs
-    app.config["REGISTERED_ONLY_MODE"] = registered_only_mode
+    app.config["RUN_DIR"] = params.run_dir
+    app.config["GET_RUNS"] = params.get_runs
+    app.config["REGISTERED_ONLY_MODE"] = params.registered_only_mode
+    app.config["SERVICE_INFO"] = params.service_info
+    app.config["WORKFLOWS_FETCH_CONFIG"] = params.workflows_fetch_config
+    app.config["RUN_SH"] = params.run_sh
 
     return app
 
 
-def run(host: str, port: int, debug: bool, run_dir: Path,
-        get_runs: bool, registered_only_mode: bool) -> None:
-    app: Flask = create_app(run_dir, get_runs, registered_only_mode)
-    app.run(host=host, port=port, debug=debug)
-
-
-def main() -> None:
-    args: Namespace = parse_args()
-    host: str = handle_default_host(args.host)
-    port: int = handle_default_port(args.port)
-    debug: bool = handle_default_debug(args.debug)
-    run_dir: Path = handle_default_run_dir(args.run_dir)
-    get_runs: bool = handle_default_get_runs(args.disable_get_runs)
-    registered_only_mode: bool = \
-        handle_default_registered_only_mode(args.run_only_registered_workflows)
-
-    run(host, port, debug, run_dir, get_runs, registered_only_mode)
+def main(sys_args: List[str]) -> None:
+    args: Namespace = parse_args(sys_args)
+    params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
+    app: Flask = create_app(params)
+    app.run(host=params.host, port=params.port, debug=params.debug)
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
