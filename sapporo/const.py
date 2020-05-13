@@ -6,7 +6,7 @@ from typing import Dict
 SRC_DIR: Path = Path(__file__).parent.resolve()
 
 SERVICE_INFO_JSON: Path = \
-    SRC_DIR.joinpath("service_info.json").resolve()
+    SRC_DIR.joinpath("service-info.json").resolve()
 WORKFLOWS_JSON: Path = \
     SRC_DIR.joinpath("workflows.json").resolve()
 RUN_SH: Path = \
