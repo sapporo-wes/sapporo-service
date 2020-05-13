@@ -1,0 +1,8 @@
+[
+  {
+    "workflow_name": "trimming_and_qc",
+    "workflow_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/feature/follow-original-wes/tests/resources/trimming_and_qc_remote.cwl",
+    "workflow_type": "CWL",
+    "workflow_type_version": "v1.0"
+  }
+]

@@ -5,6 +5,7 @@ from flask.json import jsonify
 
 from sapporo.const import GET_STATUS_CODE, POST_STATUS_CODE
 from sapporo.type import RunId, RunListResponse, RunLog, RunStatus, ServiceInfo
+from sapporo.util import generate_service_info
 
 app_bp = Blueprint("genpei", __name__)
 
@@ -16,7 +17,7 @@ def get_service_info() -> Response:
     descriptor formats, versions supported, the WES API versions supported,
     and information about general service availability.
     """
-    res_body: ServiceInfo = {"endpoint": "service-info"}
+    res_body: ServiceInfo = generate_service_info()
     response: Response = jsonify(res_body)
     response.status_code = GET_STATUS_CODE
 
@@ -67,7 +68,7 @@ def get_runs_id(run_id: str) -> Response:
     retrieved, and the overall state of the workflow run (e.g. RUNNING, see
     the State section).
     """
-    res_body: RunLog = {"endpoint": "run/run_id"}
+    res_body: RunLog = {"endpoint": "run/run_id"}  # type: ignore
     response: Response = jsonify(res_body)
     response.status_code = GET_STATUS_CODE
 
@@ -95,7 +96,7 @@ def get_runs_id_status(run_id: str) -> Response:
     """
     res_body: RunStatus = {
         "run_id": "",
-        "state": "UNKNOWN"
+        "state": "UNKNOWN"  # type: ignore
     }
     response: Response = jsonify(res_body)
     response.status_code = GET_STATUS_CODE
