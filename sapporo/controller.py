@@ -1,13 +1,21 @@
 #!/usr/bin/env python3
 # coding: utf-8
-from flask import Blueprint, Response
+import json
+from typing import cast
+
+from flask import Blueprint, Response, request
 from flask.json import jsonify
 
 from sapporo.const import GET_STATUS_CODE, POST_STATUS_CODE
-from sapporo.type import RunId, RunListResponse, RunLog, RunStatus, ServiceInfo
-from sapporo.util import generate_service_info
+from sapporo.run import (cancel_run, fork_run, get_run_log, prepare_exe_dir,
+                         validate_run_id, validate_run_request,
+                         validate_wf_type)
+from sapporo.type import (RunId, RunListResponse, RunLog, RunRequest,
+                          RunStatus, ServiceInfo, State)
+from sapporo.util import (generate_run_id, generate_service_info,
+                          get_all_run_ids, get_state, write_file)
 
-app_bp = Blueprint("genpei", __name__)
+app_bp = Blueprint("sapporo", __name__)
 
 
 @app_bp.route("/service-info", methods=["GET"])
@@ -38,6 +46,11 @@ def get_runs() -> Response:
         "runs": [],
         "next_page_token": ""
     }
+    for run_id in get_all_run_ids():
+        res_body["runs"].append({
+            "run_id": run_id,
+            "state": get_state(run_id).name  # type: ignore
+        })
     response: Response = jsonify(res_body)
     response.status_code = GET_STATUS_CODE
 
@@ -50,8 +63,18 @@ def post_runs() -> Response:
     This endpoint creates a new workflow run and returns a `RunId` to monitor
     its progress.
     """
+    run_request: RunRequest = cast(RunRequest, dict(request.form))
+    validate_run_request(run_request)
+    validate_wf_type(run_request["workflow_type"],
+                     run_request["workflow_type_version"])
+    run_id: str = generate_run_id()
+    write_file(run_id, "run_request", json.dumps(run_request, indent=2))
+    write_file(run_id, "wf_params", run_request["workflow_params"])
+    prepare_exe_dir(run_id, request.files)
+    write_file(run_id, "state", State.QUEUED.name)
+    fork_run(run_id)
     response: Response = jsonify({
-        "run_id": ""
+        "run_id": run_id
     })
     response.status_code = POST_STATUS_CODE
 
@@ -68,7 +91,8 @@ def get_runs_id(run_id: str) -> Response:
     retrieved, and the overall state of the workflow run (e.g. RUNNING, see
     the State section).
     """
-    res_body: RunLog = {"endpoint": "run/run_id"}  # type: ignore
+    validate_run_id(run_id)
+    res_body: RunLog = get_run_log(run_id)
     response: Response = jsonify(res_body)
     response.status_code = GET_STATUS_CODE
 
@@ -80,7 +104,9 @@ def post_runs_id_cancel(run_id: str) -> Response:
     """
     Cancel a running workflow.
     """
-    res_body: RunId = {"run_id": ""}
+    validate_run_id(run_id)
+    cancel_run(run_id)
+    res_body: RunId = {"run_id": run_id}
     response: Response = jsonify(res_body)
     response.status_code = POST_STATUS_CODE
 
@@ -94,9 +120,10 @@ def get_runs_id_status(run_id: str) -> Response:
     status of the running workflow, returning a simple result with the overall
     state of the workflow run (e.g. RUNNING, see the State section).
     """
+    validate_run_id(run_id)
     res_body: RunStatus = {
-        "run_id": "",
-        "state": "UNKNOWN"  # type: ignore
+        "run_id": run_id,
+        "state": get_state(run_id).name  # type: ignore
     }
     response: Response = jsonify(res_body)
     response.status_code = GET_STATUS_CODE
