@@ -3,7 +3,7 @@
 import collections
 import json
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List
 from uuid import uuid4
 
 from flask import current_app
@@ -36,16 +36,14 @@ def generate_run_id() -> str:
     return str(uuid4())
 
 
-def get_run_dir(run_id: str, run_base_dir: Optional[Path] = None) -> Path:
-    if run_base_dir is None:
-        run_base_dir = current_app.config["RUN_DIR"]
+def get_run_dir(run_id: str) -> Path:
+    run_base_dir: Path = current_app.config["RUN_DIR"]
 
     return run_base_dir.joinpath(run_id[:2]).joinpath(run_id).resolve()
 
 
-def get_path(run_id: str, key: str,
-             run_base_dir: Optional[Path] = None) -> Path:
-    run_dir: Path = get_run_dir(run_id, run_base_dir)
+def get_path(run_id: str, key: str) -> Path:
+    run_dir: Path = get_run_dir(run_id)
 
     return run_dir.joinpath(RUN_DIR_STRUCTURE[key])
 
@@ -87,3 +85,28 @@ def get_workflows() -> List[Workflow]:
     workflows = []  # TODO fix
 
     return workflows
+
+
+def write_file(run_id: str, file_type: str, content: str) -> None:
+    file: Path = get_path(run_id, file_type)
+    file.parent.mkdir(parents=True, exist_ok=True)
+    with file.open(mode="w") as f:
+        f.write(content)
+
+
+def read_file(run_id: str, file_type: str) -> Any:
+    file: Path = get_path(run_id, file_type)
+    if file.exists() is False:
+        if file_type in ["cmd", "start_time", "end_time", "stdout", "stderr",
+                         "exit_code"]:
+            return ""
+        elif file_type == "task_logs":
+            return []
+        elif file_type in ["run_request", "outputs"]:
+            return {}
+        else:
+            return ""
+    with file.open(mode="r") as f:
+        content: Any = json.load(f)
+
+    return content

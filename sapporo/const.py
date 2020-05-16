@@ -19,7 +19,6 @@ DEFAULT_PORT: int = 8080
 GET_STATUS_CODE: int = 200
 POST_STATUS_CODE: int = 200
 DATE_FORMAT: str = "%Y-%m-%dT%H:%M:%S"
-CANCEL_TIMEOUT: int = 10
 
 RUN_DIR_STRUCTURE: Dict[str, str] = {
     "run_request": "run_request.json",
@@ -36,5 +35,5 @@ RUN_DIR_STRUCTURE: Dict[str, str] = {
     "pid": "run.pid",
     "cmd": "cmd.txt",
     "sys_error": "sys_error.log",
-    "tasks": "tasks.json"
+    "task_logs": "task.log"
 }
