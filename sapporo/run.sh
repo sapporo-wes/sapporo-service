@@ -74,7 +74,7 @@ DOCKER_CMD="docker run -i --rm ${D_SOCK} ${D_TMP} -v ${run_dir}:${run_dir} -w=${
 # 4. The request `POST /runs/${run_id}/cancel` came in.
 
 function desc_error() {
-  # exit case 1
+  # Exit case 1: The description of run.sh was wrong.
   original_exit_code=$?
   echo ${original_exit_code} >${exit_code}
   date +"%Y-%m-%dT%H:%M:%S" >${end_time}
@@ -83,7 +83,7 @@ function desc_error() {
 }
 
 function executor_error() {
-  # exit case 2
+  # Exit case 2: The workflow_engine terminated in error.
   original_exit_code=$?
   echo ${original_exit_code} >${exit_code}
   date +"%Y-%m-%dT%H:%M:%S" >${end_time}
@@ -92,7 +92,7 @@ function executor_error() {
 }
 
 function kill_by_system() {
-  # exit case 3
+  # Exit case 3: The system sent a signal to the run.sh, such as SIGHUP.
   signal=$1
   if [[ ${signal} == "SIGHUP" ]]; then
     original_exit_code=129
@@ -110,7 +110,7 @@ function kill_by_system() {
 }
 
 function cancel_by_request() {
-  # exit case 4
+  # Exit case 4: The request `POST /runs/${run_id}/cancel` came in.
   original_exit_code=138
   echo ${original_exit_code} >${exit_code}
   date +"%Y-%m-%dT%H:%M:%S" >${end_time}
@@ -118,11 +118,11 @@ function cancel_by_request() {
   exit ${original_exit_code}
 }
 
-trap 'desc_error' ERR              # exit case 1
-trap 'kill_by_system SIGHUP' HUP   # exit case 3
-trap 'kill_by_system SIGINT' INT   # exit case 3
-trap 'kill_by_system SIGQUIT' QUIT # exit case 3
-trap 'kill_by_system SIGTERM' TERM # exit case 3
-trap 'cancel' USR1                 # exit case 4
+trap 'desc_error' ERR              # Exit case 1
+trap 'kill_by_system SIGHUP' HUP   # Exit case 3
+trap 'kill_by_system SIGINT' INT   # Exit case 3
+trap 'kill_by_system SIGQUIT' QUIT # Exit case 3
+trap 'kill_by_system SIGTERM' TERM # Exit case 3
+trap 'cancel' USR1                 # Exit case 4
 
 run_wf

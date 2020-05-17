@@ -10,7 +10,8 @@ from uuid import uuid4
 from flask import current_app
 
 from sapporo.const import RUN_DIR_STRUCTURE
-from sapporo.type import RunRequest, ServiceInfo, State, Workflow
+from sapporo.type import (DefaultWorkflowEngineParameter, RunRequest,
+                          ServiceInfo, State, Workflow)
 
 
 def generate_service_info() -> ServiceInfo:
@@ -144,3 +145,14 @@ def walk_all_files(dir: Path) -> Iterable[Path]:
     for root, dirs, files in os.walk(dir):
         for file in files:
             yield Path(root).joinpath(file)
+
+
+def generate_default_wf_engine_params(run_id: str) -> List[str]:
+    default_wf_engine_params: List[DefaultWorkflowEngineParameter] = \
+        generate_service_info()["default_workflow_engine_parameters"]
+    params: List[str] = []
+    for param in default_wf_engine_params:
+        params.append(str(param.get("name", "")))
+        params.append(str(param.get("default_value", "")))
+
+    return params
