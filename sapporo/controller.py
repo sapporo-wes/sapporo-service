@@ -12,8 +12,9 @@ from sapporo.run import (cancel_run, fork_run, get_run_log, prepare_exe_dir,
                          validate_wf_type)
 from sapporo.type import (RunId, RunListResponse, RunLog, RunRequest,
                           RunStatus, ServiceInfo, State)
-from sapporo.util import (generate_run_id, generate_service_info,
-                          get_all_run_ids, get_state, write_file)
+from sapporo.util import (dump_wf_engine_params, generate_run_id,
+                          generate_service_info, get_all_run_ids, get_state,
+                          write_file)
 
 app_bp = Blueprint("sapporo", __name__)
 
@@ -70,6 +71,7 @@ def post_runs() -> Response:
     run_id: str = generate_run_id()
     write_file(run_id, "run_request", json.dumps(run_request, indent=2))
     write_file(run_id, "wf_params", run_request["workflow_params"])
+    dump_wf_engine_params(run_id)
     prepare_exe_dir(run_id, request.files)
     write_file(run_id, "state", State.QUEUED.name)
     fork_run(run_id)

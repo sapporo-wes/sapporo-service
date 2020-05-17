@@ -13,7 +13,7 @@ WORKFLOWS: Path = \
     SRC_DIR.joinpath("workflows.json").resolve()
 DEFAULT_RUN_SH: Path = \
     SRC_DIR.joinpath("run.sh").resolve()
-DEFAULT_RUN_DIR = Path.cwd().parent.joinpath("run").resolve()
+DEFAULT_RUN_DIR = Path.cwd().joinpath("run").resolve()
 DEFAULT_HOST: str = "127.0.0.1"
 DEFAULT_PORT: int = 8080
 GET_STATUS_CODE: int = 200
@@ -33,7 +33,7 @@ RUN_DIR_STRUCTURE: Dict[str, str] = {
     "stdout": "stdout.log",
     "stderr": "stderr.log",
     "pid": "run.pid",
+    "wf_engine_params": "workflow_engine_params.txt",
     "cmd": "cmd.txt",
-    "sys_error": "sys_error.log",
     "task_logs": "task.log"
 }

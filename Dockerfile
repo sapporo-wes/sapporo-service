@@ -4,6 +4,7 @@ RUN apt update && \
     apt install -y --no-install-recommends \
     build-essential \
     curl \
+    jq \
     tini && \
     apt clean &&\
     rm -rf /var/lib/apt/lists/*

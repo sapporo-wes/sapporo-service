@@ -2,14 +2,15 @@
 # coding: utf-8
 import collections
 import json
+import os
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterable, List, cast
 from uuid import uuid4
 
 from flask import current_app
 
 from sapporo.const import RUN_DIR_STRUCTURE
-from sapporo.type import ServiceInfo, State, Workflow
+from sapporo.type import RunRequest, ServiceInfo, State, Workflow
 
 
 def generate_service_info() -> ServiceInfo:
@@ -110,3 +111,36 @@ def read_file(run_id: str, file_type: str) -> Any:
         content: Any = json.load(f)
 
     return content
+
+
+def dump_wf_engine_params(run_id: str) -> None:
+    run_request: RunRequest = \
+        cast(RunRequest, read_file(run_id, "run_request"))
+    wf_engine_params_obj = \
+        json.loads(run_request["workflow_engine_parameters"])
+    params: List[str] = []
+    for key, val in wf_engine_params_obj.items():
+        params.append(key)
+        if isinstance(val, list):
+            params.append(",".join(val))
+        else:
+            params.append(str(val))
+    joined_params: str = " ".join(params)
+    write_file(run_id, "wf_engine_params", joined_params)
+
+
+def dump_outputs_list(inputted_run_dir: str) -> None:
+    run_dir: Path = Path(inputted_run_dir).resolve()
+    outdir_path: Path = run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"])
+    output_files: List[Path] = sorted(list(walk_all_files(outdir_path)))
+    outputs: Dict[str, str] = {}
+    for output_file in output_files:
+        outputs[str(output_file.relative_to(outdir_path))] = str(output_file)
+    with run_dir.joinpath(RUN_DIR_STRUCTURE["outputs"]).open(mode="w") as f:
+        f.write(json.dumps(outputs, indent=2))
+
+
+def walk_all_files(dir: Path) -> Iterable[Path]:
+    for root, dirs, files in os.walk(dir):
+        for file in files:
+            yield Path(root).joinpath(file)
