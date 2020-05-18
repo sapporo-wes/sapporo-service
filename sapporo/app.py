@@ -11,9 +11,9 @@ from typing import Dict, List, Optional, Union
 from flask import Flask, Response, current_app, jsonify
 from werkzeug.exceptions import HTTPException
 
-from sapporo.const import (DEFAULT_HOST, DEFAULT_PORT, DEFAULT_RUN_DIR,
-                           DEFAULT_RUN_SH, DEFAULT_SERVICE_INFO,
-                           DEFAULT_WORKFLOWS_FETCH_CONFIG)
+from sapporo.const import (DEFAULT_AVAILABLE_WORKFLOWS_CONFIG, DEFAULT_HOST,
+                           DEFAULT_PORT, DEFAULT_RUN_DIR, DEFAULT_RUN_SH,
+                           DEFAULT_SERVICE_INFO)
 from sapporo.controller import app_bp
 from sapporo.type import ErrorResponse
 
@@ -78,10 +78,10 @@ def parse_args(sys_args: List[str]) -> Namespace:
              "application."
     )
     parser.add_argument(
-        "--workflows-fetch-config",
+        "--available-workflows-config",
         nargs=1,
         metavar="",
-        help="Specify `workflows-fetch-config.json`."
+        help="Specify `available-workflows-config.json`."
     )
     parser.add_argument(
         "--run-sh",
@@ -113,10 +113,10 @@ def handle_default_params(args: Namespace) -> Dict[str, Union[str, int, Path]]:
         "service_info": handle_default_path(args.service_info,
                                             "SAPPORO_SERVICE_INFO",
                                             DEFAULT_SERVICE_INFO),
-        "workflows_fetch_config":
-            handle_default_path(args.workflows_fetch_config,
-                                "SAPPORO_WORKFLOWS_FETCH_CONFIG",
-                                DEFAULT_WORKFLOWS_FETCH_CONFIG),
+        "available_workflows_config":
+            handle_default_path(args.available_workflows_config,
+                                "SAPPORO_AVAILABLE_WORKFLOWS_CONFIG",
+                                DEFAULT_AVAILABLE_WORKFLOWS_CONFIG),
         "run_sh": handle_default_path(args.run_sh,
                                       "SAPPORO_RUN_SH",
                                       DEFAULT_RUN_SH),
@@ -231,7 +231,8 @@ def create_app(params: Dict[str, Union[str, int, Path]]) -> Flask:
     app.config["WORKFLOW_ATTACHMENT"] = params["workflow_attachment"]
     app.config["REGISTERED_ONLY_MODE"] = params["registered_only_mode"]
     app.config["SERVICE_INFO"] = params["service_info"]
-    app.config["WORKFLOWS_FETCH_CONFIG"] = params["workflows_fetch_config"]
+    app.config["AVAILABLE_WORKFLOWS_CONFIG"] = \
+        params["available_workflows_config"]
     app.config["RUN_SH"] = params["run_sh"]
 
     return app
