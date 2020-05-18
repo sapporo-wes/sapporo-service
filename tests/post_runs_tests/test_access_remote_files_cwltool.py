@@ -20,14 +20,16 @@ def access_remote_files(client: FlaskClient) -> Response:  # type: ignore
         "workflow_params": json.dumps({
             "fastq_1": {
                 "class": "File",
-                "location": "https://raw.githubusercontent.com/suecharo/" +
-                            "genpei/master/tests/resources/" +
+                "location": "https://raw.githubusercontent.com/ddbj/" +
+                            "SAPPORO-service/blob/feature/" +
+                            "follow-original-wes/tests/resources/" +
                             "ERR034597_1.small.fq.gz"
             },
             "fastq_2": {
                 "class": "File",
-                "location": "https://raw.githubusercontent.com/suecharo/" +
-                            "genpei/master/tests/resources/" +
+                "location": "https://raw.githubusercontent.com/ddbj/" +
+                            "SAPPORO-service/blob/feature/" +
+                            "follow-original-wes/tests/resources/" +
                             "ERR034597_2.small.fq.gz"
             }
         }),
@@ -38,9 +40,9 @@ def access_remote_files(client: FlaskClient) -> Response:  # type: ignore
         }),
         "workflow_engine_name": "cwltool",
         "workflow_engine_parameters": json.dumps({}),
-        "workflow_url": "https://raw.githubusercontent.com/suecharo/" +
-                        "genpei/master/tests/resources/" +
-                        "trimming_and_qc_remote.cwl"
+        "workflow_url": "https://raw.githubusercontent.com/ddbj/" +
+                        "SAPPORO-service/blob/feature/follow-original-wes" +
+                        "/tests/resources/trimming_and_qc_remote.cwl"
     }
     response: Response = client.post("/runs", data=data,
                                      content_type="multipart/form-data")
