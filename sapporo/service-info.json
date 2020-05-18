@@ -18,6 +18,7 @@
     "debug": "",
     "run_dir": "",
     "get_runs": "",
+    "workflow_attachment": "",
     "registered_only_mode": ""
   },
   "workflows": []

@@ -53,10 +53,11 @@ def prepare_exe_dir(run_id: str,
                     request_files: Dict[str, FileStorage]) -> None:
     exe_dir: Path = get_path(run_id, "exe_dir")
     exe_dir.mkdir(parents=True, exist_ok=True)
-    for file in request_files.values():
-        if file.filename != "":
-            filename: str = secure_filename(file.filename)
-            file.save(exe_dir.joinpath(filename))  # type: ignore
+    if current_app.config["WORKFLOW_ATTACHMENT"]:
+        for file in request_files.values():
+            if file.filename != "":
+                filename: str = secure_filename(file.filename)
+                file.save(exe_dir.joinpath(filename))  # type: ignore
 
 
 def fork_run(run_id: str) -> None:
