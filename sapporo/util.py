@@ -26,6 +26,8 @@ def generate_service_info() -> ServiceInfo:
     service_info["tags"]["debug"] = current_app.config["DEBUG"]
     service_info["tags"]["run_dir"] = str(current_app.config["RUN_DIR"])
     service_info["tags"]["get_runs"] = current_app.config["GET_RUNS"]
+    service_info["tags"]["workflow_attachment"] = \
+        current_app.config["WORKFLOW_ATTACHMENT"]
     service_info["tags"]["registered_only_mode"] = \
         current_app.config["REGISTERED_ONLY_MODE"]
     if current_app.config["REGISTERED_ONLY_MODE"]:

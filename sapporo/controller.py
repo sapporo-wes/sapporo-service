@@ -3,7 +3,8 @@
 import json
 from typing import cast
 
-from flask import Blueprint, Response, request
+from flask import Blueprint, Response, abort, request
+from flask.globals import current_app
 from flask.json import jsonify
 
 from sapporo.const import GET_STATUS_CODE, POST_STATUS_CODE
@@ -43,6 +44,11 @@ def get_runs() -> Response:
     requested. To monitor a specific workflow run, use GetRunStatus or
     GetRunLog.
     """
+    if current_app.config["GET_RUNS"] is False:
+        abort(403, "This endpoint `GET /runs` is unavailable because " +
+                   "the service provider didn't allow the request to " +
+                   "this endpoint when sapporo was started.")
+
     res_body: RunListResponse = {
         "runs": [],
         "next_page_token": ""

@@ -58,6 +58,11 @@ def parse_args(sys_args: List[str]) -> Namespace:
         help="Disable endpoint of `GET /runs`."
     )
     parser.add_argument(
+        "--disable-workflow-attachment",
+        action="store_true",
+        help="Disable `workflow_attachment` on endpoint `Post /runs`."
+    )
+    parser.add_argument(
         "--run-only-registered-workflows",
         action="store_true",
         help="Run only registered workflows. Check the registered " +
@@ -99,6 +104,9 @@ def handle_default_params(args: Namespace) -> Dict[str, Union[str, int, Path]]:
                                        "SAPPORO_RUN_DIR",
                                        DEFAULT_RUN_DIR),
         "get_runs": handle_default_get_runs(args.disable_get_runs),
+        "workflow_attachment":
+            handle_default_workflow_attachment(
+                args.disable_workflow_attachment),
         "registered_only_mode":
             handle_default_registered_only_mode(
                 args.run_only_registered_workflows),
@@ -158,6 +166,14 @@ def handle_default_get_runs(disable_get_runs: bool) -> bool:
         return str2bool(os.environ.get("SAPPORO_GET_RUNS", True))
 
 
+def handle_default_workflow_attachment(disable_workflow_attachment: bool) \
+        -> bool:
+    if disable_workflow_attachment:
+        return False
+    else:
+        return str2bool(os.environ.get("SAPPORO_WORKFLOW_ATTACHMENT", True))
+
+
 def handle_default_registered_only_mode(run_only_registered_workflows: bool) \
         -> bool:
     if run_only_registered_workflows is False:
@@ -212,6 +228,7 @@ def create_app(params: Dict[str, Union[str, int, Path]]) -> Flask:
     fix_errorhandler(app)
     app.config["RUN_DIR"] = params["run_dir"]
     app.config["GET_RUNS"] = params["get_runs"]
+    app.config["WORKFLOW_ATTACHMENT"] = params["workflow_attachment"]
     app.config["REGISTERED_ONLY_MODE"] = params["registered_only_mode"]
     app.config["SERVICE_INFO"] = params["service_info"]
     app.config["WORKFLOWS_FETCH_CONFIG"] = params["workflows_fetch_config"]

@@ -22,6 +22,7 @@ def test_default_params(delete_env_vars: None) -> None:
     assert params["port"] == DEFAULT_PORT
     assert params["debug"] is False
     assert app.config["GET_RUNS"] is True
+    assert app.config["WORKFLOW_ATTACHMENT"] is True
     assert app.config["REGISTERED_ONLY_MODE"] is False
     assert app.config["SERVICE_INFO"] == \
         base_dir.joinpath("sapporo/service-info.json")
@@ -37,6 +38,7 @@ def test_env_vars(delete_env_vars: None, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("SAPPORO_DEBUG", "True")
     monkeypatch.setenv("SAPPORO_RUN_DIR", str(base_dir.joinpath("tests/run")))
     monkeypatch.setenv("SAPPORO_GET_RUNS", "False")
+    monkeypatch.setenv("SAPPORO_WORKFLOW_ATTACHMENT", "False")
     monkeypatch.setenv("SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS",
                        "True")
     monkeypatch.setenv("SAPPORO_SERVICE_INFO",
@@ -55,6 +57,7 @@ def test_env_vars(delete_env_vars: None, monkeypatch: MonkeyPatch) -> None:
     assert params["debug"] is True
     assert app.config["RUN_DIR"] == base_dir.joinpath("tests/run")
     assert app.config["GET_RUNS"] is False
+    assert app.config["WORKFLOW_ATTACHMENT"] is False
     assert app.config["REGISTERED_ONLY_MODE"] is True
     assert app.config["SERVICE_INFO"] == \
         base_dir.joinpath("tests/service-info.json")
@@ -71,6 +74,7 @@ def test_parse_args(delete_env_vars: None) -> None:
                     "--debug",
                     "--run-dir", str(base_dir.joinpath("tests/run")),
                     "--disable-get-runs",
+                    "--disable-workflow-attachment",
                     "--run-only-registered-workflows",
                     "--service-info",
                     str(base_dir.joinpath("tests/service-info.json")),
@@ -86,6 +90,7 @@ def test_parse_args(delete_env_vars: None) -> None:
     assert params["debug"] is True
     assert app.config["RUN_DIR"] == base_dir.joinpath("tests/run")
     assert app.config["GET_RUNS"] is False
+    assert app.config["WORKFLOW_ATTACHMENT"] is False
     assert app.config["REGISTERED_ONLY_MODE"] is True
     assert app.config["SERVICE_INFO"] == \
         base_dir.joinpath("tests/service-info.json")
