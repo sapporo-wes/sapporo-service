@@ -16,7 +16,7 @@ from sapporo.type import RunId, RunLog, RunRequest
 
 
 def access_remote_files(client: FlaskClient) -> Response:  # type: ignore
-    data: RunRequest = {
+    data: RunRequest = {  # type: ignore
         "workflow_params": json.dumps({
             "fastq_1": {
                 "class": "File",
