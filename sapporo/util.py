@@ -109,9 +109,14 @@ def read_file(run_id: str, file_type: str) -> Any:
         else:
             return ""
     with file.open(mode="r") as f:
-        content: Any = json.load(f)
-
-    return content
+        if file_type in ["cmd", "start_time", "end_time", "exit_code"]:
+            return f.read().splitlines()[0]
+        elif file_type in ["stdout", "stderr"]:
+            return f.read()
+        elif file_type in ["run_request", "outputs", "task_logs"]:
+            return json.load(f)
+        else:
+            return f.read()
 
 
 def dump_wf_engine_params(run_id: str) -> None:
