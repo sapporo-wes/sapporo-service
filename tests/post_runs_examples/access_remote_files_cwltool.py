@@ -16,19 +16,24 @@ RES_D: Path = \
     SCRIPT_DIR.parent.joinpath("resources").resolve()
 
 
+"https://github.com/ddbj/SAPPORO-service/blob/feature/follow-original-wes/tests/resources/ERR034597_1.small.fq.gz"
+
+
 def main() -> None:
     data: RunRequest = {
         "workflow_params": json.dumps({
             "fastq_1": {
                 "class": "File",
-                "location": "https://raw.githubusercontent.com/suecharo/" +
-                            "genpei/master/tests/resources/" +
+                "location": "https://raw.githubusercontent.com/ddbj/" +
+                            "SAPPORO-service/blob/feature/" +
+                            "follow-original-wes/tests/resources/" +
                             "ERR034597_1.small.fq.gz"
             },
             "fastq_2": {
                 "class": "File",
-                "location": "https://raw.githubusercontent.com/suecharo/" +
-                            "genpei/master/tests/resources/" +
+                "location": "https://raw.githubusercontent.com/ddbj/" +
+                            "SAPPORO-service/blob/feature/" +
+                            "follow-original-wes/tests/resources/" +
                             "ERR034597_2.small.fq.gz"
             }
         }),
@@ -39,9 +44,9 @@ def main() -> None:
         }),
         "workflow_engine_name": "cwltool",
         "workflow_engine_parameters": json.dumps({}),
-        "workflow_url": "https://raw.githubusercontent.com/suecharo/" +
-                        "genpei/master/tests/resources/" +
-                        "trimming_and_qc_remote.cwl"
+        "workflow_url": "https://raw.githubusercontent.com/ddbj/" +
+                        "SAPPORO-service/blob/feature/follow-original-wes" +
+                        "/tests/resources/trimming_and_qc_remote.cwl"
     }
     files: Dict[str, Tuple[str, BinaryIO]] = {}
     response: Response = \
