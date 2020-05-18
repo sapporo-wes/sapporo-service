@@ -16,9 +16,6 @@ RES_D: Path = \
     SCRIPT_DIR.parent.joinpath("resources").resolve()
 
 
-"https://github.com/ddbj/SAPPORO-service/blob/feature/follow-original-wes/tests/resources/ERR034597_1.small.fq.gz"
-
-
 def main() -> None:
     data: RunRequest = {
         "workflow_params": json.dumps({
