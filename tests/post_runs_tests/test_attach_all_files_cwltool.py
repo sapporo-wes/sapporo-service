@@ -26,7 +26,7 @@ TOOL_2: str = "trimmomatic_pe.cwl"
 
 
 def attach_all_files(client: FlaskClient) -> Response:  # type: ignore
-    data: RunRequest = {
+    data: RunRequest = {  # type: ignore
         "workflow_params": json.dumps({
             "fastq_1": {
                 "class": "File",
