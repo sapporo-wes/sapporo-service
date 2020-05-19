@@ -39,7 +39,6 @@ def test_get_run_id(delete_env_vars: None, tmpdir: LocalPath) -> None:
     sleep(3)
     res: Response = get_run_id(client, run_id)
     res_data: RunLog = res.get_json()
-    print(res_data)
 
     assert res.status_code == 200
     assert "run_id" in res_data

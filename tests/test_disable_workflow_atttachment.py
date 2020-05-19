@@ -2,6 +2,7 @@
 # coding: utf-8
 from argparse import Namespace
 from pathlib import Path
+from time import sleep
 from typing import Dict, Union
 
 from flask import Flask
@@ -13,7 +14,8 @@ from sapporo.app import create_app, handle_default_params, parse_args
 from sapporo.type import RunId, RunLog, RunStatus
 
 
-def test_disable_get_runs(delete_env_vars: None, tmpdir: LocalPath) -> None:
+def test_disable_workflow_attachment(delete_env_vars: None,
+                                     tmpdir: LocalPath) -> None:
     args: Namespace = parse_args(["--disable-workflow-attachment",
                                   "--run-dir", str(tmpdir)])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
@@ -31,12 +33,14 @@ def test_disable_get_runs(delete_env_vars: None, tmpdir: LocalPath) -> None:
 
     run_id: str = post_runs_data["run_id"]
     from .test_get_run_id_status import get_run_id_status
-    count = 0
-    while count <= 10:
+    count: int = 0
+    while count <= 60:
         get_status_res: Response = get_run_id_status(client, run_id)
         get_status_data: RunStatus = get_status_res.get_json()
         if get_status_data["state"] == "EXECUTOR_ERROR":  # type: ignore
             break
+        sleep(1)
+        count += 1
 
     from .test_get_run_id import get_run_id
     detail_res: Response = get_run_id(client, run_id)

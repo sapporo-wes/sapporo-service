@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, cast
 from uuid import uuid4
 
-from flask import current_app
+from flask import abort, current_app
 
 from sapporo.const import RUN_DIR_STRUCTURE
 from sapporo.type import (DefaultWorkflowEngineParameter, RunRequest,
@@ -30,8 +30,11 @@ def generate_service_info() -> ServiceInfo:
         current_app.config["WORKFLOW_ATTACHMENT"]
     service_info["tags"]["registered_only_mode"] = \
         current_app.config["REGISTERED_ONLY_MODE"]
+
     if current_app.config["REGISTERED_ONLY_MODE"]:
-        service_info["workflows"] = get_workflows()
+        with current_app.config["EXECUTABLE_WORKFLOWS"].open(mode="r") as f:
+            executable_workflows: List[Workflow] = json.load(f)
+        service_info["executable_workflows"] = executable_workflows
 
     return service_info
 
@@ -79,16 +82,6 @@ def count_system_state() -> Dict[str, int]:
             [get_state(run_id).name for run_id in run_ids]))
 
     return count
-
-
-def get_workflows() -> List[Workflow]:
-    workflows: List[Workflow]
-    # with WORKFLOWS.open(mode="r") as f:
-    #     workflows = json.load(f)
-
-    workflows = []  # TODO fix
-
-    return workflows
 
 
 def write_file(run_id: str, file_type: str, content: str) -> None:
@@ -163,3 +156,16 @@ def generate_default_wf_engine_params(run_id: str) -> List[str]:
         params.append(str(param.get("default_value", "")))
 
     return params
+
+
+def get_workflow(workflow_name: str) -> Workflow:
+    with current_app.config["EXECUTABLE_WORKFLOWS"].open(mode="r") as f:
+        executable_workflows: List[Workflow] = json.load(f)
+    for wf in executable_workflows:
+        if wf["workflow_name"] == workflow_name:
+            return wf
+
+    abort(404,
+          f"The workflow_name: {workflow_name} you requested doesn't " +
+          "exist. Please request `GET /service-info` again and check " +
+          "the registered executable workflows.")

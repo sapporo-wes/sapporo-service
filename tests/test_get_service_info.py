@@ -37,8 +37,6 @@ def test_original_wes_mode(delete_env_vars: None) -> None:
     assert res_data["tags"]["wes_name"] == "sapporo"
     assert "workflow_engine_versions" in res_data
     assert "workflow_type_versions" in res_data
-    assert "workflows" in res_data
-    assert len(res_data["workflows"]) == 0
 
 
 def test_registered_only_mode(delete_env_vars: None) -> None:
@@ -70,4 +68,4 @@ def test_registered_only_mode(delete_env_vars: None) -> None:
     assert res_data["tags"]["wes_name"] == "sapporo"
     assert "workflow_engine_versions" in res_data
     assert "workflow_type_versions" in res_data
-    assert "workflows" in res_data
+    assert "executable_workflows" in res_data

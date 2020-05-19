@@ -7,8 +7,8 @@ SRC_DIR: Path = Path(__file__).parent.resolve()
 
 DEFAULT_SERVICE_INFO: Path = \
     SRC_DIR.joinpath("service-info.json").resolve()
-DEFAULT_AVAILABLE_WORKFLOWS_CONFIG: Path = \
-    SRC_DIR.joinpath("available_workflows_config.json").resolve()
+DEFAULT_EXECUTABLE_WORKFLOWS: Path = \
+    SRC_DIR.joinpath("executable_workflows.json").resolve()
 WORKFLOWS: Path = \
     SRC_DIR.joinpath("workflows.json").resolve()
 DEFAULT_RUN_SH: Path = \

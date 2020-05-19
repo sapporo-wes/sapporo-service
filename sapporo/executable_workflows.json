@@ -7,8 +7,8 @@
     "workflow_attachment": []
   },
   {
-    "workflow_name": "CWL_trimming_and_qc_remote_local",
-    "workflow_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/feature/follow-original-wes/tests/resources/trimming_and_qc_remote_local.cwl",
+    "workflow_name": "CWL_trimming_and_qc_local",
+    "workflow_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/feature/follow-original-wes/tests/resources/trimming_and_qc.cwl",
     "workflow_type": "CWL",
     "workflow_type_version": "v1.0",
     "workflow_attachment": [
@@ -21,12 +21,5 @@
         "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/feature/follow-original-wes/tests/resources/trimming_pe.cwl"
       }
     ]
-  },
-  {
-    "workflow_name": "CWL_trimming_and_qc_packed",
-    "workflow_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/feature/follow-original-wes/tests/resources/trimming_and_qc_packed.cwl",
-    "workflow_type": "CWL",
-    "workflow_type_version": "v1.0",
-    "workflow_attachment": []
   }
 ]

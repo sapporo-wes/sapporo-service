@@ -45,12 +45,14 @@ def test_post_run_id_cancel(delete_env_vars: None, tmpdir: LocalPath) -> None:
     assert run_id == posts_cancel_res_data["run_id"]
 
     from .test_get_run_id_status import get_run_id_status
-    count = 0
-    while count <= 10:
-        res: Response = get_run_id_status(client, run_id)
-        res_data: RunStatus = res.get_json()
-        if res_data["state"] == "CANCELED":  # type: ignore
+    count: int = 0
+    while count <= 60:
+        get_status_res: Response = get_run_id_status(client, run_id)
+        get_status_data: RunStatus = get_status_res.get_json()
+        if get_status_data["state"] == "CANCELED":  # type: ignore
             break
+        sleep(1)
+        count += 1
 
     from .test_get_run_id import get_run_id
     detail_res: Response = get_run_id(client, run_id)

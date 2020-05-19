@@ -26,8 +26,8 @@ def test_default_params(delete_env_vars: None) -> None:
     assert app.config["REGISTERED_ONLY_MODE"] is False
     assert app.config["SERVICE_INFO"] == \
         base_dir.joinpath("sapporo/service-info.json")
-    assert app.config["AVAILABLE_WORKFLOWS_CONFIG"] == \
-        base_dir.joinpath("sapporo/available_workflows_config.json")
+    assert app.config["EXECUTABLE_WORKFLOWS"] == \
+        base_dir.joinpath("sapporo/executable_workflows.json")
     assert app.config["RUN_SH"] == \
         base_dir.joinpath("sapporo/run.sh")
 
@@ -43,8 +43,8 @@ def test_env_vars(delete_env_vars: None, monkeypatch: MonkeyPatch) -> None:
                        "True")
     monkeypatch.setenv("SAPPORO_SERVICE_INFO",
                        str(base_dir.joinpath("tests/service-info.json")))
-    monkeypatch.setenv("SAPPORO_AVAILABLE_WORKFLOWS_CONFIG",
-                       str(base_dir.joinpath("tests/available_workflows_config.json")))  # noqa: E501
+    monkeypatch.setenv("SAPPORO_EXECUTABLE_WORKFLOWS",
+                       str(base_dir.joinpath("tests/executable_workflows.json")))  # noqa: E501
     monkeypatch.setenv("SAPPORO_RUN_SH",
                        str(base_dir.joinpath("tests/run.sh")))
 
@@ -61,8 +61,8 @@ def test_env_vars(delete_env_vars: None, monkeypatch: MonkeyPatch) -> None:
     assert app.config["REGISTERED_ONLY_MODE"] is True
     assert app.config["SERVICE_INFO"] == \
         base_dir.joinpath("tests/service-info.json")
-    assert app.config["AVAILABLE_WORKFLOWS_CONFIG"] == \
-        base_dir.joinpath("tests/available_workflows_config.json")
+    assert app.config["EXECUTABLE_WORKFLOWS"] == \
+        base_dir.joinpath("tests/executable_workflows.json")
     assert app.config["RUN_SH"] == \
         base_dir.joinpath("tests/run.sh")
 
@@ -78,8 +78,8 @@ def test_parse_args(delete_env_vars: None) -> None:
                     "--run-only-registered-workflows",
                     "--service-info",
                     str(base_dir.joinpath("tests/service-info.json")),
-                    "--available-workflows-config",
-                    str(base_dir.joinpath("tests/available_workflows_config.json")),  # noqa: E501
+                    "--executable-workflows",
+                    str(base_dir.joinpath("tests/executable_workflows.json")),  # noqa: E501
                     "--run-sh",
                     str(base_dir.joinpath("tests/run.sh"))])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
@@ -94,7 +94,7 @@ def test_parse_args(delete_env_vars: None) -> None:
     assert app.config["REGISTERED_ONLY_MODE"] is True
     assert app.config["SERVICE_INFO"] == \
         base_dir.joinpath("tests/service-info.json")
-    assert app.config["AVAILABLE_WORKFLOWS_CONFIG"] == \
-        base_dir.joinpath("tests/available_workflows_config.json")
+    assert app.config["EXECUTABLE_WORKFLOWS"] == \
+        base_dir.joinpath("tests/executable_workflows.json")
     assert app.config["RUN_SH"] == \
         base_dir.joinpath("tests/run.sh")
