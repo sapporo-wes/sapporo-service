@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Schema for sapporo executable workflows",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "workflow_name": {
+        "type": "string"
+      },
+      "workflow_url": {
+        "type": "string"
+      },
+      "workflow_type": {
+        "type": "string"
+      },
+      "workflow_type_version": {
+        "type": "string"
+      },
+      "workflow_attachment": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "file_name": {
+              "type": "string"
+            },
+            "file_url": {
+              "type": "string"
+            }
+          },
+          "required": ["file_name", "file_url"]
+        }
+      }
+    },
+    "required": [
+      "workflow_name",
+      "workflow_url",
+      "workflow_type",
+      "workflow_type_version",
+      "workflow_attachment"
+    ]
+  }
+}

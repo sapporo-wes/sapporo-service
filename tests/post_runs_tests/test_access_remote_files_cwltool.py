@@ -80,7 +80,7 @@ def test_access_remote_files(delete_env_vars: None,
     assert "ERR034597_1.small.fq.trimmed.2U.fq" in detail_res_data["outputs"]
     assert "ERR034597_1.small_fastqc.html" in detail_res_data["outputs"]
     assert "ERR034597_2.small_fastqc.html" in detail_res_data["outputs"]
-    assert len(detail_res_data["request"]["workflow_attachment"]) == 2
+    assert len(detail_res_data["request"]["workflow_attachment"]) == 0
     assert "cwltool" == detail_res_data["request"]["workflow_engine_name"]
     assert "CWL" == detail_res_data["request"]["workflow_type"]
     assert "v1.0" == detail_res_data["request"]["workflow_type_version"]
