@@ -10,9 +10,9 @@ from traceback import format_exc
 from typing import Dict, List, Optional, Union
 
 from flask import Flask, Response, current_app, jsonify
-from jsonschema import validate
 from werkzeug.exceptions import HTTPException
 
+from jsonschema import validate
 from sapporo.const import (DEFAULT_EXECUTABLE_WORKFLOWS, DEFAULT_HOST,
                            DEFAULT_PORT, DEFAULT_RUN_DIR, DEFAULT_RUN_SH,
                            DEFAULT_SERVICE_INFO, EXECUTABLE_WORKFLOWS_SCHEMA,
