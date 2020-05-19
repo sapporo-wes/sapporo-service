@@ -9,6 +9,7 @@ from flask.json import jsonify
 
 from sapporo.const import GET_STATUS_CODE, POST_STATUS_CODE
 from sapporo.run import (cancel_run, fork_run, get_run_log, prepare_exe_dir,
+                         update_and_validate_registered_only_mode,
                          validate_run_id, validate_run_request,
                          validate_wf_type)
 from sapporo.type import (RunId, RunListResponse, RunLog, RunRequest,
@@ -71,6 +72,9 @@ def post_runs() -> Response:
     its progress.
     """
     run_request: RunRequest = cast(RunRequest, dict(request.form))
+    if current_app.config["REGISTERED_ONLY_MODE"]:
+        run_request = \
+            update_and_validate_registered_only_mode(run_request)
     validate_run_request(run_request)
     validate_wf_type(run_request["workflow_type"],
                      run_request["workflow_type_version"])

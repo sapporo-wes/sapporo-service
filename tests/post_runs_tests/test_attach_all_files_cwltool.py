@@ -12,17 +12,9 @@ from flask.wrappers import Response
 from py._path.local import LocalPath
 
 from sapporo.app import create_app, handle_default_params, parse_args
-from sapporo.type import RunId, RunLog, RunRequest
+from sapporo.type import RunId, RunLog, RunRequest, RunStatus
 
-SCRIPT_DIR: Path = \
-    Path(__file__).parent.resolve()
-RES: Path = \
-    SCRIPT_DIR.parent.joinpath("resources").resolve()
-FQ_1: str = "ERR034597_1.small.fq.gz"
-FQ_2: str = "ERR034597_2.small.fq.gz"
-WF: str = "trimming_and_qc.cwl"
-TOOL_1: str = "fastqc.cwl"
-TOOL_2: str = "trimmomatic_pe.cwl"
+from ..resource_list import CWL_TOOL_1, CWL_TOOL_2, CWL_WF, FQ_1, FQ_2
 
 
 def attach_all_files(client: FlaskClient) -> Response:  # type: ignore
@@ -30,33 +22,30 @@ def attach_all_files(client: FlaskClient) -> Response:  # type: ignore
         "workflow_params": json.dumps({
             "fastq_1": {
                 "class": "File",
-                "path": "./ERR034597_1.small.fq.gz"
+                "path": FQ_1.name
             },
             "fastq_2": {
                 "class": "File",
-                "path": "./ERR034597_1.small.fq.gz"
+                "path": FQ_2.name
             }
         }),
         "workflow_type": "CWL",
         "workflow_type_version": "v1.0",
         "tags": json.dumps({
-            "workflow_name": "trimming_and_qc_remote"  # type: ignore
+            "workflow_name": CWL_WF.stem  # type: ignore
         }),
         "workflow_engine_name": "cwltool",
         "workflow_engine_parameters": json.dumps({}),
-        "workflow_url": "./trimming_and_qc.cwl"
+        "workflow_url": CWL_WF.name
     }
 
-    data["fastq_1"] = (RES.joinpath(FQ_1).open(mode="rb"),  # type: ignore
-                       FQ_1)
-    data["fastq_2"] = (RES.joinpath(FQ_2).open(mode="rb"),  # type: ignore
-                       FQ_2)
-    data["workflow"] = (RES.joinpath(WF).open(mode="rb"),  # type: ignore
-                        WF)
-    data["tool_1"] = (RES.joinpath(TOOL_1).open(mode="rb"),  # type: ignore
-                      TOOL_1)
-    data["tool_2"] = (RES.joinpath(TOOL_2).open(mode="rb"),  # type: ignore
-                      TOOL_2)
+    data["fastq_1"] = (FQ_1.open(mode="rb"), FQ_1.name)  # type: ignore
+    data["fastq_2"] = (FQ_2.open(mode="rb"), FQ_2.name)  # type: ignore
+    data["workflow"] = (CWL_WF.open(mode="rb"), CWL_WF.name)  # type: ignore
+    data["tool_1"] = (CWL_TOOL_1.open(mode="rb"),  # type: ignore
+                      CWL_TOOL_1.name)
+    data["tool_2"] = (CWL_TOOL_2.open(mode="rb"),  # type: ignore
+                      CWL_TOOL_2.name)
 
     response: Response = client.post("/runs", data=data,
                                      content_type="multipart/form-data")
@@ -78,12 +67,34 @@ def test_attach_all_files(delete_env_vars: None, tmpdir: LocalPath) -> None:
     assert "run_id" in posts_res_data
 
     run_id: str = posts_res_data["run_id"]
-    sleep(3)
-    from ..test_get_run_id import get_run_id
-    res: Response = get_run_id(client, run_id)
-    res_data: RunLog = res.get_json()
-    print(res_data)
+    from ..test_get_run_id_status import get_run_id_status
+    count: int = 0
+    while count <= 60:
+        get_status_res: Response = get_run_id_status(client, run_id)
+        get_status_data: RunStatus = get_status_res.get_json()
+        if get_status_data["state"] == "COMPLETE":  # type: ignore
+            break
+        sleep(1)
+        count += 1
 
-    assert res.status_code == 200
-    assert "run_id" in res_data
-    assert run_id == res_data["run_id"]
+    from ..test_get_run_id import get_run_id
+    detail_res: Response = get_run_id(client, run_id)
+    detail_res_data: RunLog = detail_res.get_json()
+
+    assert detail_res.status_code == 200
+    assert "ERR034597_1.small.fq.trimmed.1P.fq" in detail_res_data["outputs"]
+    assert "ERR034597_1.small.fq.trimmed.1U.fq" in detail_res_data["outputs"]
+    assert "ERR034597_1.small.fq.trimmed.2P.fq" in detail_res_data["outputs"]
+    assert "ERR034597_1.small.fq.trimmed.2U.fq" in detail_res_data["outputs"]
+    assert "ERR034597_1.small_fastqc.html" in detail_res_data["outputs"]
+    assert "ERR034597_2.small_fastqc.html" in detail_res_data["outputs"]
+    assert len(detail_res_data["request"]["workflow_attachment"]) == 5
+    assert "cwltool" == detail_res_data["request"]["workflow_engine_name"]
+    assert "CWL" == detail_res_data["request"]["workflow_type"]
+    assert "v1.0" == detail_res_data["request"]["workflow_type_version"]
+    assert CWL_WF.name == detail_res_data["request"]["workflow_url"]
+    assert run_id == detail_res_data["run_id"]
+    assert detail_res_data["run_log"]["exit_code"] == "0"  # type: ignore
+    assert "Final process status is success" in \
+        detail_res_data["run_log"]["stderr"]
+    assert "COMPLETE" == detail_res_data["state"]  # type: ignore

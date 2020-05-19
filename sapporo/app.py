@@ -11,11 +11,12 @@ from typing import Dict, List, Optional, Union
 from flask import Flask, Response, current_app, jsonify
 from werkzeug.exceptions import HTTPException
 
-from sapporo.const import (DEFAULT_AVAILABLE_WORKFLOWS_CONFIG, DEFAULT_HOST,
+from sapporo.const import (DEFAULT_EXECUTABLE_WORKFLOWS, DEFAULT_HOST,
                            DEFAULT_PORT, DEFAULT_RUN_DIR, DEFAULT_RUN_SH,
                            DEFAULT_SERVICE_INFO)
 from sapporo.controller import app_bp
-from sapporo.type import ErrorResponse
+from sapporo.type import ErrorResponse, Workflow
+import json
 
 
 def parse_args(sys_args: List[str]) -> Namespace:
@@ -78,10 +79,10 @@ def parse_args(sys_args: List[str]) -> Namespace:
              "application."
     )
     parser.add_argument(
-        "--available-workflows-config",
+        "--executable-workflows",
         nargs=1,
         metavar="",
-        help="Specify `available-workflows-config.json`."
+        help="Specify `executable-workflows.json`."
     )
     parser.add_argument(
         "--run-sh",
@@ -113,10 +114,10 @@ def handle_default_params(args: Namespace) -> Dict[str, Union[str, int, Path]]:
         "service_info": handle_default_path(args.service_info,
                                             "SAPPORO_SERVICE_INFO",
                                             DEFAULT_SERVICE_INFO),
-        "available_workflows_config":
-            handle_default_path(args.available_workflows_config,
-                                "SAPPORO_AVAILABLE_WORKFLOWS_CONFIG",
-                                DEFAULT_AVAILABLE_WORKFLOWS_CONFIG),
+        "executable_workflows":
+            handle_default_path(args.executable_workflows,
+                                "SAPPORO_EXECUTABLE_WORKFLOWS",
+                                DEFAULT_EXECUTABLE_WORKFLOWS),
         "run_sh": handle_default_path(args.run_sh,
                                       "SAPPORO_RUN_SH",
                                       DEFAULT_RUN_SH),
@@ -189,6 +190,16 @@ def str2bool(val: Union[str, bool]) -> bool:
     return False if val.lower() in ["false", "no", "n"] else bool(val)
 
 
+def check_uniqueness_wf_name(executable_wf_path: Path) -> None:
+    with executable_wf_path.open(mode="r") as f:
+        executable_wfs: List[Workflow] = json.load(f)
+    wf_names: List[str] = [wf["workflow_name"] for wf in executable_wfs]
+    if len(wf_names) != len(set(wf_names)):
+        raise Exception(
+            "`workflow_name` is not unique in the " +
+            f"`executable_workflows.json`: {executable_wf_path} you inputted.")
+
+
 def fix_errorhandler(app: Flask) -> Flask:
     @app.errorhandler(400)
     @app.errorhandler(401)
@@ -231,8 +242,9 @@ def create_app(params: Dict[str, Union[str, int, Path]]) -> Flask:
     app.config["WORKFLOW_ATTACHMENT"] = params["workflow_attachment"]
     app.config["REGISTERED_ONLY_MODE"] = params["registered_only_mode"]
     app.config["SERVICE_INFO"] = params["service_info"]
-    app.config["AVAILABLE_WORKFLOWS_CONFIG"] = \
-        params["available_workflows_config"]
+    app.config["EXECUTABLE_WORKFLOWS"] = \
+        params["executable_workflows"]
+    check_uniqueness_wf_name(app.config["EXECUTABLE_WORKFLOWS"])
     app.config["RUN_SH"] = params["run_sh"]
 
     return app

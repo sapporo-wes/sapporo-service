@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # coding: utf-8
+import json
 import os
 import shlex
 import signal
@@ -7,13 +8,16 @@ from pathlib import Path
 from subprocess import Popen
 from typing import Dict, List, Optional
 
+import requests
 from flask import abort, current_app
+from requests import Response
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
-from sapporo.type import Log, RunLog, RunRequest, ServiceInfo, State
+from sapporo.type import Log, RunLog, RunRequest, ServiceInfo, State, Workflow
 from sapporo.util import (generate_service_info, get_all_run_ids, get_path,
-                          get_run_dir, get_state, read_file, write_file)
+                          get_run_dir, get_state, get_workflow, read_file,
+                          write_file)
 
 
 def validate_run_request(run_request: RunRequest) -> None:
@@ -26,6 +30,24 @@ def validate_run_request(run_request: RunRequest) -> None:
         if field not in run_request:
             abort(400,
                   f"{field} not included in the form data of the request.")
+
+
+def update_and_validate_registered_only_mode(run_request: RunRequest) \
+        -> RunRequest:
+    if "workflow_name" not in run_request:
+        abort(400,
+              "Currently, Sapporo is running with " +
+              "registered_only_mode. Therefore, you need to run " +
+              "the workflow with the workflow_name.")
+    wf: Workflow = get_workflow(run_request["workflow_name"])
+    run_request["workflow_url"] = wf["workflow_url"]
+    run_request["workflow_type"] = wf["workflow_type"]
+    run_request["workflow_type_version"] = \
+        wf["workflow_type_version"]
+    run_request["workflow_attachment"] = \
+        wf["workflow_attachment"]
+
+    return run_request
 
 
 def validate_wf_type(wf_type: str, wf_type_version: str) -> None:
@@ -53,11 +75,30 @@ def prepare_exe_dir(run_id: str,
                     request_files: Dict[str, FileStorage]) -> None:
     exe_dir: Path = get_path(run_id, "exe_dir")
     exe_dir.mkdir(parents=True, exist_ok=True)
+    run_request: RunRequest = read_file(run_id, "run_request")
+    if current_app.config["REGISTERED_ONLY_MODE"]:
+        for attached_file in run_request["workflow_attachment"]:
+            file_name: str = secure_filename(attached_file["file_name"])
+            file_path: Path = exe_dir.joinpath(file_name).resolve()
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            response: Response = requests.get(attached_file["file_url"])
+            with file_path.open(mode="wb") as f:
+                f.write(response.content)
+    if "workflow_attachment" not in run_request:
+        run_request["workflow_attachment"] = []
     if current_app.config["WORKFLOW_ATTACHMENT"]:
         for file in request_files.values():
             if file.filename != "":
-                filename: str = secure_filename(file.filename)
-                file.save(exe_dir.joinpath(filename))  # type: ignore
+                file_name = secure_filename(file.filename)
+                run_request["workflow_attachment"].append({
+                    "file_name": file_name,
+                    "file_url": ""
+                })
+                file_path = exe_dir.joinpath(file_name).resolve()
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                file.save(file_path)  # type: ignore
+
+    write_file(run_id, "run_request", json.dumps(run_request, indent=2))
 
 
 def fork_run(run_id: str) -> None:

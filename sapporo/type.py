@@ -119,18 +119,29 @@ class WorkflowTypeVersion(TypedDict):
     workflow_type_version: List[str]
 
 
+class AttachedFile(TypedDict):
+    """
+    The file specified in `workflow_attachment`. It is expanded to the
+    execution dir when the workflow is executed.
+
+    file_name:
+        File name. It can be also specified like `dir_name/file_name`.
+    file_url:
+        Remote file URL.
+    """
+    file_name: str
+    file_url: str
+
+
 class Workflow(TypedDict):
     """
     The information about the workflow provided by `service-info` in the mode
-    of executing only the workflow registered by the administrator. Because
-    `workflow_url` returns both file_path and http_url, it is necessary
-    to include the content of the workflow which can be retrieved from the
-    running server as `workflow_content`.
+    of executing only the workflow registered by the administrator.
 
     workflow_name:
         The workflow name
     workflow_url:
-        The workflow document
+        The workflow document url
     workflow_type:
         The workflow descriptor type, must be "CWL" or "WDL" currently (or
         another alternative supported by this WES instance)
@@ -139,14 +150,19 @@ class Workflow(TypedDict):
         and WDL are used although a service may support others) and value is a
         workflow_type_version object which simply contains an array of one or
         more version strings
-    workflow_content:
-        The actual contents of the workflow
+    workflow_attachment:
+        The workflow_attachment array may be used to download files that are
+        required to execute the workflow, including the primary workflow,
+        tools imported by the workflow, other files referenced by the workflow,
+        or files which are part of the input. The implementation should stage
+        these files to a temporary directory and execute the workflow from
+        there.
     """
     workflow_name: str
     workflow_url: str
     workflow_type: str
     workflow_type_version: str
-    workflow_content: str
+    workflow_attachment: List[AttachedFile]
 
 
 class ServiceInfo(TypedDict):
@@ -189,7 +205,7 @@ class ServiceInfo(TypedDict):
     tags:
         A key-value map of arbitrary, extended metadata outside the scope of
         the above but useful to report back
-    workflows:
+    executable_workflows:
         List of workflows that can be executed
     """
     workflow_type_versions: Dict[str, WorkflowTypeVersion]
@@ -201,7 +217,7 @@ class ServiceInfo(TypedDict):
     auth_instructions_url: str
     contact_info_url: str
     tags: Dict[str, str]
-    workflows: List[Workflow]
+    executable_workflows: List[Workflow]
 
 
 class RunStatus(TypedDict):
@@ -281,6 +297,7 @@ class RunRequest(TypedDict):
     workflow_engine_parameters: str
     workflow_url: str
     workflow_name: str
+    workflow_attachment: List[AttachedFile]
 
 
 class RunLog(TypedDict):
