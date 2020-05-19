@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Schema for sapporo service-info",
+  "type": "object",
+  "properties": {
+    "workflow_type_versions": {
+      "type": "object"
+    },
+    "supported_wes_versions": {
+      "type": "array"
+    },
+    "supported_filesystem_protocols": {
+      "type": "array"
+    },
+    "default_workflow_engine_parameters": {
+      "type": "array"
+    },
+    "auth_instructions_url": {
+      "type": "string"
+    },
+    "contact_info_url": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "workflow_type_versions",
+    "supported_filesystem_protocols",
+    "workflow_engine_versions",
+    "default_workflow_engine_parameters",
+    "auth_instructions_url",
+    "contact_info_url"
+  ]
+}

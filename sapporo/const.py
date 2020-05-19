@@ -9,8 +9,6 @@ DEFAULT_SERVICE_INFO: Path = \
     SRC_DIR.joinpath("service-info.json").resolve()
 DEFAULT_EXECUTABLE_WORKFLOWS: Path = \
     SRC_DIR.joinpath("executable_workflows.json").resolve()
-WORKFLOWS: Path = \
-    SRC_DIR.joinpath("workflows.json").resolve()
 DEFAULT_RUN_SH: Path = \
     SRC_DIR.joinpath("run.sh").resolve()
 DEFAULT_RUN_DIR = Path.cwd().joinpath("run").resolve()
@@ -19,6 +17,11 @@ DEFAULT_PORT: int = 8080
 GET_STATUS_CODE: int = 200
 POST_STATUS_CODE: int = 200
 DATE_FORMAT: str = "%Y-%m-%dT%H:%M:%S"
+
+SERVICE_INFO_SCHEMA: Path = \
+    SRC_DIR.joinpath("service-info.schema.json").resolve()
+EXECUTABLE_WORKFLOWS_SCHEMA: Path = \
+    SRC_DIR.joinpath("executable_workflows.schema.json").resolve()
 
 RUN_DIR_STRUCTURE: Dict[str, str] = {
     "run_request": "run_request.json",

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # coding: utf-8
 import argparse
+import json
 import os
 import sys
 from argparse import ArgumentParser, Namespace
@@ -9,14 +10,15 @@ from traceback import format_exc
 from typing import Dict, List, Optional, Union
 
 from flask import Flask, Response, current_app, jsonify
+from jsonschema import validate
 from werkzeug.exceptions import HTTPException
 
 from sapporo.const import (DEFAULT_EXECUTABLE_WORKFLOWS, DEFAULT_HOST,
                            DEFAULT_PORT, DEFAULT_RUN_DIR, DEFAULT_RUN_SH,
-                           DEFAULT_SERVICE_INFO)
+                           DEFAULT_SERVICE_INFO, EXECUTABLE_WORKFLOWS_SCHEMA,
+                           SERVICE_INFO_SCHEMA)
 from sapporo.controller import app_bp
 from sapporo.type import ErrorResponse, Workflow
-import json
 
 
 def parse_args(sys_args: List[str]) -> Namespace:
@@ -200,6 +202,16 @@ def check_uniqueness_wf_name(executable_wf_path: Path) -> None:
             f"`executable_workflows.json`: {executable_wf_path} you inputted.")
 
 
+def validate_json(service_info: Path, executable_wf: Path) -> None:
+    pairs: List[List[Path]] = [
+        [service_info, SERVICE_INFO_SCHEMA],
+        [executable_wf, EXECUTABLE_WORKFLOWS_SCHEMA]
+    ]
+    for data, schema in pairs:
+        with data.open(mode="r") as f_d, schema.open(mode="r") as f_s:
+            validate(json.load(f_d), json.load(f_s))
+
+
 def fix_errorhandler(app: Flask) -> Flask:
     @app.errorhandler(400)
     @app.errorhandler(401)
@@ -244,6 +256,8 @@ def create_app(params: Dict[str, Union[str, int, Path]]) -> Flask:
     app.config["SERVICE_INFO"] = params["service_info"]
     app.config["EXECUTABLE_WORKFLOWS"] = \
         params["executable_workflows"]
+    validate_json(app.config["SERVICE_INFO"],
+                  app.config["EXECUTABLE_WORKFLOWS"])
     check_uniqueness_wf_name(app.config["EXECUTABLE_WORKFLOWS"])
     app.config["RUN_SH"] = params["run_sh"]
 

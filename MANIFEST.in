@@ -1,3 +1,5 @@
+include sapporo/executable_workflows.json
+include sapporo/executable_workflows.schema.json
 include sapporo/run.sh
 include sapporo/service-info.json
-include sapporo/workflows.json
+include sapporo/service-info.schema.json

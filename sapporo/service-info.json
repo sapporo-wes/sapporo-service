@@ -4,22 +4,14 @@
       "workflow_type_version": ["v1.0", "v1.1", "v1.1.0-dev1"]
     }
   },
-  "supported_wes_versions": [],
   "supported_filesystem_protocols": ["http", "https", "file"],
   "workflow_engine_versions": {
     "cwltool": "1.0.20191225192155"
   },
   "default_workflow_engine_parameters": [],
-  "system_state_counts": {},
   "auth_instructions_url": "https://github.com/ddbj/SAPPORO-service",
   "contact_info_url": "https://github.com/ddbj/SAPPORO-service",
   "tags": {
-    "wes_name": "sapporo",
-    "debug": "",
-    "run_dir": "",
-    "get_runs": "",
-    "workflow_attachment": "",
-    "registered_only_mode": ""
-  },
-  "workflows": []
+    "wes_name": "sapporo"
+  }
 }

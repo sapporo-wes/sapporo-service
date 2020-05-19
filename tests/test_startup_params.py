@@ -42,11 +42,11 @@ def test_env_vars(delete_env_vars: None, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS",
                        "True")
     monkeypatch.setenv("SAPPORO_SERVICE_INFO",
-                       str(base_dir.joinpath("tests/service-info.json")))
+                       str(base_dir.joinpath("sapporo/service-info.json")))
     monkeypatch.setenv("SAPPORO_EXECUTABLE_WORKFLOWS",
-                       str(base_dir.joinpath("tests/executable_workflows.json")))  # noqa: E501
+                       str(base_dir.joinpath("sapporo/executable_workflows.json")))  # noqa: E501
     monkeypatch.setenv("SAPPORO_RUN_SH",
-                       str(base_dir.joinpath("tests/run.sh")))
+                       str(base_dir.joinpath("sapporo/run.sh")))
 
     args: Namespace = parse_args([])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
@@ -60,11 +60,11 @@ def test_env_vars(delete_env_vars: None, monkeypatch: MonkeyPatch) -> None:
     assert app.config["WORKFLOW_ATTACHMENT"] is False
     assert app.config["REGISTERED_ONLY_MODE"] is True
     assert app.config["SERVICE_INFO"] == \
-        base_dir.joinpath("tests/service-info.json")
+        base_dir.joinpath("sapporo/service-info.json")
     assert app.config["EXECUTABLE_WORKFLOWS"] == \
-        base_dir.joinpath("tests/executable_workflows.json")
+        base_dir.joinpath("sapporo/executable_workflows.json")
     assert app.config["RUN_SH"] == \
-        base_dir.joinpath("tests/run.sh")
+        base_dir.joinpath("sapporo/run.sh")
 
 
 def test_parse_args(delete_env_vars: None) -> None:
@@ -77,11 +77,11 @@ def test_parse_args(delete_env_vars: None) -> None:
                     "--disable-workflow-attachment",
                     "--run-only-registered-workflows",
                     "--service-info",
-                    str(base_dir.joinpath("tests/service-info.json")),
+                    str(base_dir.joinpath("sapporo/service-info.json")),
                     "--executable-workflows",
-                    str(base_dir.joinpath("tests/executable_workflows.json")),  # noqa: E501
+                    str(base_dir.joinpath("sapporo/executable_workflows.json")),  # noqa: E501
                     "--run-sh",
-                    str(base_dir.joinpath("tests/run.sh"))])
+                    str(base_dir.joinpath("sapporo/run.sh"))])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
     app: Flask = create_app(params)
 
@@ -93,8 +93,8 @@ def test_parse_args(delete_env_vars: None) -> None:
     assert app.config["WORKFLOW_ATTACHMENT"] is False
     assert app.config["REGISTERED_ONLY_MODE"] is True
     assert app.config["SERVICE_INFO"] == \
-        base_dir.joinpath("tests/service-info.json")
+        base_dir.joinpath("sapporo/service-info.json")
     assert app.config["EXECUTABLE_WORKFLOWS"] == \
-        base_dir.joinpath("tests/executable_workflows.json")
+        base_dir.joinpath("sapporo/executable_workflows.json")
     assert app.config["RUN_SH"] == \
-        base_dir.joinpath("tests/run.sh")
+        base_dir.joinpath("sapporo/run.sh")
