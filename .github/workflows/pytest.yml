@@ -18,8 +18,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install jq
         run: |
-          apt update
-          apt install -y jq
+          sudo apt update
+          sudo apt install -y jq
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
