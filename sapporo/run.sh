@@ -7,6 +7,18 @@ function run_wf() {
   if [[ ${wf_engine_name} == "cwltool" ]]; then
     run_cwltool
     generate_outputs_list
+  elif [[ ${wf_engine_name} == "nextflow" ]]; then
+    run_nextflow
+    generate_outputs_list
+  elif [[ ${wf_engine_name} == "toil" ]]; then
+    run_toil
+    generate_outputs_list
+  elif [[ ${wf_engine_name} == "cromwell" ]]; then
+    run_cromwell
+    generate_outputs_list
+  elif [[ ${wf_engine_name} == "snakemake" ]]; then
+    run_snakemake
+    generate_outputs_list
   fi
   date +"%Y-%m-%dT%H:%M:%S" >${end_time}
   echo 0 >${exit_code}
@@ -17,6 +29,34 @@ function run_wf() {
 function run_cwltool() {
   local container="commonworkflowlanguage/cwltool:1.0.20191225192155"
   local cmd_txt="${DOCKER_CMD} ${container} --outdir ${outputs_dir} ${wf_engine_params} ${wf_url} ${wf_params} 1>${stdout} 2>${stderr}"
+  echo ${cmd_txt} >${cmd}
+  eval ${cmd_txt} || executor_error
+}
+
+function run_nextflow() {
+  local container="nextflow/nextflow:20.04.1"
+  local cmd_txt="${DOCKER_CMD} ${container} ${wf_url} -params-file ${wf_params} ${wf_engine_params} 1>${stdout} 2>${stderr}"
+  echo ${cmd_txt} >${cmd}
+  eval ${cmd_txt} || executor_error
+}
+
+function run_toil() {
+  local container="quay.io/ucsc_cgl/toil:4.1.0"
+  local cmd_txt="${DOCKER_CMD} -e TOIL_WORKDIR=${exe_dir} ${container} toil-cwl-runner ${wf_engine_params} ${wf_url} ${wf_params} 1>${stdout} 2>${stderr}"
+  echo ${cmd_txt} >${cmd}
+  eval ${cmd_txt} || executor_error
+}
+
+function run_cromwell() {
+  local container="broadinstitute/cromwell:50"
+  local cmd_txt="${DOCKER_CMD} ${container} run ${wf_engine_params} ${wf_url} 1>${stdout} 2>${stderr}"
+  echo ${cmd_txt} >${cmd}
+  eval ${cmd_txt} || executor_error
+}
+
+function run_snakemake() {
+  local container="snakemake/snakemake:v5.17.0"
+  local cmd_txt="${DOCKER_CMD} ${container} snakemake ${wf_engine_params} --snakefile ${wf_url} 1>${stdout} 2>${stderr}"
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
 }
