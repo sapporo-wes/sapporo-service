@@ -122,6 +122,8 @@ def test_cwl_remote(delete_env_vars: None, tmpdir: LocalPath) -> None:
     detail_res: Response = get_run_id(client, run_id)
     detail_res_data: RunLog = detail_res.get_json()
 
+    print(detail_res_data)
+
     assert detail_res.status_code == 200
     assert "ERR034597_1.small.fq.trimmed.1P.fq" in detail_res_data["outputs"]
     assert "ERR034597_1.small.fq.trimmed.1U.fq" in detail_res_data["outputs"]
@@ -177,6 +179,8 @@ def test_cwl_attach_in_config(delete_env_vars: None, tmpdir: LocalPath) \
     detail_res: Response = get_run_id(client, run_id)
     detail_res_data: RunLog = detail_res.get_json()
 
+    print(detail_res_data)
+
     assert detail_res.status_code == 200
     assert "ERR034597_1.small.fq.trimmed.1P.fq" in detail_res_data["outputs"]
     assert "ERR034597_1.small.fq.trimmed.1U.fq" in detail_res_data["outputs"]
@@ -230,6 +234,8 @@ def test_cwl_attach_in_request(delete_env_vars: None, tmpdir: LocalPath) \
     from ..test_get_run_id import get_run_id
     detail_res: Response = get_run_id(client, run_id)
     detail_res_data: RunLog = detail_res.get_json()
+
+    print(detail_res_data)
 
     assert detail_res.status_code == 200
     assert "ERR034597_1.small.fq.trimmed.1P.fq" in detail_res_data["outputs"]

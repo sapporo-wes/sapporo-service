@@ -29,4 +29,4 @@ jobs:
           python3 setup.py install
       - name: Check with pytest
         run: |
-          pytest .
+          pytest -s .
