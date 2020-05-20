@@ -97,7 +97,7 @@ As API specifications, please check [GitHub - GA4GH WES](https://github.com/ga4g
 
 #### Mode to execute only registered workflows
 
-As API specifications for a mode to execute only registered workflows, please check [SwaggerUI - GA4GH WES](https://suecharo.github.io/genpei-swagger-ui/dist/).
+As API specifications for a mode to execute only registered workflows, please check [SwaggerUI - SAPPORO WES](https://suecharo.github.io/sapporo-swagger-ui/dist/).
 
 Basically, it conforms to the standard WES API. The changes are as follows.
 
