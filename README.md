@@ -4,6 +4,9 @@
 [![flake8](https://github.com/ddbj/SAPPORO-service/workflows/flake8/badge.svg)](https://github.com/ddbj/SAPPORO-service/actions?query=workflow%3Aflake8)
 [![isort](https://github.com/ddbj/SAPPORO-service/workflows/isort/badge.svg)](https://github.com/ddbj/SAPPORO-service/actions?query=workflow%3Aisort)
 [![mypy](https://github.com/ddbj/SAPPORO-service/workflows/mypy/badge.svg)](https://github.com/ddbj/SAPPORO-service/actions?query=workflow%3Amypy)
+[![Apache License](https://img.shields.io/badge/license-Apache%202.0-orange.svg?style=flat&color=important)](http://www.apache.org/licenses/LICENSE-2.0)
+
+<img src="https://raw.githubusercontent.com/ddbj/SAPPORO/master/logo/SAPPORO-Service.svg" width="400" style="display: block; margin-left: auto; margin-right: auto;" alt="SAPPORO-service logo">
 
 [Japanese Document](https://github.com/ddbj/SAPPORO-service/blob/master/README_ja.md)
 
