@@ -25,6 +25,7 @@ def main() -> None:
                       "service that can easily support various " +
                       "workflow runners.",
           long_description=LONG_DESCRIPTION.open(mode="r").read(),
+          long_description_content_type="text/markdown",
           author="DDBJ(DNA Data Bank of Japan)",
           author_email="t.ohta@nig.ac.jp",
           url="https://github.com/ddbj/SAPPORO-service",
