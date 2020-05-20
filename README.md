@@ -1,334 +1,264 @@
 # SAPPORO-service
 
-SAPPORO-service is a REST API Server that executes batch jobs. The REST API definition conforms to [GA4GH Workflow Execution Service API](https://github.com/ga4gh/workflow-execution-service-schemas).
+[![pytest](https://github.com/ddbj/SAPPORO-service/workflows/pytest/badge.svg)](https://github.com/ddbj/SAPPORO-service/actions?query=workflow%3Apytest)
+[![flake8](https://github.com/ddbj/SAPPORO-service/workflows/flake8/badge.svg)](https://github.com/ddbj/SAPPORO-service/actions?query=workflow%3Aflake8)
+[![isort](https://github.com/ddbj/SAPPORO-service/workflows/isort/badge.svg)](https://github.com/ddbj/SAPPORO-service/actions?query=workflow%3Aisort)
+[![mypy](https://github.com/ddbj/SAPPORO-service/workflows/mypy/badge.svg)](https://github.com/ddbj/SAPPORO-service/actions?query=workflow%3Amypy)
 
-[Japanese Document](https://hackmd.io/s/Skp49g2IN)
+[Japanese Document](https://github.com/ddbj/SAPPORO-service/blob/master/README_ja.md)
+
+SAPPORO is a standard implementation conforming to the [Global Alliance for Genomics and Health](https://www.ga4gh.org) (GA4GH) [Workflow Execution Service](https://github.com/ga4gh/workflow-execution-service-schemas) (WES) API specification.
+
+One of SAPPORO's features is the abstraction of workflow engines, which makes it easy to convert various workflow engines into WES. The following workflow engines have been confirmed to be working at present.
+
+- cwltool
+- nextflow
+- toil
+- cromwell
+- snakemake
+
+Another feature of SAPPORO is the mode that can only execute the workflow registered by the administrator. This feature is useful when building a WES in a shared HPC environment.
+
+## Install and Run
+
+SAPPORO supports Python 3.6 or newer.
+
+```bash
+$ pip3 install sapporo
+$ sapporo
+```
+
+### Docker
+
+You can also launch it with Docker.
+To use Docker-in-Docker (DinD), you have to mount `docker.sock`, `/tmp`, etc.
+
+```bash
+# Launch
+$ docker-compose up -d --build
+
+# 起動確認
+$ docker-compose logs
+```
 
 ## Usage
 
-Use a script that wraps docker-compose.
+The help for the SAPPORO startup command is as follows
 
-```shell
-$ ./sapporo-service up
-Start SAPPORO-service up...
+```bash
+$ sapporo --help
+usage: sapporo [-h] [--host] [-p] [--debug] [-r] [--disable-get-runs]
+               [--disable-workflow-attachment]
+               [--run-only-registered-workflows] [--service-info]
+               [--executable-workflows] [--run-sh]
 
-  Debug              : False
-  Port               : 1122
-  Log Level          : INFO
-  Get Runs           : True
-  Token Auth         : False
+Implementation of a GA4GH workflow execution service that can easily
+support various workflow runners.
 
-Creating sapporo-service-app ... done
-Creating sapporo-service-web ... done
+optional arguments:
+  -h, --help            show this help message and exit
+  --host                Host address of Flask. (default: 127.0.0.1)
+  -p , --port           Port of Flask. (default: 8080)
+  --debug               Enable debug mode of Flask.
+  -r , --run-dir        Specify the run dir. (default: ./run)
+  --disable-get-runs    Disable endpoint of `GET /runs`.
+  --disable-workflow-attachment
+                        Disable `workflow_attachment` on endpoint `Post
+                        /runs`.
+  --run-only-registered-workflows
+                        Run only registered workflows. Check the registered
+                        workflows using `GET /service-info`, and specify
+                        `workflow_name` in the `POST /run`.
+  --service-info        Specify `service-info.json`. The
+                        supported_wes_versions, system_state_counts and
+                        workflows are overwritten in the application.
+  --executable-workflows
+                        Specify `executable-workflows.json`.
+  --run-sh              Specify `run.sh`.
+```
 
-Please try:
+### Operating Mode
 
-    $ curl -X GET localhost:1122/service-info
+There are two startup modes for SAPPORO.
 
-Finish SAPPORO-service up...
+- Standard WES mode (Default)
+- Mode to execute only registered workflows
 
-$ curl -X GET localhost:1122/service-info
+These are switched with the `-run-only-registered-workflows` argument at startup. It can also be switched by giving `True` or `False` to the environment variable `SAPPORO_ONLY_REGISTERED_WORKFLOWS`. Startup arguments take precedence over environment variables.
+
+#### Standard WES mode
+
+As API specifications, please check [GitHub - GA4GH WES](https://github.com/ga4gh/workflow-execution-service-schemas) and [SwaggerUI - GA4GH WES](https://suecharo.github.io/genpei-swagger-ui/dist/).
+
+**It is different from the standard WES API specification, you must specify `workflow_engine_name` in the request parameter of `POST /runs`.** I personally consider this to be a flaw in the standard WES API specification, so I requested a fix.
+
+#### Mode to execute only registered workflows
+
+As API specifications for a mode to execute only registered workflows, please check [SwaggerUI - GA4GH WES](https://suecharo.github.io/genpei-swagger-ui/dist/).
+
+Basically, it conforms to the standard WES API. The changes are as follows.
+
+- Executable workflows are returned by `GET /service-info` as `executable_workflows`.
+- Specify `workflow_name` instead of `workflow_url` with `POST /runs`.
+
+The following is an example of requesting `GET /service-info` in a mode to execute only registered workflows.
+
+```json
+GET /service-info
 {
-  "auth_instructions_url": "https://dummy_auth_instructions_url/",
-  "contact_info_url": "https://dummy_contact_info_url/",
-  "supported_wes_versions": [
-    "v1.0.0"
-  ],
-  "workflow_engines": [
+  "auth_instructions_url": "https://github.com/ddbj/SAPPORO-service",
+  "contact_info_url": "https://github.com/ddbj/SAPPORO-service",
+  "default_workflow_engine_parameters": [],
+  "executable_workflows": [
     {
-      "engine_name": "cwltool",
-      "engine_version": "1.0.20191022103248",
-      "workflow_types": [
+      "workflow_attachment": [],
+      "workflow_name": "CWL_trimming_and_qc_remote",
+      "workflow_type": "CWL",
+      "workflow_type_version": "v1.0",
+      "workflow_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/trimming_and_qc_remote.cwl"
+    },
+    {
+      "workflow_attachment": [
         {
-          "language_type": "CWL",
-          "language_version": "v1.0"
+          "file_name": "fastqc.cwl",
+          "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/fastqc.cwl"
         },
         {
-          "language_type": "CWL",
-          "language_version": "v1.1"
+          "file_name": "trimming_pe.cwl",
+          "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/trimming_pe.cwl"
         }
-      ]
+      ],
+      "workflow_name": "CWL_trimming_and_qc_local",
+      "workflow_type": "CWL",
+      "workflow_type_version": "v1.0",
+      "workflow_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/trimming_and_qc.cwl"
     }
-  ]
-}
-
-```
-
-### Manage script
-
-```shell
-$ ./sapporo-service --help
-sapporo-service is a set of management commands for SAPPORO-service.
-
-Usage:
-  sapporo-service up [-p <PORT>] [-l DEBUG|INFO] [-d --debug] [--disable-get-runs] [--enable-token-auth] [-h]
-  sapporo-service down
-  sapporo-service clean
-  sapporo-service token [-h]
-  sapporo-service token generate
-  sapporo-service token show
-  sapporo-service dev (up|down|clean|freeze|build|test) [-h]
-
-Option:
-  -h, --help                  Print usage.
-  -v, --version               Print version.
-```
-
-### REST API Definition
-
-It is described in the Swagger format in `./api-definition/SAPPORO-service-api-definition.yml`. Please confirm by the following method.
-
-- [SAPPORO - Swagger UI](https://ddbj.github.io/SAPPORO-service/api-definition/swagger-ui/)
-
-#### GET /service-info
-
-`GET /service-info` is a REST API method for users to get the details of the service.
-
-```shell
-$ curl -X GET localhost:1122/service-info
-{
-  "auth_instructions_url": "https://dummy_auth_instructions_url/",
-  "contact_info_url": "https://dummy_contact_info_url/",
-  "supported_wes_versions": [
-    "v1.0.0"
   ],
-  "workflow_engines": [
-    {
-      "engine_name": "cwltool",
-      "engine_version": "1.0.20191022103248",
-      "workflow_types": [
-        {
-          "language_type": "CWL",
-          "language_version": "v1.0"
-        },
-        {
-          "language_type": "CWL",
-          "language_version": "v1.1"
-        }
+  "supported_filesystem_protocols": [
+    "http",
+    "https",
+    "file"
+  ],
+  "supported_wes_versions": [
+    "sapporo-wes-1.1"
+  ],
+  "system_state_counts": {},
+  "tags": {
+    "debug": true,
+    "get_runs": true,
+    "registered_only_mode": true,
+    "run_dir": "/home/ubuntu/git/github.com/ddbj/SAPPORO-service/run",
+    "wes_name": "sapporo",
+    "workflow_attachment": true
+  },
+  "workflow_engine_versions": {
+    "cromwell": "50",
+    "cwltool": "1.0.20191225192155",
+    "nextflow": "20.04.1",
+    "snakemake": "v5.17.0",
+    "toil": "4.1.0"
+  },
+  "workflow_type_versions": {
+    "CWL": {
+      "workflow_type_version": [
+        "v1.0",
+        "v1.1",
+        "v1.1.0-dev1"
       ]
     }
-  ]
-}
-```
-
-You can change the contents of response by editing `./service-info.yml`
-
-#### GET /runs
-
-Using `GET /runs`, can check all batch jobs in SAPPORO-service. However, when using SAPPORO-service by an unspecified number of users, problems arises (e.g. cancelling other user's batch jobs). The default setting is enable, so if you want to change this, start SAPPORO-service like `./sapporo-service up --disable-get-runs`.
-
-#### POST /runs
-
-Using `POST /runs`, can submit the batch job into SAPPORO-service. Examples of using curl and SAPPORO-fileserver follows:
-
-```
-$ cat test_jobs/trimming-and-qc-upload.yml
-s3_upload_dir: cwl_upload # default value of type "string".
-s3_bucket: sapporo # type "string"
-nthreads: 10 # default value of type "int". (optional)
-fastq: # type "File"
-  class: File
-  location: http://sapporo-fileserver-input:8080/small.ERR034597_1.fastq
-endpoint: sapporo-fileserver-output:8080 # default value of type "string".
-aws_secret_access_key: 01a603c1554b0b80ff02f4949e384e4f # type "string"
-aws_access_key_id: ebd3fc49d00fcbf98efb64e07f68ad25 # type "string"
-
-$ curl -X POST -F workflow_name=trimming_and_qc -F execution_engine_name=cwltool -F workflow_parameters=@test_jobs/trimming-and-qc-upload.yml localhost:1122/runs
-{
-  "run_id": "59bff94c-5cc4-4408-8d87-fee66ea91356",
-  "status": "PENDING"
-}
-
-$ curl -X GET localhost:1122/runs
-[
-  {
-    "run_id": "59bff94c-5cc4-4408-8d87-fee66ea91356",
-    "status": "COMPLETE"
   }
-]
-```
-
-#### GET /runs/\${run_id}
-
-Using `GET /runs/${run_id}`, can fetch job informations such as status and stdout.
-
-```shell
-$ curl localhost:1122/runs/59bff94c-5cc4-4408-8d87-fee66ea91356
-{
-  "end_time": "2019-11-18 22:22:25",
-  "execution_engine_name": "cwltool",
-  "execution_engine_version": "1.0.20191022103248",
-  "language_type": "CWL",
-  "language_version": "v1.1",
-  "run_id": "59bff94c-5cc4-4408-8d87-fee66ea91356",
-  "start_time": "2019-11-18 22:22:11",
-  "status": "COMPLETE",
-  ...
 }
 ```
 
-### Add Workflow
+The executable workflows are managed by [`executable_workflows.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/executable_workflows.json). Also, the schema for this definition is [`executable_workflows.schema.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/executable_workflows.schema.json). The default location of these files is under the application dir of SAPPORO, but it can be overridden by the startup argument `--executable-workflows` or the environment variable `SAPPORO_EXECUTABLE_WORKFLOWS`.
 
-You can add workflows by editing `./workflow-info.yml`
+### Run Dir
 
-```shell
-workflows:
-  - workflow_name: trimming_and_qc
-    workflow_version: v1.0.0
-    workflow_location: https://raw.githubusercontent.com/ddbj/SAPPORO_test_workflow/master/workflow/trimming-and-qc/trimming-and-qc-upload/trimming-and-qc-upload.cwl
-    workflow_parameters_template_location: https://raw.githubusercontent.com/ddbj/SAPPORO_test_workflow/master/workflow/trimming-and-qc/trimming-and-qc-upload/trimming-and-qc-upload.yml
-    language_type: CWL
-    language_version: v1.1
-  - workflow_name: bwa_mapping_pe
-    workflow_version: v1.0.0
-    workflow_location: https://raw.githubusercontent.com/ddbj/SAPPORO_test_workflow/master/workflow/bwa-mapping-pe/bwa-mapping-pe-upload/bwa-mapping-pe-upload.cwl
-    workflow_parameters_template_location: https://raw.githubusercontent.com/ddbj/SAPPORO_test_workflow/master/workflow/bwa-mapping-pe/bwa-mapping-pe-upload/bwa-mapping-pe-upload.yml
-    language_type: CWL
-    language_version: v1.1
+SAPPORO manages the submitted workflows, workflow parameters, output files, etc. on the file system. The location of run dir can be overridden by the startup argument `--run-dir` or the environment variable `SAPPORO_RUN_DIR`.
+
+The run dir structure is as follows. Initialization and deletion of each run can be done by physical deletion with `rm`.
+
+```bash
+$ tree run
+.
+└── 29
+    └── 29109b85-7935-4e13-8773-9def402c7775
+        ├── cmd.txt
+        ├── end_time.txt
+        ├── exe
+        │   └── workflow_params.json
+        ├── exit_code.txt
+        ├── outputs
+        │   ├── ERR034597_1.small.fq.trimmed.1P.fq
+        │   ├── ERR034597_1.small.fq.trimmed.1U.fq
+        │   ├── ERR034597_1.small.fq.trimmed.2P.fq
+        │   ├── ERR034597_1.small.fq.trimmed.2U.fq
+        │   ├── ERR034597_1.small_fastqc.html
+        │   └── ERR034597_2.small_fastqc.html
+        ├── outputs.json
+        ├── run.pid
+        ├── run_request.json
+        ├── start_time.txt
+        ├── state.txt
+        ├── stderr.log
+        ├── stdout.log
+        └── workflow_engine_params.txt
+├── 2d
+│   └── ...
+└── 6b
+    └── ...
 ```
 
-The explanation of each item is as follows.
+The execution of `POST /runs` is very complex. Examples using Python's [requests](https://requests.readthedocs.io/en/master/) are provided by [GitHub - sapporo/tests/post_runs_examples](https://github.com/ddbj/SAPPORO-service/tree/master/tests/post_runs_examples). Please use this as a reference
 
-- workflow_name
-    - Describe freely
-    - Uniquely naming in `workflow.yml`
-- workflow_version
-    - Describe freely
-    - In the example, writing git commit ID
-- workflow_location
-    - Describe the location of the workflow file
-- workflow_parameters_template_location
-    - Describe the location of the workflow execution parameters template file
-- language*[type|version]
-    - Specify language*[type|version] described in `service-info.yml`
+### `run.sh`
 
----
+We use [`run.sh`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/run.sh) to abstract the workflow engine. When `POST /runs` is called, SAPPORO fork the execution of `run.sh` after dumping the necessary files to run dir. Therefore, you can apply various workflow engines to WES by editing `run.sh`.
 
-Executable workflows have input/output parameter restrictions. Please check [GitHub - SAPPORO_test_workflow](https://github.com/ddbj/SAPPORO_test_workflow) as an example.
+The default position of `run.sh` is under the application dir of SAPPORO, but it can be overridden by the startup argument `--run-sh` or the environment variable `SAPPORO_RUN_SH`.
 
-- Input data and workflow files must be hosted on the web
-      - If you want to use local files, you need to prepare a file server
-      - [SAPPORO-fileserver - README](https://github.com/ddbj/SAPPORO-fileserver/blob/master/README.md)
-- Output data needs to be uploaded to file server or object storage
-    - Write one line in `upload_url.txt` in the execution directory
-    - The following are available as local object storage
-    - [SAPPORO-fileserver - README](https://github.com/ddbj/SAPPORO-fileserver/blob/master/README.md)
+### Other Startup Arguments
 
-### Manage Workflow Execution Engine, Job Scheduler
+The startup host or port can be changed by specifying the startup arguments (`--host` and `--port`). And environment variables corresponding to these arguments are `SAPPORO_HOST` and `SAPPORO_PORT`.
 
-The workflow execution engine and job scheduler are abstracted in `./src/run_workflow.sh`.
+The following two startup arguments and environment variables are provided to limit the WES.
 
-```shell
-#!/bin/bash
+- `--disable-get-runs`
+  - `SAPPORO_GET_RUNS`: `True` or `False`.
+  - Disable `GET /runs`.
+    - When using WES with an unspecified number of people, you can see the contents of the run and cancels the run by knowing the run_id of other people.
+    - Because run_id itself is automatically generated by `uuid4`, it is difficult to know it in brute force.
+- `--disable-workflow-attachment`
+  - `SAPPORO_WORKFLOW_ATTACHMENT`: `True` or `False`.
+  - Disable `workflow_attachment` in `POST /runs`.
+    - The `workflow_attachment` is the field to attach a file required for executing a workflow.
+    - There is a security concern because anything can be attached.
 
-function run_wf() {
-  if [[ ${execution_engine} == "cwltool" ]]; then
-    run_cwltool
-  elif [[ ${execution_engine} == "nextflow" ]]; then
-    run_nextflow
-  elif [[ ${execution_engine} == "toil" ]]; then
-    run_toil
-  fi
-}
-
-function run_cwltool() {
-  echo "RUNNING" >$status
-  cwltool --custom-net=sapporo-network --outdir $run_dir $workflow $workflow_parameters 1>$stdout 2>$stderr || echo "EXECUTOR_ERROR" >$status
-  echo "COMPLETE" >$status
-  exit 0
-}
-```
-
-First, to install the workflow execution engine and the job scheduler in the Docker container. Edit `./Dockerfile` and rebuild it, or enter container `docker-compose exec app bash` and install directly. Then edit `./src/run_workflow.sh` and `./service-info.yml`.
-
-### Network
-
-SAPPORO-service is using Flask. The network configuration is as follows.
-
-```text
-Flask <-> uwsgi <-(uWSGI protocol)-> Nginx <-(HTTP)-> Docker <-> User
-```
-
-As an initial setting, Nginx provides `localhost:1122` as a REST API endpoint. If you want to change the port, start SAPPORO-service like `./sapporo-service up --port ${PORT_NUM}`.
-
-If you want to use SSL/TSL, edit `./etc/nginx/nginx.conf`.
-
-### Logging
-
-The following items are output as logs.
-
-```shell
-$ ls ./log
-app  nginx
-```
-
-To change the log level, start SAPPORO-service like `./sapporo-service up --log-level DEBUG`. When set as `DEBUG`, traceback of Python is displayed in `./log/app/flask.log`.
-
-If you want log rotation of `./log/app/flask.log`., edit `./src/app/logging_config.py`.
-
-### Token authentication
-
-SAPPORO-service can use simple token authentication. Start SAPPORO-service like `./sapporo-service up --enable-token-auth`.
-
-```shell
-$ curl -X GET localhost:1122/service-info
-{
-  "msg": "Unauthorized.",
-  "status_code": 401
-}
-```
-
-To issue a token, using `./sapporo-service token generate`.
-
-```shell
-$ ./sapporo-service token generate
-Generated token:
-
-    b50c1ada5207b445e8e0e33567405c87
-```
-
-The tokens are recorded in `.src/app/token_list.txt` in a line break delimited format. If you want to revoke, please edit this file.
-
-```shell
-$ ./sapporo-service token show
-Token list:
-
-    b50c1ada5207b445e8e0e33567405c87
-```
-
-Token authentication is done by adding the `Authorization` header to the request.
-
-```shell
-$ curl -H 'Authorization:b50c1ada5207b445e8e0e33567405c87' localhost:1122/service-info
-{
-  "auth_instructions_url": "https://dummy_auth_instructions_url/",
-  "contact_info_url": "https://dummy_contact_info_url/",
-  "supported_wes_versions": [
-    "v1.0.0"
-  ],
-  "workflow_engines": [
-    {
-      "engine_name": "cwltool",
-      "engine_version": "1.0.20181201184214",
-      "workflow_types": [
-        {
-          "language_type": "CWL",
-          "language_version": "v1.0"
-        }
-      ]
-    }
-  ]
-}
-```
-
-When using token authentication, it is necessary to encrypt the header, so please use SSL/TLS.
+The contents of the response of `GET /service-info` are managed by [`service-info.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/service-info.json). The default position of `service-info.json` is under the application dir of SAPPORO, but it can be overridden by the startup argument `--service-info` or the environment variable `SAPPORO_SERVICE_INFO`.
 
 ## Development
 
-### Build and Docker push
+The development environment starts with the following.
 
-```shell
-./sapporo-service dev freeze
-./sapporo-service dev build ${VERSION}
-docker push suecharo/sapporo-service:${VERSION}
+```bash
+$ docker-compose -f docker-compose.dev.yml up -d --build
+$ docker-compose -f docker-compose.dev.yml exec app bash
 ```
+
+We use [flake8](https://pypi.org/project/flake8/), [isort](https://github.com/timothycrosley/isort), and [mypy](http://mypy-lang.org) as the Linter.
+
+```bash
+$ bash ./tests/lint_and_style_check/flake8.sh
+$ bash ./tests/lint_and_style_check/isort.sh
+$ bash ./tests/lint_and_style_check/mypy.sh
+```
+
+We use [pytest](https://docs.pytest.org/en/latest/) as a Test Tool.
+
+```bash
+$ pytest .
+```
+
+## License
+
+[Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0). See the [LICENSE](https://github.com/ddbj/SAPPORO-service/blob/master/LICENSE).
