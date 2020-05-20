@@ -121,12 +121,6 @@ paths:
         maliciously constructed filenames.
 
 
-        The `workflow_url` is either an absolute URL to a workflow
-        file that is accessible by the WES endpoint, or a relative URL
-        corresponding to one of the files attached using
-        `workflow_attachment`.
-
-
         The `workflow_name` is only used when SAPPORO is in the mode to
         execute only registered workflows. In the original EWS, it is
         OPTIONAL. To see the registered workflows, use `GET /service-info`.
@@ -140,15 +134,6 @@ paths:
         `workflow_attachment`. The WES endpoint must understand and
         be able to access URLs supplied in the input. This is
         implementation specific.
-
-
-        The `workflow_type` is the type of workflow language and
-        must be "CWL" or "WDL" currently (or another alternative
-        supported by this WES instance).
-
-
-        The `workflow_type_version` is the version of the workflow language
-        submitted and must be one supported by this WES instance.
 
 
         See the `RunRequest` documentation for details about other fields.
@@ -184,14 +169,6 @@ paths:
           format: application/json
 
         - in: formData
-          name: workflow_type
-          type: string
-
-        - in: formData
-          name: workflow_type_version
-          type: string
-
-        - in: formData
           name: tags
           type: string
           format: application/json
@@ -204,10 +181,6 @@ paths:
           name: workflow_engine_parameters
           type: string
           format: application/json
-
-        - in: formData
-          name: workflow_url
-          type: string
 
         - in: formData
           name: workflow_name
@@ -450,7 +423,7 @@ definitions:
         description: >-
           A key-value map of arbitrary, extended metadata outside the scope of the above but useful
           to report back
-      workflows:
+      executable_workflows:
         type: array
         items:
           $ref: "#/definitions/Workflow"
@@ -579,6 +552,15 @@ definitions:
           The `workflow_name` is only used when SAPPORO is in the mode to
           execute only registered workflows. In the original EWS, it is
           OPTIONAL. To see the registered workflows, use `GET /service-info`.
+
+      workflow_attachment:
+        type: array
+        items:
+          $ref: "#/definitions/AttachedFile"
+        description: >-
+          OPTIONAL
+
+          This field is the field for the response.
     description: |-
       To execute a workflow, send a run request including all the details needed to begin downloading
       and executing a given workflow.
@@ -638,11 +620,26 @@ definitions:
           A map with keys as the workflow format type name (currently only CWL and WDL are used
           although a service may support others) and value is a workflow_type_version object which
           simply contains an array of one or more version strings
-      workflow_content:
-        type: string
+      workflow_attachment:
+        type: array
+        items:
+          $ref: "#/definitions/AttachedFile"
         description: >-
-          The actual contents of the workflow
+          The workflow_attachment array may be used to download files that are
+          required to execute the workflow, including the primary workflow,
+          tools imported by the workflow, other files referenced by the workflow,
+          or files which are part of the input. The implementation should stage
+          these files to a temporary directory and execute the workflow from there.
     description: >-
       The information about the workflow provided by `service-info` in the mode of executing only the workflow registered by the administrator.
-      Because `workflow_url` returns both file_path and http_url,
-      it is necessary to include the content of the workflow which can be retrieved from the running server as `workflow_content`.
+  AttachedFile:
+    type: object
+    properties:
+      file_name:
+        type: string
+        description: >-
+          File name. It can be also specified like `dir_name/file_name`.
+      file_url:
+        type: string
+        description: >-
+          Remote file URL.
