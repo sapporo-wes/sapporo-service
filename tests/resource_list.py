@@ -11,7 +11,7 @@ CWL_TOOL_1: Path = RESOURCE_DIR.joinpath("fastqc.cwl")
 CWL_TOOL_2: Path = RESOURCE_DIR.joinpath("trimmomatic_pe.cwl")
 
 REMOTE_LOCATION: str = "https://raw.githubusercontent.com/ddbj/" +\
-    "SAPPORO-service/feature/follow-original-wes/tests/resources/"
+    "SAPPORO-service/master/tests/resources/"
 
 REMOTE_FQ_1: str = REMOTE_LOCATION + "ERR034597_1.small.fq.gz"
 REMOTE_FQ_2: str = REMOTE_LOCATION + "ERR034597_2.small.fq.gz"
