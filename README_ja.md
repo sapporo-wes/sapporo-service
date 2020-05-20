@@ -28,7 +28,7 @@ $ sapporo
 
 ### Docker
 
-Docker の利用も想定しています。
+Docker での利用も想定しています。
 Docker-in-Docker (DinD) を使用するため、`docker.sock` や `/tmp` などを mount しなければなりません。
 
 ```bash
@@ -88,7 +88,7 @@ SAPPORO には 2 つのモードがあります。
 
 標準 WES モードの API 仕様は、[GitHub - GA4GH WES](https://github.com/ga4gh/workflow-execution-service-schemas) や [SwaggerUI - GA4GH WES](https://suecharo.github.io/genpei-swagger-ui/dist/) を確認してください。
 
-**一つだけ標準 WES API の仕様と異なる点として、`POST /runs` の request parameter に `workflow_engine_name` を指定する必要があります。** これは、個人的には、標準 WES API 仕様の不備であると考えていて、修正要求を出しています。
+**標準 WES API の仕様と異なる点として、`POST /runs` の request parameter に `workflow_engine_name` を指定する必要があります。** これは、個人的には、標準 WES API 仕様の不備であると考えていて、修正要求を出しています。
 
 #### 登録された workflow のみを実行するモード
 
@@ -172,9 +172,9 @@ GET /service-info
 
 ### Run Dir
 
-SAPPORO は、投入された workflow や workflow parameter、output files などを file system 上で管理しています。これら全ての file をまとめた directory を Run dir と呼んでおり、default は `${PWD}/run` です。Run dir の場所は、起動時引数 `--run-dir` や環境変数 `SAPPORO_RUN_DIR` で上書きできます。
+SAPPORO は、投入された workflow や workflow parameter、output files などを file system 上で管理しています。これら全ての file をまとめた directory を run dir と呼んでおり、default は `${PWD}/run` です。run dir の場所は、起動時引数 `--run-dir` や環境変数 `SAPPORO_RUN_DIR` で上書きできます。
 
-Run dir 構造は、以下のようになっており、それぞれの run における file 群が配置されています。初期化やそれぞれの run の削除は `rm` を用いた物理的な削除により行えます。
+run dir 構造は、以下のようになっており、それぞれの run における file 群が配置されています。初期化やそれぞれの run の削除は `rm` を用いた物理的な削除により行えます。
 
 ```bash
 $ tree run
@@ -211,7 +211,7 @@ $ tree run
 
 ### `run.sh`
 
-workflow engine の抽象化を shell script の [`run.sh`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/run.sh) で行っています。`POST /runs` が呼ばれると、SAPPORO は必要な file 群を run_dir へと dump した後に、`run.sh` の実行を fork します。そのため、`run.sh` を編集することによって、様々な workflow engine の WES 化を行えます。
+workflow engine の抽象化を shell script の [`run.sh`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/run.sh) で行っています。`POST /runs` が呼ばれると、SAPPORO は必要な file 群を run dir へと dump した後に、`run.sh` の実行を fork します。そのため、`run.sh` を編集することによって、様々な workflow engine の WES 化を行えます。
 
 `run.sh` の default の位置は、SAPPORO のアプリケーション直下ですが、起動時引数の `--run-sh` や環境変数の `SAPPORO_RUN_SH` で上書きできます。
 
