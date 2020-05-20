@@ -22,13 +22,13 @@ def main() -> None:
             "fastq_1": {
                 "class": "File",
                 "location": "https://raw.githubusercontent.com/ddbj/" +
-                            "SAPPORO-service/feature/follow-original-wes/" +
+                            "SAPPORO-service/master/" +
                             "tests/resources/ERR034597_1.small.fq.gz"
             },
             "fastq_2": {
                 "class": "File",
                 "location": "https://raw.githubusercontent.com/ddbj/" +
-                            "SAPPORO-service/feature/follow-original-wes/" +
+                            "SAPPORO-service/master/" +
                             "tests/resources/ERR034597_2.small.fq.gz"
             }
         }),
@@ -40,7 +40,7 @@ def main() -> None:
         "workflow_engine_name": "cwltool",
         "workflow_engine_parameters": json.dumps({}),
         "workflow_url": "https://raw.githubusercontent.com/ddbj/" +
-                        "SAPPORO-service/feature/follow-original-wes" +
+                        "SAPPORO-service/master" +
                         "/tests/resources/trimming_and_qc_remote.cwl"
     }
     files: Dict[str, Tuple[str, BinaryIO]] = {}
