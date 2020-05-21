@@ -47,5 +47,5 @@ def test_disable_workflow_attachment(delete_env_vars: None,
     detail_res_data: RunLog = detail_res.get_json()
 
     assert detail_res.status_code == 200
-    assert detail_res_data["run_log"]["exit_code"] == "1"  # type: ignore
+    assert detail_res_data["run_log"]["exit_code"] == 1
     assert "Not found" in detail_res_data["run_log"]["stderr"]

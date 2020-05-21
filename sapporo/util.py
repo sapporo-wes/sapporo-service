@@ -94,15 +94,7 @@ def write_file(run_id: str, file_type: str, content: str) -> None:
 def read_file(run_id: str, file_type: str) -> Any:
     file: Path = get_path(run_id, file_type)
     if file.exists() is False:
-        if file_type in ["cmd", "start_time", "end_time", "stdout", "stderr",
-                         "exit_code"]:
-            return ""
-        elif file_type == "task_logs":
-            return []
-        elif file_type in ["run_request", "outputs"]:
-            return {}
-        else:
-            return ""
+        return None
     with file.open(mode="r") as f:
         if file_type in ["cmd", "start_time", "end_time", "exit_code"]:
             return f.read().splitlines()[0]

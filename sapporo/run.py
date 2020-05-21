@@ -6,7 +6,7 @@ import shlex
 import signal
 from pathlib import Path
 from subprocess import Popen
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import requests
 from flask import abort, current_app
@@ -135,14 +135,21 @@ def get_run_log(run_id: str) -> RunLog:
 
 
 def get_log(run_id: str) -> Log:
+    exit_code: Optional[Union[str, int]] = read_file(run_id, "exit_code")
+    if exit_code is not None:
+        try:
+            exit_code = int(exit_code)
+        except Exception:
+            pass
+
     log: Log = {
-        "name": "",
+        "name": None,
         "cmd": read_file(run_id, "cmd"),
         "start_time": read_file(run_id, "start_time"),
         "end_time": read_file(run_id, "end_time"),
         "stdout": read_file(run_id, "stdout"),
         "stderr": read_file(run_id, "stderr"),
-        "exit_code": read_file(run_id, "exit_code")
+        "exit_code": exit_code
     }
 
     return log

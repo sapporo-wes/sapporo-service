@@ -89,7 +89,7 @@ def test_access_remote_files(delete_env_vars: None,
     assert REMOTE_CWL_WF_REMOTE == \
         detail_res_data["request"]["workflow_url"]
     assert run_id == detail_res_data["run_id"]
-    assert detail_res_data["run_log"]["exit_code"] == "0"  # type: ignore
+    assert detail_res_data["run_log"]["exit_code"] == 0
     assert "Final process status is success" in \
         detail_res_data["run_log"]["stderr"]
     assert "COMPLETE" == detail_res_data["state"]  # type: ignore
