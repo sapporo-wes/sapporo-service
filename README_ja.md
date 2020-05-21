@@ -12,11 +12,11 @@ SAPPORO は、[Global Alliance for Genomics and Health](https://www.ga4gh.org) (
 
 SAPPORO の特徴として、workflow engine の抽象化を試みており、様々な workflow engine を容易に WES 化できます。現在、稼働が確認されている workflow engine は、下記のとおりです。
 
-- cwltool
-- nextflow
-- toil
-- cromwell
-- snakemake
+- [cwltool](https://github.com/common-workflow-language/cwltool)
+- [nextflow](https://www.nextflow.io)
+- [Toil](https://toil.ucsc-cgl.org)
+- [cromwell](https://github.com/broadinstitute/cromwell)
+- [snakemake](https://snakemake.readthedocs.io/en/stable/)
 
 また、もう一つの特徴として、管理者により登録された workflow のみ実行できるモードへと切り替えられます。この機能は、共有の HPC 環境などで WES を構築する時に有用です。
 
@@ -31,12 +31,12 @@ $ sapporo
 
 ### Docker
 
-Docker での利用も想定しています。
+Docker を用いた利用も想定しています。
 Docker-in-Docker (DinD) を使用するため、`docker.sock` や `/tmp` などを mount しなければなりません。
 
 ```bash
 # 起動
-$ docker-compose up -d --build
+$ docker-compose up -d
 
 # 起動確認
 $ docker-compose logs
