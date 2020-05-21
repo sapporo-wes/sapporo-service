@@ -143,13 +143,13 @@ def get_log(run_id: str) -> Log:
             pass
 
     log: Log = {
-        "name": None,
+        "name": None,  # type: ignore
         "cmd": read_file(run_id, "cmd"),
         "start_time": read_file(run_id, "start_time"),
         "end_time": read_file(run_id, "end_time"),
         "stdout": read_file(run_id, "stdout"),
         "stderr": read_file(run_id, "stderr"),
-        "exit_code": exit_code
+        "exit_code": exit_code  # type: ignore
     }
 
     return log
