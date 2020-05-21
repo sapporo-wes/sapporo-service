@@ -59,4 +59,4 @@ def test_post_run_id_cancel(delete_env_vars: None, tmpdir: LocalPath) -> None:
     detail_res_data: RunLog = detail_res.get_json()
 
     assert detail_res.status_code == 200
-    assert detail_res_data["run_log"]["exit_code"] == "138"  # type: ignore
+    assert detail_res_data["run_log"]["exit_code"] == 138

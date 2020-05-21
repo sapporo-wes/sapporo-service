@@ -96,7 +96,7 @@ def test_attach_all_files(delete_env_vars: None, tmpdir: LocalPath) -> None:
     assert "v1.0" == detail_res_data["request"]["workflow_type_version"]
     assert CWL_WF.name == detail_res_data["request"]["workflow_url"]
     assert run_id == detail_res_data["run_id"]
-    assert detail_res_data["run_log"]["exit_code"] == "0"  # type: ignore
+    assert detail_res_data["run_log"]["exit_code"] == 0
     assert "Final process status is success" in \
         detail_res_data["run_log"]["stderr"]
     assert "COMPLETE" == detail_res_data["state"]  # type: ignore
