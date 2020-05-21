@@ -14,13 +14,13 @@ SAPPORO is a standard implementation conforming to the [Global Alliance for Geno
 
 One of SAPPORO's features is the abstraction of workflow engines, which makes it easy to convert various workflow engines into WES. The following workflow engines have been confirmed to be working at present.
 
-- cwltool
-- nextflow
-- toil
-- cromwell
-- snakemake
+- [cwltool](https://github.com/common-workflow-language/cwltool)
+- [nextflow](https://www.nextflow.io)
+- [Toil](https://toil.ucsc-cgl.org)
+- [cromwell](https://github.com/broadinstitute/cromwell)
+- [snakemake](https://snakemake.readthedocs.io/en/stable/)
 
-Another feature of SAPPORO is the mode that can only execute the workflow registered by the administrator. This feature is useful when building a WES in a shared HPC environment.
+Another feature of SAPPORO is the mode that can only execute workflows registered by the system administrator. This feature is useful when building a WES in a shared HPC environment.
 
 ## Install and Run
 
@@ -38,15 +38,15 @@ To use Docker-in-Docker (DinD), you have to mount `docker.sock`, `/tmp`, etc.
 
 ```bash
 # Launch
-$ docker-compose up -d --build
+$ docker-compose up -d
 
-# 起動確認
+# Launch confirmation
 $ docker-compose logs
 ```
 
 ## Usage
 
-The help for the SAPPORO startup command is as follows
+The help for the SAPPORO startup command is as follows.
 
 ```bash
 $ sapporo --help
@@ -82,29 +82,29 @@ optional arguments:
 
 ### Operating Mode
 
-There are two startup modes for SAPPORO.
+There are two startup modes in SAPPORO.
 
 - Standard WES mode (Default)
-- Mode to execute only registered workflows
+- Execute only registered workflows mode
 
-These are switched with the `-run-only-registered-workflows` argument at startup. It can also be switched by giving `True` or `False` to the environment variable `SAPPORO_ONLY_REGISTERED_WORKFLOWS`. Startup arguments take precedence over environment variables.
+These are switched with the startup argument `-run-only-registered-workflows`. It can also be switched by giving `True` or `False` to the environment variable `SAPPORO_ONLY_REGISTERED_WORKFLOWS`. Startup arguments take priority over environment variables.
 
 #### Standard WES mode
 
 As API specifications, please check [GitHub - GA4GH WES](https://github.com/ga4gh/workflow-execution-service-schemas) and [SwaggerUI - GA4GH WES](https://suecharo.github.io/genpei-swagger-ui/dist/).
 
-**It is different from the standard WES API specification, you must specify `workflow_engine_name` in the request parameter of `POST /runs`.** I personally consider this to be a flaw in the standard WES API specification, so I requested a fix.
+**When using SAPPORO, It is different from the standard WES API specification, you must specify `workflow_engine_name` in the request parameter of `POST /runs`.** I personally think this part is standard WES API specification's mistake, so I am sending a request to fix it.
 
-#### Mode to execute only registered workflows
+#### Execute only registered workflows mode
 
-As API specifications for a mode to execute only registered workflows, please check [SwaggerUI - SAPPORO WES](https://suecharo.github.io/sapporo-swagger-ui/dist/).
+As API specifications for the execute only registered workflows mode, please check [SwaggerUI - SAPPORO WES](https://suecharo.github.io/sapporo-swagger-ui/dist/).
 
 Basically, it conforms to the standard WES API. The changes are as follows.
 
 - Executable workflows are returned by `GET /service-info` as `executable_workflows`.
-- Specify `workflow_name` instead of `workflow_url` with `POST /runs`.
+- Specify `workflow_name` instead of `workflow_url` in `POST /runs`.
 
-The following is an example of requesting `GET /service-info` in a mode to execute only registered workflows.
+The following is an example of requesting `GET /service-info` in the execute only registered workflows mode.
 
 ```json
 GET /service-info
@@ -173,13 +173,13 @@ GET /service-info
 }
 ```
 
-The executable workflows are managed by [`executable_workflows.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/executable_workflows.json). Also, the schema for this definition is [`executable_workflows.schema.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/executable_workflows.schema.json). The default location of these files is under the application dir of SAPPORO, but it can be overridden by the startup argument `--executable-workflows` or the environment variable `SAPPORO_EXECUTABLE_WORKFLOWS`.
+The executable workflows are managed at [`executable_workflows.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/executable_workflows.json). Also, the schema for this definition is [`executable_workflows.schema.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/executable_workflows.schema.json). The default location of these files is under the application directory of SAPPORO. You can override them by using the startup argument `--executable-workflows` or the environment variable `SAPPORO_EXECUTABLE_WORKFLOWS`.
 
 ### Run Dir
 
-SAPPORO manages the submitted workflows, workflow parameters, output files, etc. on the file system. The location of run dir can be overridden by the startup argument `--run-dir` or the environment variable `SAPPORO_RUN_DIR`.
+SAPPORO manages the submitted workflows, workflow parameters, output files, etc. on the file system. You can override the location of run dir by using the startup argument `--run-dir` or the environment variable `SAPPORO_RUN_DIR`.
 
-The run dir structure is as follows. Initialization and deletion of each run can be done by physical deletion with `rm`.
+The run dir structure is as follows. You can initialize and delete each run by physical deletion with `rm`.
 
 ```bash
 $ tree run
@@ -189,15 +189,15 @@ $ tree run
         ├── cmd.txt
         ├── end_time.txt
         ├── exe
-        │   └── workflow_params.json
+        │   └── workflow_params.json
         ├── exit_code.txt
         ├── outputs
-        │   ├── ERR034597_1.small.fq.trimmed.1P.fq
-        │   ├── ERR034597_1.small.fq.trimmed.1U.fq
-        │   ├── ERR034597_1.small.fq.trimmed.2P.fq
-        │   ├── ERR034597_1.small.fq.trimmed.2U.fq
-        │   ├── ERR034597_1.small_fastqc.html
-        │   └── ERR034597_2.small_fastqc.html
+        │   ├── ERR034597_1.small.fq.trimmed.1P.fq
+        │   ├── ERR034597_1.small.fq.trimmed.1U.fq
+        │   ├── ERR034597_1.small.fq.trimmed.2P.fq
+        │   ├── ERR034597_1.small.fq.trimmed.2U.fq
+        │   ├── ERR034597_1.small_fastqc.html
+        │   └── ERR034597_2.small_fastqc.html
         ├── outputs.json
         ├── run.pid
         ├── run_request.json
@@ -207,41 +207,41 @@ $ tree run
         ├── stdout.log
         └── workflow_engine_params.txt
 ├── 2d
-│   └── ...
+│   └── ...
 └── 6b
     └── ...
 ```
 
-The execution of `POST /runs` is very complex. Examples using Python's [requests](https://requests.readthedocs.io/en/master/) are provided by [GitHub - sapporo/tests/post_runs_examples](https://github.com/ddbj/SAPPORO-service/tree/master/tests/post_runs_examples). Please use this as a reference
+The execution of `POST /runs` is very complex. Examples using Python's [requests](https://requests.readthedocs.io/en/master/) are provided in [GitHub - sapporo/tests/post_runs_examples](https://github.com/ddbj/SAPPORO-service/tree/master/tests/post_runs_examples). Please use this as a reference.
 
 ### `run.sh`
 
 We use [`run.sh`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/run.sh) to abstract the workflow engine. When `POST /runs` is called, SAPPORO fork the execution of `run.sh` after dumping the necessary files to run dir. Therefore, you can apply various workflow engines to WES by editing `run.sh`.
 
-The default position of `run.sh` is under the application dir of SAPPORO, but it can be overridden by the startup argument `--run-sh` or the environment variable `SAPPORO_RUN_SH`.
+The default position of `run.sh` is under the application directory of SAPPORO. You can override it by using the startup argument `--run-sh` or the environment variable `SAPPORO_RUN_SH`.
 
 ### Other Startup Arguments
 
-The startup host or port can be changed by specifying the startup arguments (`--host` and `--port`). And environment variables corresponding to these arguments are `SAPPORO_HOST` and `SAPPORO_PORT`.
+You can change the host and port used by the application by using the startup arguments (`--host` and `--port`) or the environment variables `SAPPORO_HOST` and `SAPPORO_PORT`.
 
 The following two startup arguments and environment variables are provided to limit the WES.
 
 - `--disable-get-runs`
   - `SAPPORO_GET_RUNS`: `True` or `False`.
   - Disable `GET /runs`.
-    - When using WES with an unspecified number of people, you can see the contents of the run and cancels the run by knowing the run_id of other people.
-    - Because run_id itself is automatically generated by `uuid4`, it is difficult to know it in brute force.
+    - When using WES with an unspecified number of people, by knowing the run_id, you can see the run's contents and cancel the run of other people.
+    - Because run_id itself is automatically generated using `uuid4`, it is difficult to know it in brute force.
 - `--disable-workflow-attachment`
   - `SAPPORO_WORKFLOW_ATTACHMENT`: `True` or `False`.
   - Disable `workflow_attachment` in `POST /runs`.
-    - The `workflow_attachment` is the field to attach a file required for executing a workflow.
+    - The `workflow_attachment` field is used to attach files for executing workflows.
     - There is a security concern because anything can be attached.
 
-The contents of the response of `GET /service-info` are managed by [`service-info.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/service-info.json). The default position of `service-info.json` is under the application dir of SAPPORO, but it can be overridden by the startup argument `--service-info` or the environment variable `SAPPORO_SERVICE_INFO`.
+The contents of the response of `GET /service-info` are managed in [`service-info.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/service-info.json). The default location of `service-info.json` is under the application directory of SAPPORO. You can override by using the startup argument `--service-info` or the environment variable `SAPPORO_SERVICE_INFO`.
 
 ## Development
 
-The development environment starts with the following.
+You can start the development environment as follows.
 
 ```bash
 $ docker-compose -f docker-compose.dev.yml up -d --build
