@@ -27,11 +27,6 @@ jobs:
       - name: Install sapporo
         run: |
           python3 setup.py install
-      - name: Docker pull
-        run: |
-          docker pull quay.io/biocontainers/fastqc:0.11.9--0
-          docker pull quay.io/biocontainers/trimmomatic:0.38--1
-          docker pull commonworkflowlanguage/cwltool:1.0.20191225192155
       - name: Check with pytest
         run: |
           pytest -s .
