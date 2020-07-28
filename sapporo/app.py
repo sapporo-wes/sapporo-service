@@ -245,10 +245,19 @@ def fix_errorhandler(app: Flask) -> Flask:
     return app
 
 
+def add_after_request(app: Flask) -> Flask:
+    @app.after_request
+    def after_request_func(response: Response) -> Response:
+        response.headers["Access-Control-Allow-Origin"] = "*"
+
+        return response
+
+
 def create_app(params: Dict[str, Union[str, int, Path]]) -> Flask:
     app = Flask(__name__)
     app.register_blueprint(app_bp)
     fix_errorhandler(app)
+    add_after_request(app)
     app.config["RUN_DIR"] = params["run_dir"]
     app.config["GET_RUNS"] = params["get_runs"]
     app.config["WORKFLOW_ATTACHMENT"] = params["workflow_attachment"]
