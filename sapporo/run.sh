@@ -23,6 +23,7 @@ function run_wf() {
     run_ep3
     generate_outputs_list
   fi
+  upload
   date +"%Y-%m-%dT%H:%M:%S" >${end_time}
   echo 0 >${exit_code}
   echo "COMPLETE" >${state}
@@ -87,6 +88,43 @@ function generate_outputs_list() {
   python3 -c "from sapporo.util import dump_outputs_list; dump_outputs_list('${run_dir}')"
 }
 
+function upload() {
+  local protocol=$(jq -r '.tags | fromjson | .export_output.protocol' ${run_request})
+  case ${protocol} in
+    's3')
+      upload_to_s3
+      ;;
+  esac
+}
+
+function upload_to_s3() {
+  local container="amazon/aws-cli:2.0.45"
+
+  local endpoint=$(jq -r '.tags | fromjson | .export_output.endpoint' ${run_request})
+  local access_key=$(jq -r '.tags | fromjson | .export_output.access_key' ${run_request})
+  local secret_access_key=$(jq -r '.tags | fromjson | .export_output.secret_access_key' ${run_request})
+  local bucket_name=$(jq -r '.tags | fromjson | .export_output.bucket_name' ${run_request})
+  local dirname=$(jq -r '.tags | fromjson | .export_output.dirname' ${run_request})
+
+  local export_script="${run_dir}/upload_to_s3.sh"
+  printf " \
+    aws configure set aws_access_key_id ${access_key}; \
+    aws configure set aws_secret_access_key ${secret_access_key}; \
+    aws configure set default.region us-west-2; \
+    aws configure set default.s3.signature_version s3v4; \
+    aws --endpoint-url ${endpoint} s3api head-bucket --bucket ${bucket_name} || aws --endpoint-url ${endpoint} s3 mb s3://${bucket_name}; \
+    aws --endpoint-url ${endpoint} s3 cp ${run_dir} s3://${bucket_name}/${dirname} --recursive
+  " >> ${export_script}
+
+  local up_stdout="${run_dir}/upload.stdout.log"
+  local up_stderr="${run_dir}/upload.stderr.log"
+
+  local cmd_txt="${DOCKER_CMD} --entrypoint=/bin/bash -v ${export_script}:/export.sh ${container} /export.sh 1>>${up_stdout} 2>>${up_stderr}"
+
+  echo ${cmd_txt} >>${up_stdout}
+  eval ${cmd_txt} || uploader_error
+}
+
 # ==============================================================
 # If you are not familiar with sapporo, please don't edit below.
 
@@ -138,6 +176,15 @@ function executor_error() {
   echo ${original_exit_code} >${exit_code}
   date +"%Y-%m-%dT%H:%M:%S" >${end_time}
   echo "EXECUTOR_ERROR" >${state}
+  exit ${original_exit_code}
+}
+
+function uploader_error() {
+  # Exit case 2.1: Upload function terminated in error.
+  original_exit_code=$?
+  echo ${original_exit_code} >${exit_code}
+  date +"%Y-%m-%dT%H:%M:%S" >${end_time}
+  echo "UPLOADER_ERROR" >${state}
   exit ${original_exit_code}
 }
 
