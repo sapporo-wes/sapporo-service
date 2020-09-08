@@ -20,7 +20,7 @@ def read_requirements_txt() -> List[str]:
 
 def main() -> None:
     setup(name="sapporo",
-          version="1.0.1",
+          version="1.0.2",
           description="Implementation of a GA4GH workflow execution " +
                       "service that can easily support various " +
                       "workflow runners.",
