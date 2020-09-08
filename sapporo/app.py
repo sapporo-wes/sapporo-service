@@ -13,7 +13,8 @@ from flask import Flask, Response, current_app, jsonify
 from jsonschema import validate
 from werkzeug.exceptions import HTTPException
 
-from sapporo.const import (DEFAULT_EXECUTABLE_WORKFLOWS, DEFAULT_HOST,
+from sapporo.const import (DEFAULT_ACCESS_CONTROL_ALLOW_ORIGIN,
+                           DEFAULT_EXECUTABLE_WORKFLOWS, DEFAULT_HOST,
                            DEFAULT_PORT, DEFAULT_RUN_DIR, DEFAULT_RUN_SH,
                            DEFAULT_SERVICE_INFO, EXECUTABLE_WORKFLOWS_SCHEMA,
                            SERVICE_INFO_SCHEMA)
@@ -248,9 +249,14 @@ def fix_errorhandler(app: Flask) -> Flask:
 def add_after_request(app: Flask) -> Flask:
     @app.after_request
     def after_request_func(response: Response) -> Response:
-        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Origin"] = \
+            os.environ.get("SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN",
+                           DEFAULT_ACCESS_CONTROL_ALLOW_ORIGIN)
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
 
         return response
+
+    return app
 
 
 def create_app(params: Dict[str, Union[str, int, Path]]) -> Flask:
