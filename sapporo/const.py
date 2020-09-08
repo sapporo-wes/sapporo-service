@@ -14,6 +14,7 @@ DEFAULT_RUN_SH: Path = \
 DEFAULT_RUN_DIR = Path.cwd().joinpath("run").resolve()
 DEFAULT_HOST: str = "127.0.0.1"
 DEFAULT_PORT: int = 8080
+DEFAULT_ACCESS_CONTROL_ALLOW_ORIGIN: str = "*"
 GET_STATUS_CODE: int = 200
 POST_STATUS_CODE: int = 200
 DATE_FORMAT: str = "%Y-%m-%dT%H:%M:%S"
