@@ -41,8 +41,10 @@ function run_nextflow() {
 }
 
 function run_toil() {
-  local container="quay.io/ucsc_cgl/toil:4.1.0"
-  local cmd_txt="${DOCKER_CMD} -e TOIL_WORKDIR=${exe_dir} ${container} toil-cwl-runner ${wf_engine_params} ${wf_url} ${wf_params} 1>${stdout} 2>${stderr}"
+  #local container="quay.io/ucsc_cgl/toil:4.1.0"
+  #local cmd_txt="${DOCKER_CMD} -e TOIL_WORKDIR=${exe_dir} ${container} toil-cwl-runner ${wf_engine_params} ${wf_url} ${wf_params} 1>${stdout} 2>${stderr}"
+  local container="manabudockerslurmubuntu:0.3.0"
+  local cmd_txt="${DOCKER_CMD} --net=host -e TOIL_WORKDIR=${exe_dir} -v /home/manabu/work/slurmdocker/docker:/home/manabu/work/slurmdocker/docker -v /home/manabu/work/slurmdocker/docker/throw-sapporo.sh:/throw-sapporo.sh -v /etc/slurm/slurm.conf:/work/slurm-llnl/slurm.conf:ro -v /etc/slurm/slurmdbd.conf:/work/slurm-llnl/slurmdbd.conf:ro -v /etc/munge:/work/munge:ro ${container} /throw-sapporo.sh ${wf_engine_params} ${wf_url} ${wf_params} 1>${stdout} 2>${stderr}"
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
 }
