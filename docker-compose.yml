@@ -21,3 +21,10 @@ services:
     restart: always
     working_dir: ${PWD}
     command: ["sapporo"]
+    networks:
+      - sapporo
+
+networks:
+  sapporo:
+    external:
+      name: sapporo-network
