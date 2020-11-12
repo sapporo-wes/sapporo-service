@@ -14,7 +14,8 @@ from requests import Response
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
-from sapporo.type import Log, RunLog, RunRequest, ServiceInfo, State, Workflow
+from sapporo.type import (AttachedFile, Log, RunLog, RunRequest, ServiceInfo,
+                          State, Workflow)
 from sapporo.util import (generate_service_info, get_all_run_ids, get_path,
                           get_run_dir, get_state, get_workflow, read_file,
                           write_file)
@@ -77,6 +78,7 @@ def prepare_exe_dir(run_id: str,
     exe_dir.mkdir(parents=True, exist_ok=True)
     run_request: RunRequest = read_file(run_id, "run_request")
     if current_app.config["REGISTERED_ONLY_MODE"]:
+        attached_file: AttachedFile
         for attached_file in run_request["workflow_attachment"]:
             file_name: str = secure_filename(attached_file["file_name"])
             file_path: Path = exe_dir.joinpath(file_name).resolve()
