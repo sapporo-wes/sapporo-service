@@ -3,6 +3,6 @@
   "service": "dev",
   "workspaceFolder": "/workspace",
   "extensions": [],
-  "forwardPorts": [8080],
+  "addPort": ["8080:8080"],
   "postCreateCommand": "pip install -r requirements.txt && python setup.py install",
 }
