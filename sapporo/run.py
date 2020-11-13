@@ -90,7 +90,7 @@ def prepare_exe_dir(run_id: str,
         run_request["workflow_attachment"] = []
     if current_app.config["WORKFLOW_ATTACHMENT"]:
         for file in request_files.values():
-            if file.filename != "":
+            if file.filename != "" and isinstance(file.filename, str):
                 file_name = secure_filename(file.filename)
                 run_request["workflow_attachment"].append({
                     "file_name": file_name,
