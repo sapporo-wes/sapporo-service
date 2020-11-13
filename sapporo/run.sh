@@ -103,9 +103,10 @@ wf_url=$(jq -r ".workflow_url" ${run_request})
 wf_engine_params=$(head -n 1 ${wf_engine_params_file})
 
 # Sibling docker command
-D_SOCK="-v /var/run/docker.sock:/var/run/docker.sock"
+D_HOST="-e DOCKER_HOST=tcp://dind:2375/"
+D_NET="--net host"
 D_TMP="-v /tmp:/tmp"
-DOCKER_CMD="docker run -i --rm ${D_SOCK} ${D_TMP} -v ${run_dir}:${run_dir} -w=${exe_dir}"
+DOCKER_CMD="docker run -i --rm ${D_HOST} ${D_NET} ${D_TMP} -v ${run_dir}:${run_dir} -w=${exe_dir}"
 
 # 4 Exit cases
 # 1. The description of run.sh was wrong.
