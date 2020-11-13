@@ -65,7 +65,7 @@ function run_snakemake() {
 }
 
 function run_ep3() {
-  local container="ghcr.io/tom-tan/ep3:v0.1.2"
+  local container="ghcr.io/tom-tan/ep3:v0.1.3"
   local cmd_txt="${DOCKER_CMD} ${container} ep3-runner --debug --outdir ${outputs_dir} ${wf_engine_params} ${wf_url} ${wf_params} 1>${stdout} 2>${stderr}"
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
