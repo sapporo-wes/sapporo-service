@@ -71,7 +71,6 @@ function run_ep3() {
   eval ${cmd_txt} || executor_error
 }
 
-
 function cancel() {
   # Pre-cancellation procedures
   if [[ ${wf_engine_name} == "cwltool" ]]; then
