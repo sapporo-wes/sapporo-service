@@ -1,14 +1,23 @@
 version: "3"
 services:
+  dind:
+    image: docker:stable-dind
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ''
+    working_dir: /workspace
+    volumes:
+      - ${PWD}:${PWD}
+      - /tmp:/tmp
+    command: dockerd-entrypoint.sh
   app:
     image: suecharo/sapporo-service:1.0.2
     container_name: sapporo
     volumes:
       - /tmp:/tmp
-      - /usr/bin/docker:/usr/bin/docker
-      - /var/run/docker.sock:/var/run/docker.sock
       - ${PWD}:${PWD}
     environment:
+      - DOCKER_HOST=tcp://dind:2375/
       - SAPPORO_HOST=0.0.0.0
       - SAPPORO_PORT=8080
       - SAPPORO_DEBUG=False
@@ -21,3 +30,5 @@ services:
     restart: always
     working_dir: ${PWD}
     command: ["sapporo"]
+    depends_on:
+      - "dind"

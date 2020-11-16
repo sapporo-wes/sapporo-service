@@ -4,5 +4,5 @@
   "workspaceFolder": "/workspace",
   "extensions": [],
   "addPort": ["8080:8080"],
-  "postCreateCommand": "pip install -r requirements.txt && python setup.py install",
+  "postCreateCommand": "pip install -r requirements.txt && python setup.py develop",
 }

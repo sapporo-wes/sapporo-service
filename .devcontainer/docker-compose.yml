@@ -10,10 +10,14 @@ services:
       - ..:/workspace
       - /tmp:/tmp
     command: dockerd-entrypoint.sh
-  dev:
+  app:
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile
+    container_name: sapporo
+    volumes:
+      - /tmp:/tmp
+      - ..:/workspace
     environment:
       - DOCKER_HOST=tcp://dind:2375/
       - SAPPORO_HOST=0.0.0.0
@@ -24,9 +28,6 @@ services:
       - SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS=False
       - SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN
     working_dir: /workspace
-    volumes:
-      - ..:/workspace
-      - /tmp:/tmp
     command: sleep infinity
     depends_on:
       - "dind"
