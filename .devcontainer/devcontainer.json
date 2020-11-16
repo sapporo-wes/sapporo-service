@@ -1,6 +1,6 @@
 {
   "dockerComposeFile": "docker-compose.yml",
-  "service": "dev",
+  "service": "app",
   "workspaceFolder": "/workspace",
   "extensions": [],
   "addPort": ["8080:8080"],
