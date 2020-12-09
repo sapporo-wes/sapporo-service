@@ -17,6 +17,7 @@ SAPPORO の特徴として、workflow engine の抽象化を試みており、�
 - [Toil](https://toil.ucsc-cgl.org)
 - [cromwell](https://github.com/broadinstitute/cromwell)
 - [snakemake](https://snakemake.readthedocs.io/en/stable/)
+- [ep3](https://github.com/tom-tan/ep3)
 
 また、もう一つの特徴として、管理者により登録された workflow のみ実行できるモードへと切り替えられます。この機能は、共有の HPC 環境などで WES を構築する時に有用です。
 

@@ -19,6 +19,9 @@ function run_wf() {
   elif [[ ${wf_engine_name} == "snakemake" ]]; then
     run_snakemake
     generate_outputs_list
+  elif [[ ${wf_engine_name} == "ep3" ]]; then
+    run_ep3
+    generate_outputs_list
   fi
   date +"%Y-%m-%dT%H:%M:%S" >${end_time}
   echo 0 >${exit_code}
@@ -57,6 +60,13 @@ function run_cromwell() {
 function run_snakemake() {
   local container="snakemake/snakemake:v5.17.0"
   local cmd_txt="${DOCKER_CMD} ${container} snakemake ${wf_engine_params} --snakefile ${wf_url} 1>${stdout} 2>${stderr}"
+  echo ${cmd_txt} >${cmd}
+  eval ${cmd_txt} || executor_error
+}
+
+function run_ep3() {
+  local container="ghcr.io/tom-tan/ep3:v1.0.0"
+  local cmd_txt="${DOCKER_CMD} ${container} ep3-runner --debug --outdir ${outputs_dir} ${wf_engine_params} ${wf_url} ${wf_params} 1>${stdout} 2>${stderr}"
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
 }
