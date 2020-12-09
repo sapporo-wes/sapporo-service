@@ -10,7 +10,8 @@
     "nextflow": "20.04.1",
     "toil": "4.1.0",
     "cromwell": "50",
-    "snakemake": "v5.17.0"
+    "snakemake": "v5.17.0",
+    "ep3": "v1.0.0"
   },
   "default_workflow_engine_parameters": [],
   "auth_instructions_url": "https://github.com/ddbj/SAPPORO-service",
