@@ -24,8 +24,7 @@ def test_disable_workflow_attachment(delete_env_vars: None,
     app.testing = True
     client: FlaskClient[Response] = app.test_client()
 
-    from .post_runs_tests.test_attach_all_files_cwltool \
-        import attach_all_files
+    from .post_runs_tests.test_attach_all_files_cwltool import attach_all_files
     post_runs_res: Response = attach_all_files(client)
     post_runs_data: RunId = post_runs_res.get_json()
 
