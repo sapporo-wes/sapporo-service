@@ -9,4 +9,4 @@ BASE_DIR=$(
 )
 
 cd ${BASE_DIR}
-isort -y
+isort . --check
