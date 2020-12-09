@@ -1,4 +1,4 @@
-FROM python:3.8.2-slim-buster
+FROM python:3.8.6-slim-buster
 
 RUN apt update && \
     apt install -y --no-install-recommends \

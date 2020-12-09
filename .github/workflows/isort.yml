@@ -22,4 +22,4 @@ jobs:
           pip install -r requirements.txt
       - name: Check with isort
         run: |
-          isort -c
+          isort . --check
