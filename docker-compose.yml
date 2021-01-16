@@ -7,19 +7,19 @@ services:
       - /tmp:/tmp
       - /usr/bin/docker:/usr/bin/docker
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${PWD}:${PWD}
+      - ${PWD}:/app
     environment:
       - SAPPORO_HOST=0.0.0.0
       - SAPPORO_PORT=1122
       - SAPPORO_DEBUG=False
-      - SAPPORO_RUN_DIR=${PWD}/run
+      - SAPPORO_RUN_DIR=/app/run
       - SAPPORO_GET_RUNS=True
       - SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS=False
       - SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN=*
     ports:
-      - 1122:1122
-    restart: always
-    working_dir: ${PWD}
+      - 0.0.0.0:1122:1122
+    restart: on-failure
+    working_dir: /app
     command: ["sapporo"]
     networks:
       - sapporo

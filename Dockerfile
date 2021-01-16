@@ -1,4 +1,4 @@
-FROM 3.8.7-slim-buster
+FROM python:3.8.7-slim-buster
 
 RUN apt update && \
     apt install -y --no-install-recommends \
@@ -13,16 +13,15 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-RUN pip install -U pip setuptools wheel && \
-    pip install -r requirements.txt
+RUN pip install --no-cache-dir --progress-bar off -U pip setuptools wheel && \
+    pip install --no-cache-dir --progress-bar off -r requirements.txt
 
 COPY . .
 
-RUN python3 setup.py install
+RUN pip install --no-cache-dir --progress-bar off -e .
 
 ENV SAPPORO_HOST 0.0.0.0
 ENV SAPPORO_PORT 8080
-ENV SAPPORO_DEBUG False
 
 EXPOSE 8080
 
