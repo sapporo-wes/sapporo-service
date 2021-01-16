@@ -54,10 +54,10 @@ $ sapporo --help
 usage: sapporo [-h] [--host] [-p] [--debug] [-r] [--disable-get-runs]
                [--disable-workflow-attachment]
                [--run-only-registered-workflows] [--service-info]
-               [--executable-workflows] [--run-sh]
+               [--executable-workflows] [--run-sh] [--url-prefix]
 
-Implementation of a GA4GH workflow execution service that can easily
-support various workflow runners.
+Implementation of a GA4GH workflow execution service that can easily support
+various workflow runners.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -79,6 +79,8 @@ optional arguments:
   --executable-workflows
                         Specify `executable-workflows.json`.
   --run-sh              Specify `run.sh`.
+  --url-prefix          Specify the prefix of the url (e.g. --url-prefix /foo
+                        -> /foo/service-info).
 ```
 
 ### Operating Mode
@@ -237,6 +239,10 @@ The following two startup arguments and environment variables are provided to li
   - Disable `workflow_attachment` in `POST /runs`.
     - The `workflow_attachment` field is used to attach files for executing workflows.
     - There is a security concern because anything can be attached.
+- `--url-prefix`.
+  - `SAPPORO_URL_PREFIX`.
+  - Set the URL PREFIX.
+    - If `--url-prefix /foo/bar` is set, `GET /service-info` becomes `GET /foo/bar/service-info`.
 
 The contents of the response of `GET /service-info` are managed in [`service-info.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/service-info.json). The default location of `service-info.json` is under the application directory of SAPPORO. You can override by using the startup argument `--service-info` or the environment variable `SAPPORO_SERVICE_INFO`.
 

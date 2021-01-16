@@ -52,10 +52,10 @@ $ sapporo --help
 usage: sapporo [-h] [--host] [-p] [--debug] [-r] [--disable-get-runs]
                [--disable-workflow-attachment]
                [--run-only-registered-workflows] [--service-info]
-               [--executable-workflows] [--run-sh]
+               [--executable-workflows] [--run-sh] [--url-prefix]
 
-Implementation of a GA4GH workflow execution service that can easily
-support various workflow runners.
+Implementation of a GA4GH workflow execution service that can easily support
+various workflow runners.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -77,6 +77,8 @@ optional arguments:
   --executable-workflows
                         Specify `executable-workflows.json`.
   --run-sh              Specify `run.sh`.
+  --url-prefix          Specify the prefix of the url (e.g. --url-prefix /foo
+                        -> /foo/service-info).
 ```
 
 ### Operating Mode
@@ -235,6 +237,10 @@ WES の機能を制限するための起動時引数・環境変数として、�
   - `POST /runs` における `workflow_attachment` を使用不可能にする。
     - `workflow_attachment` は workflow を実行する際に必要な file を添付するための field である。
     - 何でも添付できるため、セキュリティ的な懸念がある。
+- `--url-prefix`
+  - `SAPPORO_URL_PREFIX`
+  - URL PREFIX を設定する。
+    - `--url-prefix /foo/bar` とした場合、`GET /service-info` が `GET /foo/bar/service-info` となる
 
 `GET /service-info` の response の中身として、[`service-info.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/service-info.json) で管理しています。`service-info.json` の default の位置は、SAPPORO のアプリケーション直下ですが、起動時引数の `--service-info` や環境変数の `SAPPORO_SERVICE_INFO` で上書きできます。
 
