@@ -18,6 +18,7 @@ services:
       - SAPPORO_GET_RUNS=True
       - SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS=False
       - SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN=*
+      - SAPPORO_URL_PREFIX=/
     ports:
       - 0.0.0.0:8080:8080
     restart: on-failure

@@ -16,8 +16,8 @@ from werkzeug.exceptions import HTTPException
 from sapporo.const import (DEFAULT_ACCESS_CONTROL_ALLOW_ORIGIN,
                            DEFAULT_EXECUTABLE_WORKFLOWS, DEFAULT_HOST,
                            DEFAULT_PORT, DEFAULT_RUN_DIR, DEFAULT_RUN_SH,
-                           DEFAULT_SERVICE_INFO, EXECUTABLE_WORKFLOWS_SCHEMA,
-                           SERVICE_INFO_SCHEMA)
+                           DEFAULT_SERVICE_INFO, DEFAULT_URL_PREFIX,
+                           EXECUTABLE_WORKFLOWS_SCHEMA, SERVICE_INFO_SCHEMA)
 from sapporo.controller import app_bp
 from sapporo.type import ErrorResponse, Workflow
 
@@ -30,7 +30,6 @@ def parse_args(sys_args: List[str]) -> Namespace:
 
     parser.add_argument(
         "--host",
-        type=str,
         nargs=1,
         metavar="",
         help=f"Host address of Flask. (default: {DEFAULT_HOST})"
@@ -51,7 +50,6 @@ def parse_args(sys_args: List[str]) -> Namespace:
     parser.add_argument(
         "-r",
         "--run-dir",
-        type=str,
         nargs=1,
         metavar="",
         help="Specify the run dir. (default: ./run)"
@@ -93,6 +91,13 @@ def parse_args(sys_args: List[str]) -> Namespace:
         metavar="",
         help="Specify `run.sh`."
     )
+    parser.add_argument(
+        "--url-prefix",
+        nargs=1,
+        metavar="",
+        help="Specify the prefix of the url (e.g. --url-prefix /foo -> " +
+        "/foo/service-info)."
+    )
 
     args: Namespace = parser.parse_args(sys_args)
 
@@ -124,6 +129,7 @@ def handle_default_params(args: Namespace) -> Dict[str, Union[str, int, Path]]:
         "run_sh": handle_default_path(args.run_sh,
                                       "SAPPORO_RUN_SH",
                                       DEFAULT_RUN_SH),
+        "url_prefix": handle_default_url_prefix(args.url_prefix)
     }
 
     return params
@@ -185,6 +191,13 @@ def handle_default_registered_only_mode(run_only_registered_workflows: bool) \
                                        False))
 
     return True
+
+
+def handle_default_url_prefix(url_prefix: Optional[List[str]]) -> str:
+    if url_prefix is None:
+        return os.environ.get("SAPPORO_URL_PREFIX", DEFAULT_URL_PREFIX)
+
+    return url_prefix[0]
 
 
 def str2bool(val: Union[str, bool]) -> bool:
@@ -261,7 +274,7 @@ def add_after_request(app: Flask) -> Flask:
 
 def create_app(params: Dict[str, Union[str, int, Path]]) -> Flask:
     app = Flask(__name__)
-    app.register_blueprint(app_bp)
+    app.register_blueprint(app_bp, url_prefix=params["url_prefix"])
     fix_errorhandler(app)
     add_after_request(app)
     app.config["RUN_DIR"] = params["run_dir"]
@@ -269,12 +282,12 @@ def create_app(params: Dict[str, Union[str, int, Path]]) -> Flask:
     app.config["WORKFLOW_ATTACHMENT"] = params["workflow_attachment"]
     app.config["REGISTERED_ONLY_MODE"] = params["registered_only_mode"]
     app.config["SERVICE_INFO"] = params["service_info"]
-    app.config["EXECUTABLE_WORKFLOWS"] = \
-        params["executable_workflows"]
+    app.config["EXECUTABLE_WORKFLOWS"] = params["executable_workflows"]
+    app.config["RUN_SH"] = params["run_sh"]
+    app.config["URL_PREFIX"] = params["url_prefix"]
     validate_json(app.config["SERVICE_INFO"],
                   app.config["EXECUTABLE_WORKFLOWS"])
     check_uniqueness_wf_name(app.config["EXECUTABLE_WORKFLOWS"])
-    app.config["RUN_SH"] = params["run_sh"]
 
     return app
 
