@@ -17,7 +17,7 @@ services:
       - SAPPORO_RUN_DIR=${PWD}/run
       - SAPPORO_GET_RUNS=True
       - SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS=False
-      - SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN
+      - SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN=*
     ports:
       - 8080:8080
     restart: always
