@@ -8,7 +8,7 @@ from _pytest.monkeypatch import MonkeyPatch
 from flask import Flask
 
 from sapporo.app import create_app, handle_default_params, parse_args
-from sapporo.const import DEFAULT_HOST, DEFAULT_PORT
+from sapporo.const import DEFAULT_HOST, DEFAULT_PORT, DEFAULT_URL_PREFIX
 
 base_dir: Path = Path(__file__).parent.parent.resolve()
 
@@ -30,6 +30,7 @@ def test_default_params(delete_env_vars: None) -> None:
         base_dir.joinpath("sapporo/executable_workflows.json")
     assert app.config["RUN_SH"] == \
         base_dir.joinpath("sapporo/run.sh")
+    assert app.config["URL_PREFIX"] == DEFAULT_URL_PREFIX
 
 
 def test_env_vars(delete_env_vars: None, monkeypatch: MonkeyPatch) -> None:
@@ -47,6 +48,7 @@ def test_env_vars(delete_env_vars: None, monkeypatch: MonkeyPatch) -> None:
                        str(base_dir.joinpath("sapporo/executable_workflows.json")))  # noqa: E501
     monkeypatch.setenv("SAPPORO_RUN_SH",
                        str(base_dir.joinpath("sapporo/run.sh")))
+    monkeypatch.setenv("SAPPORO_URL_PREFIX", "/test")
 
     args: Namespace = parse_args([])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
@@ -65,6 +67,7 @@ def test_env_vars(delete_env_vars: None, monkeypatch: MonkeyPatch) -> None:
         base_dir.joinpath("sapporo/executable_workflows.json")
     assert app.config["RUN_SH"] == \
         base_dir.joinpath("sapporo/run.sh")
+    assert app.config["URL_PREFIX"] == "/test"
 
 
 def test_parse_args(delete_env_vars: None) -> None:
@@ -81,7 +84,8 @@ def test_parse_args(delete_env_vars: None) -> None:
                     "--executable-workflows",
                     str(base_dir.joinpath("sapporo/executable_workflows.json")),  # noqa: E501
                     "--run-sh",
-                    str(base_dir.joinpath("sapporo/run.sh"))])
+                    str(base_dir.joinpath("sapporo/run.sh")),
+                    "--url-prefix", "/test"])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
     app: Flask = create_app(params)
 
@@ -98,3 +102,4 @@ def test_parse_args(delete_env_vars: None) -> None:
         base_dir.joinpath("sapporo/executable_workflows.json")
     assert app.config["RUN_SH"] == \
         base_dir.joinpath("sapporo/run.sh")
+    assert app.config["URL_PREFIX"] == "/test"
