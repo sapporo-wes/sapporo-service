@@ -9,17 +9,17 @@ services:
       - /tmp:/tmp
       - /usr/bin/docker:/usr/bin/docker
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${PWD}:${PWD}
+      - ${PWD}:/app
     environment:
       - SAPPORO_HOST=0.0.0.0
       - SAPPORO_PORT=8080
       - SAPPORO_DEBUG=True
-      - SAPPORO_RUN_DIR=${PWD}/run
+      - SAPPORO_RUN_DIR=/app/run
       - SAPPORO_GET_RUNS=True
       - SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS=False
       - SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN=*
     ports:
-      - 8080:8080
-    restart: always
-    working_dir: ${PWD}
-    command: ["/bin/bash", "./entrypoint.dev.sh"]
+      - 0.0.0.0:8080:8080
+    restart: on-failure
+    working_dir: /app
+    command: ["sleep", "infinity"]
