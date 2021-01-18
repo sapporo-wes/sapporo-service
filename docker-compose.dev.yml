@@ -6,19 +6,22 @@ services:
       dockerfile: Dockerfile
     container_name: sapporo
     volumes:
-      - /tmp:/tmp
+      - ${PWD}:/app
+      # The ones below are mounted for cwltool and DinD.
+      - ${PWD}/run:${PWD}/run
       - /usr/bin/docker:/usr/bin/docker
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${PWD}:/app
+      - /tmp:/tmp
     environment:
+      # Priority: [Command Line Argument] -> [Environment Variable] -> [Default Values]
       - SAPPORO_HOST=0.0.0.0
       - SAPPORO_PORT=8080
       - SAPPORO_DEBUG=True
-      - SAPPORO_RUN_DIR=/app/run
-      - SAPPORO_GET_RUNS=True
-      - SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS=False
-      - SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN=*
-      - SAPPORO_URL_PREFIX=/
+      - SAPPORO_RUN_DIR=${PWD}/run
+      # - SAPPORO_GET_RUNS=True
+      # - SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS=False
+      # - SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN=*
+      # - SAPPORO_URL_PREFIX=/
     ports:
       - 0.0.0.0:8080:8080
     restart: on-failure
