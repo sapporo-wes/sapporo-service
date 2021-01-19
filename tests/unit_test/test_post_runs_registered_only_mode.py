@@ -10,11 +10,12 @@ from flask import Flask
 from flask.testing import FlaskClient
 from flask.wrappers import Response
 from py._path.local import LocalPath
+
 from sapporo.app import create_app, handle_default_params, parse_args
 from sapporo.type import RunId, RunLog, RunRequest, RunStatus
 
-from ..resource_list import (FQ_1, FQ_2, REMOTE_FQ_1, REMOTE_FQ_2,
-                             REMOTE_LOCATION)
+from .resource_list import (FQ_1, FQ_2, REMOTE_FQ_1, REMOTE_FQ_2,
+                            REMOTE_LOCATION)
 
 
 def cwl_remote(client: FlaskClient) -> Response:  # type: ignore
@@ -107,7 +108,7 @@ def test_cwl_remote(delete_env_vars: None, tmpdir: LocalPath) -> None:
     assert "run_id" in posts_res_data
 
     run_id: str = posts_res_data["run_id"]
-    from ..test_get_run_id_status import get_run_id_status
+    from .test_get_run_id_status import get_run_id_status
     count: int = 0
     while count <= 60:
         get_status_res: Response = get_run_id_status(client, run_id)
@@ -117,7 +118,7 @@ def test_cwl_remote(delete_env_vars: None, tmpdir: LocalPath) -> None:
         sleep(1)
         count += 1
 
-    from ..test_get_run_id import get_run_id
+    from .test_get_run_id import get_run_id
     detail_res: Response = get_run_id(client, run_id)
     detail_res_data: RunLog = detail_res.get_json()
 
@@ -164,7 +165,7 @@ def test_cwl_attach_in_config(delete_env_vars: None, tmpdir: LocalPath) \
     assert "run_id" in posts_res_data
 
     run_id: str = posts_res_data["run_id"]
-    from ..test_get_run_id_status import get_run_id_status
+    from .test_get_run_id_status import get_run_id_status
     count: int = 0
     while count <= 60:
         get_status_res: Response = get_run_id_status(client, run_id)
@@ -174,7 +175,7 @@ def test_cwl_attach_in_config(delete_env_vars: None, tmpdir: LocalPath) \
         sleep(1)
         count += 1
 
-    from ..test_get_run_id import get_run_id
+    from .test_get_run_id import get_run_id
     detail_res: Response = get_run_id(client, run_id)
     detail_res_data: RunLog = detail_res.get_json()
 
@@ -220,7 +221,7 @@ def test_cwl_attach_in_request(delete_env_vars: None, tmpdir: LocalPath) \
     assert "run_id" in posts_res_data
 
     run_id: str = posts_res_data["run_id"]
-    from ..test_get_run_id_status import get_run_id_status
+    from .test_get_run_id_status import get_run_id_status
     count: int = 0
     while count <= 60:
         get_status_res: Response = get_run_id_status(client, run_id)
@@ -230,7 +231,7 @@ def test_cwl_attach_in_request(delete_env_vars: None, tmpdir: LocalPath) \
         sleep(1)
         count += 1
 
-    from ..test_get_run_id import get_run_id
+    from .test_get_run_id import get_run_id
     detail_res: Response = get_run_id(client, run_id)
     detail_res_data: RunLog = detail_res.get_json()
 

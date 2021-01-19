@@ -9,6 +9,7 @@ from flask import Flask
 from flask.testing import FlaskClient
 from flask.wrappers import Response
 from py._path.local import LocalPath
+
 from sapporo.app import create_app, handle_default_params, parse_args
 from sapporo.type import RunId, RunListResponse
 
@@ -26,7 +27,7 @@ def test_get_runs(delete_env_vars: None, tmpdir: LocalPath) -> None:
     app.debug = params["debug"]  # type: ignore
     app.testing = True
     client: FlaskClient[Response] = app.test_client()
-    from .post_runs_tests.test_access_remote_files_cwltool import \
+    from .test_post_runs_cwltool_access_remote_files import \
         access_remote_files
     posts_res: Response = access_remote_files(client)
     posts_res_data: RunId = posts_res.get_json()

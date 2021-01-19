@@ -7,6 +7,7 @@ from typing import Dict, Union
 from flask import Flask
 from flask.testing import FlaskClient
 from flask.wrappers import Response
+
 from sapporo.app import create_app, handle_default_params, parse_args
 from sapporo.type import ServiceInfo
 

@@ -10,63 +10,56 @@ from flask import Flask
 from flask.testing import FlaskClient
 from flask.wrappers import Response
 from py._path.local import LocalPath
+
 from sapporo.app import create_app, handle_default_params, parse_args
 from sapporo.type import RunId, RunLog, RunRequest, RunStatus
 
-from ..resource_list import CWL_TOOL_1, CWL_TOOL_2, CWL_WF, FQ_1, FQ_2
+from .resource_list import REMOTE_CWL_WF_REMOTE, REMOTE_FQ_1, REMOTE_FQ_2
 
 
-def attach_all_files(client: FlaskClient) -> Response:  # type: ignore
+def access_remote_files(client: FlaskClient) -> Response:  # type: ignore
     data: RunRequest = {  # type: ignore
         "workflow_params": json.dumps({
             "fastq_1": {
                 "class": "File",
-                "path": FQ_1.name
+                "location": REMOTE_FQ_1
             },
             "fastq_2": {
                 "class": "File",
-                "path": FQ_2.name
+                "location": REMOTE_FQ_2
             }
         }),
         "workflow_type": "CWL",
         "workflow_type_version": "v1.0",
         "tags": json.dumps({
-            "workflow_name": CWL_WF.stem  # type: ignore
+            "workflow_name": "trimming_and_qc_remote"  # type: ignore
         }),
         "workflow_engine_name": "cwltool",
         "workflow_engine_parameters": json.dumps({}),
-        "workflow_url": CWL_WF.name
+        "workflow_url": REMOTE_CWL_WF_REMOTE
     }
-
-    data["fastq_1"] = (FQ_1.open(mode="rb"), FQ_1.name)  # type: ignore
-    data["fastq_2"] = (FQ_2.open(mode="rb"), FQ_2.name)  # type: ignore
-    data["workflow"] = (CWL_WF.open(mode="rb"), CWL_WF.name)  # type: ignore
-    data["tool_1"] = (CWL_TOOL_1.open(mode="rb"),  # type: ignore
-                      CWL_TOOL_1.name)
-    data["tool_2"] = (CWL_TOOL_2.open(mode="rb"),  # type: ignore
-                      CWL_TOOL_2.name)
-
     response: Response = client.post("/runs", data=data,
                                      content_type="multipart/form-data")
 
     return response
 
 
-def test_attach_all_files(delete_env_vars: None, tmpdir: LocalPath) -> None:
+def test_access_remote_files(delete_env_vars: None,
+                             tmpdir: LocalPath) -> None:
     args: Namespace = parse_args(["--run-dir", str(tmpdir)])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
     app: Flask = create_app(params)
     app.debug = params["debug"]  # type: ignore
     app.testing = True
     client: FlaskClient[Response] = app.test_client()
-    posts_res: Response = attach_all_files(client)
+    posts_res: Response = access_remote_files(client)
     posts_res_data: RunId = posts_res.get_json()
 
     assert posts_res.status_code == 200
     assert "run_id" in posts_res_data
 
     run_id: str = posts_res_data["run_id"]
-    from ..test_get_run_id_status import get_run_id_status
+    from .test_get_run_id_status import get_run_id_status
     count: int = 0
     while count <= 60:
         get_status_res: Response = get_run_id_status(client, run_id)
@@ -76,7 +69,7 @@ def test_attach_all_files(delete_env_vars: None, tmpdir: LocalPath) -> None:
         sleep(1)
         count += 1
 
-    from ..test_get_run_id import get_run_id
+    from .test_get_run_id import get_run_id
     detail_res: Response = get_run_id(client, run_id)
     detail_res_data: RunLog = detail_res.get_json()
 
@@ -89,11 +82,12 @@ def test_attach_all_files(delete_env_vars: None, tmpdir: LocalPath) -> None:
     assert "ERR034597_1.small.fq.trimmed.2U.fq" in detail_res_data["outputs"]
     assert "ERR034597_1.small_fastqc.html" in detail_res_data["outputs"]
     assert "ERR034597_2.small_fastqc.html" in detail_res_data["outputs"]
-    assert len(detail_res_data["request"]["workflow_attachment"]) == 5
+    assert len(detail_res_data["request"]["workflow_attachment"]) == 0
     assert "cwltool" == detail_res_data["request"]["workflow_engine_name"]
     assert "CWL" == detail_res_data["request"]["workflow_type"]
     assert "v1.0" == detail_res_data["request"]["workflow_type_version"]
-    assert CWL_WF.name == detail_res_data["request"]["workflow_url"]
+    assert REMOTE_CWL_WF_REMOTE == \
+        detail_res_data["request"]["workflow_url"]
     assert run_id == detail_res_data["run_id"]
     assert detail_res_data["run_log"]["exit_code"] == 0
     assert "Final process status is success" in \

@@ -6,10 +6,11 @@ from typing import Dict, Union
 
 from _pytest.monkeypatch import MonkeyPatch
 from flask import Flask
+
 from sapporo.app import create_app, handle_default_params, parse_args
 from sapporo.const import DEFAULT_HOST, DEFAULT_PORT, DEFAULT_URL_PREFIX
 
-base_dir: Path = Path(__file__).parent.parent.resolve()
+base_dir: Path = Path(__file__).parent.parent.parent.resolve()
 
 
 def test_default_params(delete_env_vars: None) -> None:

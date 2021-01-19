@@ -104,8 +104,8 @@ def prepare_exe_dir(run_id: str,
 
 
 def chmod_exe_and_outputs_dir(run_id: str) -> None:
-    exe_dir.mkdir(parents=True, exist_ok=True)
     exe_dir: Path = get_path(run_id, "exe_dir")
+    exe_dir.mkdir(parents=True, exist_ok=True)
     exe_dir.chmod(0o777)
     outputs_dir: Path = get_path(run_id, "outputs_dir")
     outputs_dir.mkdir(parents=True, exist_ok=True)
