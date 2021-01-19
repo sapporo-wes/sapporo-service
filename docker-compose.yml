@@ -4,7 +4,8 @@ services:
     image: suecharo/sapporo-service:1.0.5
     container_name: sapporo
     volumes:
-      - ${PWD}:/app
+      # If you want to mount the host's `run.sh`, etc., uncomment below.
+      # - ${PWD}/sapporo:/app/sapporo
       # The ones below are mounted for cwltool and DinD.
       - ${PWD}/run:${PWD}/run
       - /usr/bin/docker:/usr/bin/docker

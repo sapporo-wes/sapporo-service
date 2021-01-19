@@ -6,7 +6,8 @@ services:
       dockerfile: Dockerfile
     container_name: sapporo
     volumes:
-      - ${PWD}:/app
+      - ${PWD}/sapporo:/app/sapporo
+      - ${PWD}/tests:/app/tests
       # The ones below are mounted for cwltool and DinD.
       - ${PWD}/run:${PWD}/run
       - /usr/bin/docker:/usr/bin/docker
