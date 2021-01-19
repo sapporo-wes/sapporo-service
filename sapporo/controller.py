@@ -8,7 +8,8 @@ from flask.globals import current_app
 from flask.json import jsonify
 
 from sapporo.const import GET_STATUS_CODE, POST_STATUS_CODE
-from sapporo.run import (cancel_run, fork_run, get_run_log, prepare_exe_dir,
+from sapporo.run import (cancel_run, chmod_run_dir, fork_run, get_run_log,
+                         prepare_exe_dir,
                          update_and_validate_registered_only_mode,
                          validate_run_id, validate_run_request,
                          validate_wf_type)
@@ -84,6 +85,7 @@ def post_runs() -> Response:
     dump_wf_engine_params(run_id)
     prepare_exe_dir(run_id, request.files)
     write_file(run_id, "state", State.QUEUED.name)
+    chmod_run_dir(run_id)
     fork_run(run_id)
     response: Response = jsonify({
         "run_id": run_id

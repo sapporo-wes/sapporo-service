@@ -103,6 +103,13 @@ def prepare_exe_dir(run_id: str,
     write_file(run_id, "run_request", json.dumps(run_request, indent=2))
 
 
+def chmod_run_dir(run_id: str) -> None:
+    outputs_dir: Path = get_path(run_id, "outputs_dir")
+    outputs_dir.chmod(0o777)
+    exe_dir: Path = get_path(run_id, "exe_dir")
+    exe_dir.chmod(0o777)
+
+
 def fork_run(run_id: str) -> None:
     run_dir: Path = get_run_dir(run_id)
     stdout: Path = get_path(run_id, "stdout")
