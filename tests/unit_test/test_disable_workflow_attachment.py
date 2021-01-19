@@ -9,6 +9,7 @@ from flask import Flask
 from flask.testing import FlaskClient
 from flask.wrappers import Response
 from py._path.local import LocalPath
+
 from sapporo.app import create_app, handle_default_params, parse_args
 from sapporo.type import RunId, RunLog, RunStatus
 
@@ -23,7 +24,7 @@ def test_disable_workflow_attachment(delete_env_vars: None,
     app.testing = True
     client: FlaskClient[Response] = app.test_client()
 
-    from .post_runs_tests.test_attach_all_files_cwltool import attach_all_files
+    from .test_post_runs_cwltool_attach_all_files import attach_all_files
     post_runs_res: Response = attach_all_files(client)
     post_runs_data: RunId = post_runs_res.get_json()
 
