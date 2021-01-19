@@ -9,34 +9,46 @@ from flask import Flask
 from flask.testing import FlaskClient
 from flask.wrappers import Response
 from py._path.local import LocalPath
-
 from sapporo.app import create_app, handle_default_params, parse_args
 from sapporo.type import RunId, RunLog, RunStatus
 
 
-def test_disable_workflow_attachment(delete_env_vars: None,
-                                     tmpdir: LocalPath) -> None:
-    args: Namespace = parse_args(["--disable-workflow-attachment",
-                                  "--run-dir", str(tmpdir)])
+def post_run_id_cancel(client: FlaskClient,  # type: ignore
+                       run_id: str) -> Response:
+    response: Response = client.post(f"/runs/{run_id}/cancel")
+
+    return response
+
+
+def test_post_run_id_cancel(delete_env_vars: None, tmpdir: LocalPath) -> None:
+    args: Namespace = parse_args(["--run-dir", str(tmpdir)])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
     app: Flask = create_app(params)
     app.debug = params["debug"]  # type: ignore
     app.testing = True
     client: FlaskClient[Response] = app.test_client()
+    from .post_runs_tests.test_access_remote_files_cwltool import \
+        access_remote_files
+    posts_res: Response = access_remote_files(client)
+    posts_res_data: RunId = posts_res.get_json()
 
-    from .post_runs_tests.test_attach_all_files_cwltool import attach_all_files
-    post_runs_res: Response = attach_all_files(client)
-    post_runs_data: RunId = post_runs_res.get_json()
+    assert posts_res.status_code == 200
 
-    assert post_runs_res.status_code == 200
+    run_id: str = posts_res_data["run_id"]
+    sleep(3)
+    posts_cancel_res: Response = post_run_id_cancel(client, run_id)
+    posts_cancel_res_data: RunId = posts_cancel_res.get_json()
 
-    run_id: str = post_runs_data["run_id"]
+    assert posts_cancel_res.status_code == 200
+    assert "run_id" in posts_cancel_res_data
+    assert run_id == posts_cancel_res_data["run_id"]
+
     from .test_get_run_id_status import get_run_id_status
     count: int = 0
     while count <= 60:
         get_status_res: Response = get_run_id_status(client, run_id)
         get_status_data: RunStatus = get_status_res.get_json()
-        if get_status_data["state"] == "EXECUTOR_ERROR":  # type: ignore
+        if get_status_data["state"] == "CANCELED":  # type: ignore
             break
         sleep(1)
         count += 1
@@ -46,5 +58,4 @@ def test_disable_workflow_attachment(delete_env_vars: None,
     detail_res_data: RunLog = detail_res.get_json()
 
     assert detail_res.status_code == 200
-    assert detail_res_data["run_log"]["exit_code"] == 1
-    assert "Not found" in detail_res_data["run_log"]["stderr"]
+    assert detail_res_data["run_log"]["exit_code"] == 138
