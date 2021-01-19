@@ -10,7 +10,6 @@ from flask import Flask
 from flask.testing import FlaskClient
 from flask.wrappers import Response
 from py._path.local import LocalPath
-
 from sapporo.app import create_app, handle_default_params, parse_args
 from sapporo.type import RunId, RunLog, RunRequest, RunStatus
 

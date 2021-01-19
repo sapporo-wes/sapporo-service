@@ -2,7 +2,8 @@
 # coding: utf-8
 from pathlib import Path
 
-RESOURCE_DIR: Path = Path(__file__).parent.joinpath("resources").resolve()
+RESOURCE_DIR: Path = \
+    Path(__file__).parent.parent.joinpath("resources").resolve()
 
 FQ_1: Path = RESOURCE_DIR.joinpath("ERR034597_1.small.fq.gz")
 FQ_2: Path = RESOURCE_DIR.joinpath("ERR034597_2.small.fq.gz")
