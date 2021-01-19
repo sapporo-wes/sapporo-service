@@ -38,25 +38,25 @@ function run_cwltool() {
 }
 
 function run_nextflow() {
-  local tmp_output_dir=""
+  local tmp_outputs_dir=""
   if [[ ${wf_params##*.} == "json" ]]; then
     local param_outdir=$(jq -r '."params.outdir"' ${wf_params})
     if [[ ${param_outdir} != null ]]; then
-      tmp_output_dir=${param_outdir}
+      tmp_outputs_dir=${param_outdir}
     fi
   elif [[ ${wf_params##*.} == "yml" ]]; then
     local param_outdir=$(yq -r '."params.outdir"' ${wf_params})
     if [[ ${param_outdir} != null ]]; then
-      tmp_output_dir=${param_outdir}
+      tmp_outputs_dir=${param_outdir}
     fi
   fi
 
   local container="nextflow/nextflow:21.01.1-edge"
   local cmd_txt=""
-  if [[ ${tmp_output_dir} == "" ]]; then
-    cmd_txt="${DOCKER_CMD} ${container} nextflow run ${wf_engine_params} -with-docker -with-conda -work-dir ${output_dir} -params-file ${wf_params} ${wf_url} 1>${stdout} 2>${stderr}"
+  if [[ ${tmp_outputs_dir} == "" ]]; then
+    cmd_txt="${DOCKER_CMD} ${container} nextflow run ${wf_engine_params} -with-docker -with-conda -work-dir ${outputs_dir} -params-file ${wf_params} ${wf_url} 1>${stdout} 2>${stderr}"
   else
-    cmd_txt="${DOCKER_CMD} ${container} nextflow run ${wf_engine_params} -with-docker -with-conda -params-file ${wf_params} ${wf_url} 1>${stdout} 2>${stderr}; mv ${tmp_output_dir}/* ${output_dir}/"
+    cmd_txt="${DOCKER_CMD} ${container} nextflow run ${wf_engine_params} -with-docker -with-conda -params-file ${wf_params} ${wf_url} 1>${stdout} 2>${stderr}; mv ${tmp_outputs_dir}/* ${outputs_dir}/"
   fi
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
@@ -131,7 +131,7 @@ function upload_to_s3() {
     aws configure set default.region us-west-2; \
     aws configure set default.s3.signature_version s3v4; \
     aws --endpoint-url ${endpoint} s3api head-bucket --bucket ${bucket_name} || aws --endpoint-url ${endpoint} s3 mb s3://${bucket_name}; \
-    aws --endpoint-url ${endpoint} s3 cp ${run_dir} s3://${bucket_name}/${dirname} --recursive
+    aws --endpoint-url ${endpoint} s3 cp ${outputs_dir} s3://${bucket_name}/${dirname} --recursive
   " >>${export_script}
 
   local up_stdout="${run_dir}/upload.stdout.log"
