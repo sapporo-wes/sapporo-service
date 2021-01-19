@@ -125,14 +125,14 @@ function upload_to_s3() {
   local dirname=$(jq -r '.tags | fromjson | .export_output.dirname' ${run_request})
 
   local export_script="${run_dir}/upload_to_s3.sh"
-  printf " \
-    aws configure set aws_access_key_id ${access_key}; \
-    aws configure set aws_secret_access_key ${secret_access_key}; \
-    aws configure set default.region us-west-2; \
-    aws configure set default.s3.signature_version s3v4; \
-    aws --endpoint-url ${endpoint} s3api head-bucket --bucket ${bucket_name} || aws --endpoint-url ${endpoint} s3 mb s3://${bucket_name}; \
-    aws --endpoint-url ${endpoint} s3 cp ${outputs_dir} s3://${bucket_name}/${dirname} --recursive
-  " >>${export_script}
+  printf "\
+aws configure set aws_access_key_id ${access_key}; \
+aws configure set aws_secret_access_key ${secret_access_key}; \
+aws configure set default.region us-west-2; \
+aws configure set default.s3.signature_version s3v4; \
+aws --endpoint-url ${endpoint} s3api head-bucket --bucket ${bucket_name} || aws --endpoint-url ${endpoint} s3 mb s3://${bucket_name}; \
+aws --endpoint-url ${endpoint} s3 cp ${outputs_dir} s3://${bucket_name}/${dirname} --recursive
+" >>${export_script}
 
   local up_stdout="${run_dir}/upload.stdout.log"
   local up_stderr="${run_dir}/upload.stderr.log"
