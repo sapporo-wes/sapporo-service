@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eEu
 
 function run_wf() {
@@ -91,9 +91,9 @@ function generate_outputs_list() {
 function upload() {
   local protocol=$(jq -r '.tags | fromjson | .export_output.protocol' ${run_request})
   case ${protocol} in
-    's3')
-      upload_to_s3
-      ;;
+  's3')
+    upload_to_s3
+    ;;
   esac
 }
 
@@ -114,7 +114,7 @@ function upload_to_s3() {
     aws configure set default.s3.signature_version s3v4; \
     aws --endpoint-url ${endpoint} s3api head-bucket --bucket ${bucket_name} || aws --endpoint-url ${endpoint} s3 mb s3://${bucket_name}; \
     aws --endpoint-url ${endpoint} s3 cp ${run_dir} s3://${bucket_name}/${dirname} --recursive
-  " >> ${export_script}
+  " >>${export_script}
 
   local up_stdout="${run_dir}/upload.stdout.log"
   local up_stderr="${run_dir}/upload.stderr.log"
