@@ -6,4 +6,3 @@ mypy
 pytest
 requests
 typing-extensions
-yq
