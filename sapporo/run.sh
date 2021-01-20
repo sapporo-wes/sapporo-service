@@ -38,25 +38,14 @@ function run_cwltool() {
 }
 
 function run_nextflow() {
-  local tmp_outputs_dir=""
-  if [[ ${wf_params##*.} == "json" ]]; then
-    local param_outdir=$(jq -r '."params.outdir"' ${wf_params})
-    if [[ ${param_outdir} != null ]]; then
-      tmp_outputs_dir=${param_outdir}
-    fi
-  elif [[ ${wf_params##*.} == "yml" ]]; then
-    local param_outdir=$(yq -r '."params.outdir"' ${wf_params})
-    if [[ ${param_outdir} != null ]]; then
-      tmp_outputs_dir=${param_outdir}
-    fi
-  fi
-
   local container="nextflow/nextflow:21.01.1-edge"
   local cmd_txt=""
-  if [[ ${tmp_outputs_dir} == "" ]]; then
-    cmd_txt="${DOCKER_CMD} ${container} nextflow run ${wf_engine_params} -with-docker -with-conda -work-dir ${outputs_dir} -params-file ${wf_params} ${wf_url} 1>${stdout} 2>${stderr}"
+  if [[ $(jq 'select(.outdir) != null' ${wf_params}) ]]; then
+    # It has outdir as params.
+    cmd_txt="docker run -i --rm ${D_SOCK} -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} nextflow -dockerize run ${wf_url} ${wf_engine_params} -params-file ${wf_params} --outdir ${outputs_dir} 1>${stdout} 2>${stderr}"
   else
-    cmd_txt="${DOCKER_CMD} ${container} nextflow run ${wf_engine_params} -with-docker -with-conda -params-file ${wf_params} ${wf_url} 1>${stdout} 2>${stderr}; mv ${tmp_outputs_dir}/* ${outputs_dir}/"
+    # It has NOT outdir as params.
+    cmd_txt="docker run -i --rm ${D_SOCK} -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} nextflow -dockerize run ${wf_url} ${wf_engine_params} -params-file ${wf_params} -work-dir ${outputs_dir} 1>${stdout} 2>${stderr}"
   fi
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
