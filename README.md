@@ -12,16 +12,18 @@
 
 SAPPORO is a standard implementation conforming to the [Global Alliance for Genomics and Health](https://www.ga4gh.org) (GA4GH) [Workflow Execution Service](https://github.com/ga4gh/workflow-execution-service-schemas) (WES) API specification.
 
-One of SAPPORO's features is the abstraction of workflow engines, which makes it easy to convert various workflow engines into WES. The following workflow engines have been confirmed to be working at present.
+One of SAPPORO's features is the abstraction of workflow engines, which makes it easy to convert various workflow engines into WES.
+Currently, the following workflow engines have been confirmed to work.
 
 - [cwltool](https://github.com/common-workflow-language/cwltool)
-- [nextflow](https://www.nextflow.io)
+- [Nextflow](https://www.nextflow.io)
 - [Toil](https://toil.ucsc-cgl.org)
 - [cromwell](https://github.com/broadinstitute/cromwell)
 - [snakemake](https://snakemake.readthedocs.io/en/stable/)
 - [ep3](https://github.com/tom-tan/ep3)
 
-Another feature of SAPPORO is the mode that can only execute workflows registered by the system administrator. This feature is useful when building a WES in a shared HPC environment.
+Another feature of SAPPORO is the mode that can only execute workflows registered by the system administrator.
+This feature is useful when building a WES in a shared HPC environment.
 
 ## Install and Run
 
@@ -34,8 +36,8 @@ $ sapporo
 
 ### Docker
 
-You can also launch it with Docker.
-To use Docker-in-Docker (DinD), you have to mount `docker.sock`, `/tmp`, etc.
+You can also launch sapporo with Docker.
+In order to use Docker-in-Docker (DinD), you have to mount `docker.sock`, `/tmp`, etc.
 
 ```bash
 # Launch
@@ -90,19 +92,23 @@ There are two startup modes in SAPPORO.
 - Standard WES mode (Default)
 - Execute only registered workflows mode
 
-These are switched with the startup argument `-run-only-registered-workflows`. It can also be switched by giving `True` or `False` to the environment variable `SAPPORO_ONLY_REGISTERED_WORKFLOWS`. Startup arguments take priority over environment variables.
+These are switched with the startup argument `-run-only-registered-workflows`.
+It can also be switched by giving `True` or `False` to the environment variable `SAPPORO_ONLY_REGISTERED_WORKFLOWS`.
+**Startup arguments take priority over environment variables.**
 
 #### Standard WES mode
 
 As API specifications, please check [GitHub - GA4GH WES](https://github.com/ga4gh/workflow-execution-service-schemas) and [SwaggerUI - GA4GH WES](https://suecharo.github.io/genpei-swagger-ui/dist/).
 
-**When using SAPPORO, It is different from the standard WES API specification, you must specify `workflow_engine_name` in the request parameter of `POST /runs`.** I personally think this part is standard WES API specification's mistake, so I am sending a request to fix it.
+**When using SAPPORO, It is different from the standard WES API specification, you must specify `workflow_engine_name` in the request parameter of `POST /runs`.**
+I personally think this part is standard WES API specification's mistake, so I am sending a request to fix it.
 
 #### Execute only registered workflows mode
 
 As API specifications for the execute only registered workflows mode, please check [SwaggerUI - SAPPORO WES](https://suecharo.github.io/sapporo-swagger-ui/dist/).
 
-Basically, it conforms to the standard WES API. The changes are as follows.
+Basically, it conforms to the standard WES API.
+The changes are as follows.
 
 - Executable workflows are returned by `GET /service-info` as `executable_workflows`.
 - Specify `workflow_name` instead of `workflow_url` in `POST /runs`.
@@ -143,12 +149,15 @@ GET /service-info
   "supported_filesystem_protocols": [
     "http",
     "https",
-    "file"
+    "file",
+    "s3"
   ],
   "supported_wes_versions": [
-    "sapporo-wes-1.1"
+    "sapporo-wes-1.0.0"
   ],
-  "system_state_counts": {},
+  "system_state_counts": {
+    "COMPLETE": 6
+  },
   "tags": {
     "debug": true,
     "get_runs": true,
@@ -160,7 +169,8 @@ GET /service-info
   "workflow_engine_versions": {
     "cromwell": "50",
     "cwltool": "1.0.20191225192155",
-    "nextflow": "20.04.1",
+    "ep3": "v1.0.0",
+    "nextflow": "21.01.1-edge",
     "snakemake": "v5.17.0",
     "toil": "4.1.0"
   },
@@ -171,6 +181,11 @@ GET /service-info
         "v1.1",
         "v1.1.0-dev1"
       ]
+    },
+    "Nextflow": {
+      "workflow_type_version": [
+        "v1.0"
+      ]
     }
   }
 }
@@ -180,7 +195,8 @@ The executable workflows are managed at [`executable_workflows.json`](https://gi
 
 ### Run Dir
 
-SAPPORO manages the submitted workflows, workflow parameters, output files, etc. on the file system. You can override the location of run dir by using the startup argument `--run-dir` or the environment variable `SAPPORO_RUN_DIR`.
+SAPPORO manages the submitted workflows, workflow parameters, output files, etc.
+on the file system. You can override the location of run dir by using the startup argument `--run-dir` or the environment variable `SAPPORO_RUN_DIR`.
 
 The run dir structure is as follows. You can initialize and delete each run by physical deletion with `rm`.
 
@@ -215,11 +231,14 @@ $ tree run
     └── ...
 ```
 
-The execution of `POST /runs` is very complex. Examples using Python's [requests](https://requests.readthedocs.io/en/master/) are provided in [GitHub - sapporo/tests/post_runs_examples](https://github.com/ddbj/SAPPORO-service/tree/master/tests/post_runs_examples). Please use this as a reference.
+The execution of `POST /runs` is very complex.
+Examples using `curl` are provided in [GitHub - sapporo/tests/curl](https://github.com/ddbj/SAPPORO-service/tree/master/tests/curl).
+Please use these as references.
 
 ### `run.sh`
 
-We use [`run.sh`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/run.sh) to abstract the workflow engine. When `POST /runs` is called, SAPPORO fork the execution of `run.sh` after dumping the necessary files to run dir. Therefore, you can apply various workflow engines to WES by editing `run.sh`.
+We use [`run.sh`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/run.sh) to abstract the workflow engine.
+When `POST /runs` is called, SAPPORO fork the execution of `run.sh` after dumping the necessary files to run dir. Therefore, you can apply various workflow engines to WES by editing `run.sh`.
 
 The default position of `run.sh` is under the application directory of SAPPORO. You can override it by using the startup argument `--run-sh` or the environment variable `SAPPORO_RUN_SH`.
 
@@ -227,7 +246,7 @@ The default position of `run.sh` is under the application directory of SAPPORO. 
 
 You can change the host and port used by the application by using the startup arguments (`--host` and `--port`) or the environment variables `SAPPORO_HOST` and `SAPPORO_PORT`.
 
-The following two startup arguments and environment variables are provided to limit the WES.
+The following three startup arguments and environment variables are provided to limit the WES.
 
 - `--disable-get-runs`
   - `SAPPORO_GET_RUNS`: `True` or `False`.
@@ -255,15 +274,17 @@ $ docker-compose -f docker-compose.dev.yml up -d --build
 $ docker-compose -f docker-compose.dev.yml exec app bash
 ```
 
-We use [flake8](https://pypi.org/project/flake8/), [isort](https://github.com/timothycrosley/isort), and [mypy](http://mypy-lang.org) as the Linter.
+We use [flake8](https://pypi.org/project/flake8/), [isort](https://github.com/timothycrosley/isort), and [mypy](http://mypy-lang.org) as a linter.
 
 ```bash
 $ bash ./tests/lint_and_style_check/flake8.sh
 $ bash ./tests/lint_and_style_check/isort.sh
 $ bash ./tests/lint_and_style_check/mypy.sh
+
+$ bash ./tests/lint_and_style_check/run_all.sh
 ```
 
-We use [pytest](https://docs.pytest.org/en/latest/) as a Test Tool.
+We use [pytest](https://docs.pytest.org/en/latest/) as a tester.
 
 ```bash
 $ pytest .

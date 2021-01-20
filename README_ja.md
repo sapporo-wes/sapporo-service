@@ -10,16 +10,18 @@
 
 SAPPORO は、[Global Alliance for Genomics and Health](https://www.ga4gh.org) (GA4GH) により制定された [Workflow Execution Service](https://github.com/ga4gh/workflow-execution-service-schemas) (WES) API 定義に準拠した標準実装です。
 
-SAPPORO の特徴として、workflow engine の抽象化を試みており、様々な workflow engine を容易に WES 化できます。現在、稼働が確認されている workflow engine は、下記のとおりです。
+SAPPORO の特徴として、workflow engine の抽象化を試みており、様々な workflow engine を容易に WES 化できます。
+現在、稼働が確認されている workflow engine は、下記のとおりです。
 
 - [cwltool](https://github.com/common-workflow-language/cwltool)
-- [nextflow](https://www.nextflow.io)
+- [Nextflow](https://www.nextflow.io)
 - [Toil](https://toil.ucsc-cgl.org)
 - [cromwell](https://github.com/broadinstitute/cromwell)
 - [snakemake](https://snakemake.readthedocs.io/en/stable/)
 - [ep3](https://github.com/tom-tan/ep3)
 
-また、もう一つの特徴として、管理者により登録された workflow のみ実行できるモードへと切り替えられます。この機能は、共有の HPC 環境などで WES を構築する時に有用です。
+もう一つの特徴として、管理者により登録された workflow のみ実行できるモードへと切り替えられます。
+この機能は、共有の HPC 環境で WES を構築する時に有用です。
 
 ## Install and Run
 
@@ -88,13 +90,16 @@ SAPPORO には 2 つのモードがあります。
 - 標準 WES モード (Default)
 - 登録された workflow のみを実行するモード
 
-これらの切り替えは、起動時引数 の `--run-only-registered-workflows` で切り替えられます。また、環境変数の `SAPPORO_ONLY_REGISTERED_WORKFLOWS` に `True` or `False` を与えることでも切り替えられます。全ての option について共通ですが、起動時引数のほうが環境変数より優先されます。
+これらの切り替えは、起動時引数 の `--run-only-registered-workflows` で切り替えられます。
+また、環境変数の `SAPPORO_ONLY_REGISTERED_WORKFLOWS` に `True` or `False` を与えることでも切り替えられます。
+全ての option について共通ですが、**起動時引数は環境変数より優先されます**。
 
 #### 標準 WES モード
 
 標準 WES モードの API 仕様は、[GitHub - GA4GH WES](https://github.com/ga4gh/workflow-execution-service-schemas) や [SwaggerUI - GA4GH WES](https://suecharo.github.io/genpei-swagger-ui/dist/) を確認してください。
 
-**標準 WES API の仕様と異なる点として、`POST /runs` の request parameter に `workflow_engine_name` を指定する必要があります。** これは、個人的には、標準 WES API 仕様の不備であると考えていて、修正要求を出しています。
+**標準 WES API の仕様と異なる点として、`POST /runs` の request parameter に `workflow_engine_name` を指定する必要があります。**
+これは、個人的には、標準 WES API 仕様の不備であると考えていて、修正要求を出しています。
 
 #### 登録された workflow のみを実行するモード
 
@@ -141,12 +146,15 @@ GET /service-info
   "supported_filesystem_protocols": [
     "http",
     "https",
-    "file"
+    "file",
+    "s3"
   ],
   "supported_wes_versions": [
-    "sapporo-wes-1.1"
+    "sapporo-wes-1.0.0"
   ],
-  "system_state_counts": {},
+  "system_state_counts": {
+    "COMPLETE": 6
+  },
   "tags": {
     "debug": true,
     "get_runs": true,
@@ -158,7 +166,8 @@ GET /service-info
   "workflow_engine_versions": {
     "cromwell": "50",
     "cwltool": "1.0.20191225192155",
-    "nextflow": "20.04.1",
+    "ep3": "v1.0.0",
+    "nextflow": "21.01.1-edge",
     "snakemake": "v5.17.0",
     "toil": "4.1.0"
   },
@@ -169,16 +178,24 @@ GET /service-info
         "v1.1",
         "v1.1.0-dev1"
       ]
+    },
+    "Nextflow": {
+      "workflow_type_version": [
+        "v1.0"
+      ]
     }
   }
 }
 ```
 
-実行できる workflow は [`executable_workflows.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/executable_workflows.json) にて管理されています。また、この定義の schema は [`executable_workflows.schema.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/executable_workflows.schema.json) です。これらの file の default の位置は、SAPPORO のアプリケーション直下ですが、起動時引数の `--executable-workflows` や環境変数の `SAPPORO_EXECUTABLE_WORKFLOWS` で上書きできます。
+実行できる workflow は [`executable_workflows.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/executable_workflows.json) にて管理されています。
+また、この定義の schema は [`executable_workflows.schema.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/executable_workflows.schema.json) です。
+これらの file の default の位置は、SAPPORO のアプリケーション直下ですが、起動時引数の `--executable-workflows` や環境変数の `SAPPORO_EXECUTABLE_WORKFLOWS` で上書きできます。
 
 ### Run Dir
 
-SAPPORO は、投入された workflow や workflow parameter、output files などを file system 上で管理しています。これら全ての file をまとめた directory を run dir と呼んでおり、default は `${PWD}/run` です。run dir の場所は、起動時引数 `--run-dir` や環境変数 `SAPPORO_RUN_DIR` で上書きできます。
+SAPPORO は、投入された workflow や workflow parameter、output files などを file system 上で管理しています。
+これら全ての file をまとめた directory を run dir と呼んでおり、default は `${PWD}/run` です。run dir の場所は、起動時引数 `--run-dir` や環境変数 `SAPPORO_RUN_DIR` で上書きできます。
 
 run dir 構造は、以下のようになっており、それぞれの run における file 群が配置されています。初期化やそれぞれの run の削除は `rm` を用いた物理的な削除により行えます。
 
@@ -213,11 +230,15 @@ $ tree run
     └── ...
 ```
 
-`POST /runs` の実行は非常に複雑です。Python の [requests](https://requests.readthedocs.io/en/master/) を用いた例として、[GitHub - sapporo/tests/post_runs_examples](https://github.com/ddbj/SAPPORO-service/tree/master/tests/post_runs_examples) が用意されています。参考にしてください。
+`POST /runs` の実行は非常に複雑です。
+`curl` を用いた例として、[GitHub - sapporo/tests/curl](https://github.com/ddbj/SAPPORO-service/tree/master/tests/curl) が用意されています。
+参考にしてください。
 
 ### `run.sh`
 
-workflow engine の抽象化を shell script の [`run.sh`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/run.sh) で行っています。`POST /runs` が呼ばれると、SAPPORO は必要な file 群を run dir へと dump した後に、`run.sh` の実行を fork します。そのため、`run.sh` を編集することによって、様々な workflow engine の WES 化を行えます。
+workflow engine の抽象化を shell script の [`run.sh`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/run.sh) で行っています。
+`POST /runs` が呼ばれると、SAPPORO は必要な file 群を run dir に dump した後、`run.sh` の実行を fork します。
+そのため、`run.sh` を編集することによって、様々な workflow engine の WES 化を行えます。
 
 `run.sh` の default の位置は、SAPPORO のアプリケーション直下ですが、起動時引数の `--run-sh` や環境変数の `SAPPORO_RUN_SH` で上書きできます。
 
@@ -225,7 +246,7 @@ workflow engine の抽象化を shell script の [`run.sh`](https://github.com/d
 
 起動時引数 (`--host` and `--port`) を指定することで、起動 Host や Port を変更できます。また、これらの引数に対応する環境変数として、`SAPPORO_HOST`, `SAPPORO_PORT` が用意されています。
 
-WES の機能を制限するための起動時引数・環境変数として、下の 2 つが用意されています。
+WES の機能を制限するための起動時引数・環境変数として、下の 3 つが用意されています。
 
 - `--disable-get-runs`
   - `SAPPORO_GET_RUNS`: `True` or `False`
@@ -242,7 +263,8 @@ WES の機能を制限するための起動時引数・環境変数として、�
   - URL PREFIX を設定する。
     - `--url-prefix /foo/bar` とした場合、`GET /service-info` が `GET /foo/bar/service-info` となる
 
-`GET /service-info` の response の中身として、[`service-info.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/service-info.json) で管理しています。`service-info.json` の default の位置は、SAPPORO のアプリケーション直下ですが、起動時引数の `--service-info` や環境変数の `SAPPORO_SERVICE_INFO` で上書きできます。
+`GET /service-info` の response の中身として、[`service-info.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/service-info.json) で管理しています。
+`service-info.json` の default の位置は、SAPPORO のアプリケーション直下ですが、起動時引数の `--service-info` や環境変数の `SAPPORO_SERVICE_INFO` で上書きできます。
 
 ## Development
 
@@ -253,7 +275,7 @@ $ docker-compose -f docker-compose.dev.yml up -d --build
 $ docker-compose -f docker-compose.dev.yml exec app bash
 ```
 
-Lint Tool として、[flake8](https://pypi.org/project/flake8/), [isort](https://github.com/timothycrosley/isort), [mypy](http://mypy-lang.org) を用いています。
+Linter として、[flake8](https://pypi.org/project/flake8/), [isort](https://github.com/timothycrosley/isort), [mypy](http://mypy-lang.org) を用いています。
 
 それぞれの実行方法は以下のとおりです。
 
@@ -261,9 +283,11 @@ Lint Tool として、[flake8](https://pypi.org/project/flake8/), [isort](https:
 $ bash ./tests/lint_and_style_check/flake8.sh
 $ bash ./tests/lint_and_style_check/isort.sh
 $ bash ./tests/lint_and_style_check/mypy.sh
+
+$ bash ./tests/lint_and_style_check/run_all.sh
 ```
 
-Test Tool として、[pytest](https://docs.pytest.org/en/latest/) を用いてます。
+Tester として、[pytest](https://docs.pytest.org/en/latest/) を用いてます。
 
 実行方法は以下のとおりです。
 
@@ -273,4 +297,5 @@ $ pytest .
 
 ## License
 
-[Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0). See the [LICENSE](https://github.com/ddbj/SAPPORO-service/blob/master/LICENSE).
+[Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0).
+See the [LICENSE](https://github.com/ddbj/SAPPORO-service/blob/master/LICENSE).
