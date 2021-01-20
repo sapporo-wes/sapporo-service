@@ -24,9 +24,8 @@ from sapporo.type import ErrorResponse, Workflow
 
 def parse_args(sys_args: List[str]) -> Namespace:
     parser: ArgumentParser = argparse.ArgumentParser(
-        description="Implementation of a GA4GH workflow execution " +
-                    "service that can easily support various " +
-                    "workflow runners.")
+        description="Implementation of a GA4GH workflow execution service "
+                    "that can easily support various workflow runners.")
 
     parser.add_argument(
         "--host",
@@ -67,16 +66,16 @@ def parse_args(sys_args: List[str]) -> Namespace:
     parser.add_argument(
         "--run-only-registered-workflows",
         action="store_true",
-        help="Run only registered workflows. Check the registered " +
-             "workflows using `GET /service-info`, and specify " +
+        help="Run only registered workflows. Check the registered "
+             "workflows using `GET /service-info`, and specify "
              "`workflow_name` in the `POST /run`."
     )
     parser.add_argument(
         "--service-info",
         nargs=1,
         metavar="",
-        help="Specify `service-info.json`. The supported_wes_versions, " +
-             "system_state_counts and workflows are overwritten in the " +
+        help="Specify `service-info.json`. The supported_wes_versions, "
+             "system_state_counts and workflows are overwritten in the "
              "application."
     )
     parser.add_argument(
@@ -95,7 +94,7 @@ def parse_args(sys_args: List[str]) -> Namespace:
         "--url-prefix",
         nargs=1,
         metavar="",
-        help="Specify the prefix of the url (e.g. --url-prefix /foo -> " +
+        help="Specify the prefix of the url (e.g. --url-prefix /foo -> "
         "/foo/service-info)."
     )
 
@@ -212,7 +211,7 @@ def check_uniqueness_wf_name(executable_wf_path: Path) -> None:
     wf_names: List[str] = [wf["workflow_name"] for wf in executable_wfs]
     if len(wf_names) != len(set(wf_names)):
         raise Exception(
-            "`workflow_name` is not unique in the " +
+            "`workflow_name` is not unique in the "
             f"`executable_workflows.json`: {executable_wf_path} you inputted.")
 
 
@@ -246,7 +245,7 @@ def fix_errorhandler(app: Flask) -> Flask:
         current_app.logger.error(exception.args[0])
         current_app.logger.debug(format_exc())
         res_body: ErrorResponse = {
-            "msg": "The server encountered an internal error and was " +
+            "msg": "The server encountered an internal error and was "
                    "unable to complete your request.",
             "status_code": 500,
         }
@@ -296,9 +295,11 @@ def main() -> None:
     args: Namespace = parse_args(sys.argv[1:])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
     app: Flask = create_app(params)
-    app.run(host=params["host"],  # type: ignore
-            port=params["port"],  # type: ignore
-            debug=params["debug"])  # type: ignore
+    app.run(
+        host=params["host"],  # type: ignore
+        port=params["port"],  # type: ignore
+        debug=params["debug"]  # type: ignore
+    )
 
 
 if __name__ == "__main__":

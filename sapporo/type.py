@@ -7,13 +7,14 @@ from typing import Any, Dict, List
 if version_info.minor < 8:
     from typing_extensions import TypedDict
 else:
-    from typing import TypedDict  # type: ignore
+    from typing import TypedDict
 
 
 class DefaultWorkflowEngineParameter(TypedDict):
     """
-    A message that allows one to describe default parameters for a workflow
-    engine.
+    Each workflow engine can present additional parameters that can be sent to
+    the workflow engine. This message will list the default values, and their
+    types for each workflow engine.
 
     name:
         The name of the parameter

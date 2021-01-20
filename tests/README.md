@@ -25,4 +25,6 @@ or
 $ bash ./lint_and_style_check/run_all.sh
 ```
 
-## Server startup test
+## curl examples
+
+`./curl` contains an example of using curl to send a request.

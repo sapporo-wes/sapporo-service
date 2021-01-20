@@ -5,12 +5,10 @@ from typing import Dict
 
 SRC_DIR: Path = Path(__file__).parent.resolve()
 
-DEFAULT_SERVICE_INFO: Path = \
-    SRC_DIR.joinpath("service-info.json").resolve()
+DEFAULT_SERVICE_INFO: Path = SRC_DIR.joinpath("service-info.json").resolve()
 DEFAULT_EXECUTABLE_WORKFLOWS: Path = \
     SRC_DIR.joinpath("executable_workflows.json").resolve()
-DEFAULT_RUN_SH: Path = \
-    SRC_DIR.joinpath("run.sh").resolve()
+DEFAULT_RUN_SH: Path = SRC_DIR.joinpath("run.sh").resolve()
 DEFAULT_RUN_DIR = Path.cwd().joinpath("run").resolve()
 DEFAULT_HOST: str = "127.0.0.1"
 DEFAULT_PORT: int = 8080

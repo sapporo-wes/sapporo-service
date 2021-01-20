@@ -18,7 +18,7 @@ def test_disable_get_runs(delete_env_vars: None, tmpdir: LocalPath) -> None:
                                   "--run-dir", str(tmpdir)])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
     app: Flask = create_app(params)
-    app.debug = params["debug"]  # type: ignore
+    app.debug = params["debug"]
     app.testing = True
     client: FlaskClient[Response] = app.test_client()
     from .test_get_runs import get_runs

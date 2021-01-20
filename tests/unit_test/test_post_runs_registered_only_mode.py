@@ -18,8 +18,8 @@ from .resource_list import (FQ_1, FQ_2, REMOTE_FQ_1, REMOTE_FQ_2,
                             REMOTE_LOCATION)
 
 
-def cwl_remote(client: FlaskClient) -> Response:  # type: ignore
-    data: RunRequest = {  # type: ignore
+def cwl_remote(client: FlaskClient) -> Response:
+    data: RunRequest = {
         "workflow_params": json.dumps({
             "fastq_1": {
                 "class": "File",
@@ -41,8 +41,8 @@ def cwl_remote(client: FlaskClient) -> Response:  # type: ignore
     return response
 
 
-def cwl_attach_in_config(client: FlaskClient) -> Response:  # type: ignore
-    data: RunRequest = {  # type: ignore
+def cwl_attach_in_config(client: FlaskClient) -> Response:
+    data: RunRequest = {
         "workflow_params": json.dumps({
             "fastq_1": {
                 "class": "File",
@@ -64,8 +64,8 @@ def cwl_attach_in_config(client: FlaskClient) -> Response:  # type: ignore
     return response
 
 
-def cwl_attach_in_request(client: FlaskClient) -> Response:  # type: ignore
-    data: RunRequest = {  # type: ignore
+def cwl_attach_in_request(client: FlaskClient) -> Response:
+    data: RunRequest = {
         "workflow_params": json.dumps({
             "fastq_1": {
                 "class": "File",
@@ -81,8 +81,10 @@ def cwl_attach_in_request(client: FlaskClient) -> Response:  # type: ignore
         "workflow_engine_parameters": json.dumps({}),
     }
 
-    data["fastq_1"] = (FQ_1.open(mode="rb"), FQ_1.name)  # type: ignore
-    data["fastq_2"] = (FQ_2.open(mode="rb"), FQ_2.name)  # type: ignore
+    data["workflow_attachment[]"] = [
+        (FQ_1.open(mode="rb"), FQ_1.name),
+        (FQ_2.open(mode="rb"), FQ_2.name)
+    ]
 
     response: Response = client.post("/runs", data=data,
                                      content_type="multipart/form-data")
@@ -98,7 +100,7 @@ def test_cwl_remote(delete_env_vars: None, tmpdir: LocalPath) -> None:
     ])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
     app: Flask = create_app(params)
-    app.debug = params["debug"]  # type: ignore
+    app.debug = params["debug"]
     app.testing = True
     client: FlaskClient[Response] = app.test_client()
     posts_res: Response = cwl_remote(client)
@@ -110,10 +112,10 @@ def test_cwl_remote(delete_env_vars: None, tmpdir: LocalPath) -> None:
     run_id: str = posts_res_data["run_id"]
     from .test_get_run_id_status import get_run_id_status
     count: int = 0
-    while count <= 60:
+    while count <= 120:
         get_status_res: Response = get_run_id_status(client, run_id)
         get_status_data: RunStatus = get_status_res.get_json()
-        if get_status_data["state"] == "COMPLETE":  # type: ignore
+        if get_status_data["state"] == "COMPLETE":
             break
         sleep(1)
         count += 1
@@ -143,7 +145,7 @@ def test_cwl_remote(delete_env_vars: None, tmpdir: LocalPath) -> None:
     assert detail_res_data["run_log"]["exit_code"] == 0
     assert "Final process status is success" in \
         detail_res_data["run_log"]["stderr"]
-    assert "COMPLETE" == detail_res_data["state"]  # type: ignore
+    assert "COMPLETE" == detail_res_data["state"]
 
 
 def test_cwl_attach_in_config(delete_env_vars: None, tmpdir: LocalPath) \
@@ -155,7 +157,7 @@ def test_cwl_attach_in_config(delete_env_vars: None, tmpdir: LocalPath) \
     ])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
     app: Flask = create_app(params)
-    app.debug = params["debug"]  # type: ignore
+    app.debug = params["debug"]
     app.testing = True
     client: FlaskClient[Response] = app.test_client()
     posts_res: Response = cwl_attach_in_config(client)
@@ -167,10 +169,10 @@ def test_cwl_attach_in_config(delete_env_vars: None, tmpdir: LocalPath) \
     run_id: str = posts_res_data["run_id"]
     from .test_get_run_id_status import get_run_id_status
     count: int = 0
-    while count <= 60:
+    while count <= 120:
         get_status_res: Response = get_run_id_status(client, run_id)
         get_status_data: RunStatus = get_status_res.get_json()
-        if get_status_data["state"] == "COMPLETE":  # type: ignore
+        if get_status_data["state"] == "COMPLETE":
             break
         sleep(1)
         count += 1
@@ -200,7 +202,7 @@ def test_cwl_attach_in_config(delete_env_vars: None, tmpdir: LocalPath) \
     assert detail_res_data["run_log"]["exit_code"] == 0
     assert "Final process status is success" in \
         detail_res_data["run_log"]["stderr"]
-    assert "COMPLETE" == detail_res_data["state"]  # type: ignore
+    assert "COMPLETE" == detail_res_data["state"]
 
 
 def test_cwl_attach_in_request(delete_env_vars: None, tmpdir: LocalPath) \
@@ -211,7 +213,7 @@ def test_cwl_attach_in_request(delete_env_vars: None, tmpdir: LocalPath) \
     ])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
     app: Flask = create_app(params)
-    app.debug = params["debug"]  # type: ignore
+    app.debug = params["debug"]
     app.testing = True
     client: FlaskClient[Response] = app.test_client()
     posts_res: Response = cwl_attach_in_request(client)
@@ -223,10 +225,10 @@ def test_cwl_attach_in_request(delete_env_vars: None, tmpdir: LocalPath) \
     run_id: str = posts_res_data["run_id"]
     from .test_get_run_id_status import get_run_id_status
     count: int = 0
-    while count <= 60:
+    while count <= 120:
         get_status_res: Response = get_run_id_status(client, run_id)
         get_status_data: RunStatus = get_status_res.get_json()
-        if get_status_data["state"] == "COMPLETE":  # type: ignore
+        if get_status_data["state"] == "COMPLETE":
             break
         sleep(1)
         count += 1
@@ -256,4 +258,4 @@ def test_cwl_attach_in_request(delete_env_vars: None, tmpdir: LocalPath) \
     assert detail_res_data["run_log"]["exit_code"] == 0
     assert "Final process status is success" in \
         detail_res_data["run_log"]["stderr"]
-    assert "COMPLETE" == detail_res_data["state"]  # type: ignore
+    assert "COMPLETE" == detail_res_data["state"]

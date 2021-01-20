@@ -4,7 +4,8 @@
       "workflow_type_version": ["v1.0", "v1.1", "v1.1.0-dev1"]
     }
   },
-  "supported_filesystem_protocols": ["http", "https", "file"],
+  "supported_filesystem_protocols": ["http", "https", "file", "s3"],
+  "default_workflow_engine_parameters": [],
   "workflow_engine_versions": {
     "cwltool": "1.0.20191225192155",
     "nextflow": "21.01.1-edge",
@@ -13,7 +14,6 @@
     "snakemake": "v5.17.0",
     "ep3": "v1.0.0"
   },
-  "default_workflow_engine_parameters": [],
   "auth_instructions_url": "https://github.com/ddbj/SAPPORO-service",
   "contact_info_url": "https://github.com/ddbj/SAPPORO-service",
   "tags": {
