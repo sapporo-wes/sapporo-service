@@ -4,16 +4,50 @@
   "type": "object",
   "properties": {
     "workflow_type_versions": {
-      "type": "object"
-    },
-    "supported_wes_versions": {
-      "type": "array"
+      "type": "object",
+      "properties": {
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "workflow_type_version": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": ["workflow_type_version"]
+        }
+      }
     },
     "supported_filesystem_protocols": {
-      "type": "array"
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     },
     "default_workflow_engine_parameters": {
-      "type": "array"
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "default_value": {
+            "type": "string"
+          }
+        },
+        "required": ["name", "type", "default_value"]
+      }
+    },
+    "workflow_engine_versions": {
+      "additionalProperties": {
+        "type": "string"
+      }
     },
     "auth_instructions_url": {
       "type": "string"
@@ -22,15 +56,18 @@
       "type": "string"
     },
     "tags": {
-      "type": "object"
-    }
+      "type": "object",
+      "additionalProperties": true
+    },
+    "additionalProperties": true
   },
   "required": [
     "workflow_type_versions",
     "supported_filesystem_protocols",
-    "workflow_engine_versions",
     "default_workflow_engine_parameters",
+    "workflow_engine_versions",
     "auth_instructions_url",
-    "contact_info_url"
+    "contact_info_url",
+    "tags"
   ]
 }

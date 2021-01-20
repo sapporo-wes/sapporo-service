@@ -4,14 +4,13 @@ import collections
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, cast
+from typing import Any, Dict, Iterable, List
 from uuid import uuid4
 
 from flask import abort, current_app
 
 from sapporo.const import RUN_DIR_STRUCTURE
-from sapporo.type import (DefaultWorkflowEngineParameter, RunRequest,
-                          ServiceInfo, State, Workflow)
+from sapporo.type import ServiceInfo, State, Workflow
 
 
 def generate_service_info() -> ServiceInfo:
@@ -19,7 +18,7 @@ def generate_service_info() -> ServiceInfo:
         service_info: ServiceInfo = json.load(f)
 
     if current_app.config["REGISTERED_ONLY_MODE"]:
-        service_info["supported_wes_versions"] = ["sapporo-wes-1.1"]
+        service_info["supported_wes_versions"] = ["sapporo-wes-1.0.0"]
     else:
         service_info["supported_wes_versions"] = ["1.0.0"]
     service_info["system_state_counts"] = count_system_state()  # type: ignore
@@ -92,34 +91,22 @@ def write_file(run_id: str, file_type: str, content: str) -> None:
 
 
 def read_file(run_id: str, file_type: str) -> Any:
+    json_file_type = ["run_request", "outputs", "wf_params"]
+    oneline_txt_file_type = ["state", "start_time", "end_time",
+                             "exit_code", "pid", "wf_engine_params", "cmd"]
+    log_file_type = ["stdout", "stderr", "task_logs"]
+    if file_type not in json_file_type + oneline_txt_file_type + log_file_type:
+        return None
     file: Path = get_path(run_id, file_type)
     if file.exists() is False:
         return None
     with file.open(mode="r") as f:
-        if file_type in ["cmd", "start_time", "end_time", "exit_code"]:
-            return f.read().splitlines()[0]
-        elif file_type in ["stdout", "stderr"]:
-            return f.read()
-        elif file_type in ["run_request", "outputs", "task_logs"]:
+        if file_type in json_file_type:
             return json.load(f)
-        else:
+        elif file_type in oneline_txt_file_type:
+            return f.read().splitlines()[0]
+        elif file_type in log_file_type:
             return f.read()
-
-
-def dump_wf_engine_params(run_id: str) -> None:
-    run_request: RunRequest = \
-        cast(RunRequest, read_file(run_id, "run_request"))
-    wf_engine_params_obj = \
-        json.loads(run_request["workflow_engine_parameters"])
-    params: List[str] = []
-    for key, val in wf_engine_params_obj.items():
-        params.append(key)
-        if isinstance(val, list):
-            params.append(",".join(val))
-        else:
-            params.append(str(val))
-    joined_params: str = " ".join(params)
-    write_file(run_id, "wf_engine_params", joined_params)
 
 
 def dump_outputs_list(inputted_run_dir: str) -> None:
@@ -139,17 +126,6 @@ def walk_all_files(dir: Path) -> Iterable[Path]:
             yield Path(root).joinpath(file)
 
 
-def generate_default_wf_engine_params(run_id: str) -> List[str]:
-    default_wf_engine_params: List[DefaultWorkflowEngineParameter] = \
-        generate_service_info()["default_workflow_engine_parameters"]
-    params: List[str] = []
-    for param in default_wf_engine_params:
-        params.append(str(param.get("name", "")))
-        params.append(str(param.get("default_value", "")))
-
-    return params
-
-
 def get_workflow(workflow_name: str) -> Workflow:
     with current_app.config["EXECUTABLE_WORKFLOWS"].open(mode="r") as f:
         executable_workflows: List[Workflow] = json.load(f)
@@ -158,6 +134,26 @@ def get_workflow(workflow_name: str) -> Workflow:
             return wf
 
     abort(404,
-          f"The workflow_name: {workflow_name} you requested doesn't " +
-          "exist. Please request `GET /service-info` again and check " +
+          f"The workflow_name: {workflow_name} you requested doesn't "
+          "exist. Please request `GET /service-info` again and check "
           "the registered executable workflows.")
+
+
+def validate_wf_type(wf_type: str, wf_type_version: str) -> None:
+    service_info: ServiceInfo = generate_service_info()
+    wf_type_versions = service_info["workflow_type_versions"]
+
+    available_wf_types: List[str] = list(map(str, wf_type_versions.keys()))
+    if wf_type not in available_wf_types:
+        abort(400,
+              f"{wf_type}, the workflow_type specified in the "
+              f"request, is not included in {available_wf_types}, "
+              "the available workflow_types.")
+
+    available_wf_versions: List[str] = \
+        list(map(str, wf_type_versions[wf_type]["workflow_type_version"]))
+    if wf_type_version not in available_wf_versions:
+        abort(400,
+              f"{wf_type_version}, the workflow_type_version specified in "
+              f"the request, is not included in {available_wf_versions}, "
+              "the available workflow_type_versions.")

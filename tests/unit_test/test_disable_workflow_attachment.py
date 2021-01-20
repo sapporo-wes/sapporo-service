@@ -20,7 +20,7 @@ def test_disable_workflow_attachment(delete_env_vars: None,
                                   "--run-dir", str(tmpdir)])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
     app: Flask = create_app(params)
-    app.debug = params["debug"]  # type: ignore
+    app.debug = params["debug"]
     app.testing = True
     client: FlaskClient[Response] = app.test_client()
 
@@ -36,7 +36,7 @@ def test_disable_workflow_attachment(delete_env_vars: None,
     while count <= 120:
         get_status_res: Response = get_run_id_status(client, run_id)
         get_status_data: RunStatus = get_status_res.get_json()
-        if get_status_data["state"] == "EXECUTOR_ERROR":  # type: ignore
+        if get_status_data["state"] == "EXECUTOR_ERROR":
             break
         sleep(1)
         count += 1

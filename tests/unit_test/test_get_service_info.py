@@ -16,7 +16,7 @@ def test_original_wes_mode(delete_env_vars: None) -> None:
     args: Namespace = parse_args([])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
     app: Flask = create_app(params)
-    app.debug = params["debug"]  # type: ignore
+    app.debug = params["debug"]
     app.testing = True
     client: FlaskClient[Response] = app.test_client()
     res: Response = client.get("/service-info")
@@ -47,7 +47,7 @@ def test_registered_only_mode(delete_env_vars: None) -> None:
     ])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
     app: Flask = create_app(params)
-    app.debug = params["debug"]  # type: ignore
+    app.debug = params["debug"]
     app.testing = True
     client: FlaskClient[Response] = app.test_client()
     res: Response = client.get("/service-info")
@@ -58,7 +58,7 @@ def test_registered_only_mode(delete_env_vars: None) -> None:
     assert "contact_info_url" in res_data
     assert "default_workflow_engine_parameters" in res_data
     assert "supported_wes_versions" in res_data
-    assert res_data["supported_wes_versions"][0] == "sapporo-wes-1.1"
+    assert res_data["supported_wes_versions"][0] == "sapporo-wes-1.0.0"
     assert "system_state_counts" in res_data
     assert "tags" in res_data
     assert bool(res_data["tags"]["debug"]) is True

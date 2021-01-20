@@ -14,7 +14,7 @@ from sapporo.app import create_app, handle_default_params, parse_args
 from sapporo.type import RunId, RunLog, RunStatus
 
 
-def post_run_id_cancel(client: FlaskClient,  # type: ignore
+def post_run_id_cancel(client: FlaskClient,
                        run_id: str) -> Response:
     response: Response = client.post(f"/runs/{run_id}/cancel")
 
@@ -25,11 +25,10 @@ def test_post_run_id_cancel(delete_env_vars: None, tmpdir: LocalPath) -> None:
     args: Namespace = parse_args(["--run-dir", str(tmpdir)])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
     app: Flask = create_app(params)
-    app.debug = params["debug"]  # type: ignore
+    app.debug = params["debug"]
     app.testing = True
     client: FlaskClient[Response] = app.test_client()
-    from .test_post_runs_cwltool_access_remote_files import \
-        access_remote_files
+    from .test_post_runs_cwltool_access_remote_files import access_remote_files
     posts_res: Response = access_remote_files(client)
     posts_res_data: RunId = posts_res.get_json()
 
@@ -46,10 +45,10 @@ def test_post_run_id_cancel(delete_env_vars: None, tmpdir: LocalPath) -> None:
 
     from .test_get_run_id_status import get_run_id_status
     count: int = 0
-    while count <= 60:
+    while count <= 120:
         get_status_res: Response = get_run_id_status(client, run_id)
         get_status_data: RunStatus = get_status_res.get_json()
-        if get_status_data["state"] == "CANCELED":  # type: ignore
+        if get_status_data["state"] == "CANCELED":
             break
         sleep(1)
         count += 1

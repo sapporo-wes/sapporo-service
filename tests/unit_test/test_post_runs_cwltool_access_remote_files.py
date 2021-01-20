@@ -17,8 +17,8 @@ from sapporo.type import RunId, RunLog, RunRequest, RunStatus
 from .resource_list import REMOTE_CWL_WF_REMOTE, REMOTE_FQ_1, REMOTE_FQ_2
 
 
-def access_remote_files(client: FlaskClient) -> Response:  # type: ignore
-    data: RunRequest = {  # type: ignore
+def access_remote_files(client: FlaskClient) -> Response:
+    data: RunRequest = {
         "workflow_params": json.dumps({
             "fastq_1": {
                 "class": "File",
@@ -32,7 +32,7 @@ def access_remote_files(client: FlaskClient) -> Response:  # type: ignore
         "workflow_type": "CWL",
         "workflow_type_version": "v1.0",
         "tags": json.dumps({
-            "workflow_name": "trimming_and_qc_remote"  # type: ignore
+            "workflow_name": "trimming_and_qc_remote"
         }),
         "workflow_engine_name": "cwltool",
         "workflow_engine_parameters": json.dumps({}),
@@ -49,7 +49,7 @@ def test_access_remote_files(delete_env_vars: None,
     args: Namespace = parse_args(["--run-dir", str(tmpdir)])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
     app: Flask = create_app(params)
-    app.debug = params["debug"]  # type: ignore
+    app.debug = params["debug"]
     app.testing = True
     client: FlaskClient[Response] = app.test_client()
     posts_res: Response = access_remote_files(client)
@@ -61,10 +61,10 @@ def test_access_remote_files(delete_env_vars: None,
     run_id: str = posts_res_data["run_id"]
     from .test_get_run_id_status import get_run_id_status
     count: int = 0
-    while count <= 60:
+    while count <= 120:
         get_status_res: Response = get_run_id_status(client, run_id)
         get_status_data: RunStatus = get_status_res.get_json()
-        if get_status_data["state"] == "COMPLETE":  # type: ignore
+        if get_status_data["state"] == "COMPLETE":
             break
         sleep(1)
         count += 1
@@ -92,4 +92,4 @@ def test_access_remote_files(delete_env_vars: None,
     assert detail_res_data["run_log"]["exit_code"] == 0
     assert "Final process status is success" in \
         detail_res_data["run_log"]["stderr"]
-    assert "COMPLETE" == detail_res_data["state"]  # type: ignore
+    assert "COMPLETE" == detail_res_data["state"]

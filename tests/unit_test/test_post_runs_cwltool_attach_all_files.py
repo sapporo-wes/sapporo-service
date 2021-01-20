@@ -17,8 +17,8 @@ from sapporo.type import RunId, RunLog, RunRequest, RunStatus
 from .resource_list import CWL_TOOL_1, CWL_TOOL_2, CWL_WF, FQ_1, FQ_2
 
 
-def attach_all_files(client: FlaskClient) -> Response:  # type: ignore
-    data: RunRequest = {  # type: ignore
+def attach_all_files(client: FlaskClient) -> Response:
+    data: RunRequest = {
         "workflow_params": json.dumps({
             "fastq_1": {
                 "class": "File",
@@ -32,20 +32,20 @@ def attach_all_files(client: FlaskClient) -> Response:  # type: ignore
         "workflow_type": "CWL",
         "workflow_type_version": "v1.0",
         "tags": json.dumps({
-            "workflow_name": CWL_WF.stem  # type: ignore
+            "workflow_name": CWL_WF.stem
         }),
         "workflow_engine_name": "cwltool",
         "workflow_engine_parameters": json.dumps({}),
         "workflow_url": CWL_WF.name
     }
 
-    data["fastq_1"] = (FQ_1.open(mode="rb"), FQ_1.name)  # type: ignore
-    data["fastq_2"] = (FQ_2.open(mode="rb"), FQ_2.name)  # type: ignore
-    data["workflow"] = (CWL_WF.open(mode="rb"), CWL_WF.name)  # type: ignore
-    data["tool_1"] = (CWL_TOOL_1.open(mode="rb"),  # type: ignore
-                      CWL_TOOL_1.name)
-    data["tool_2"] = (CWL_TOOL_2.open(mode="rb"),  # type: ignore
-                      CWL_TOOL_2.name)
+    data["workflow_attachment[]"] = [
+        (FQ_1.open(mode="rb"), FQ_1.name),
+        (FQ_2.open(mode="rb"), FQ_2.name),
+        (CWL_WF.open(mode="rb"), CWL_WF.name),
+        (CWL_TOOL_1.open(mode="rb"), CWL_TOOL_1.name),
+        (CWL_TOOL_2.open(mode="rb"), CWL_TOOL_2.name)
+    ]
 
     response: Response = client.post("/runs", data=data,
                                      content_type="multipart/form-data")
@@ -57,7 +57,7 @@ def test_attach_all_files(delete_env_vars: None, tmpdir: LocalPath) -> None:
     args: Namespace = parse_args(["--run-dir", str(tmpdir)])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
     app: Flask = create_app(params)
-    app.debug = params["debug"]  # type: ignore
+    app.debug = params["debug"]
     app.testing = True
     client: FlaskClient[Response] = app.test_client()
     posts_res: Response = attach_all_files(client)
@@ -69,10 +69,10 @@ def test_attach_all_files(delete_env_vars: None, tmpdir: LocalPath) -> None:
     run_id: str = posts_res_data["run_id"]
     from .test_get_run_id_status import get_run_id_status
     count: int = 0
-    while count <= 60:
+    while count <= 120:
         get_status_res: Response = get_run_id_status(client, run_id)
         get_status_data: RunStatus = get_status_res.get_json()
-        if get_status_data["state"] == "COMPLETE":  # type: ignore
+        if get_status_data["state"] == "COMPLETE":
             break
         sleep(1)
         count += 1
@@ -99,4 +99,4 @@ def test_attach_all_files(delete_env_vars: None, tmpdir: LocalPath) -> None:
     assert detail_res_data["run_log"]["exit_code"] == 0
     assert "Final process status is success" in \
         detail_res_data["run_log"]["stderr"]
-    assert "COMPLETE" == detail_res_data["state"]  # type: ignore
+    assert "COMPLETE" == detail_res_data["state"]

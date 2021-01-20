@@ -1,23 +1,15 @@
 #!/usr/bin/env python3
 # coding: utf-8
-import json
-from typing import cast
-
 from flask import Blueprint, Response, abort, request
 from flask.globals import current_app
 from flask.json import jsonify
 
 from sapporo.const import GET_STATUS_CODE, POST_STATUS_CODE
-from sapporo.run import (cancel_run, chmod_exe_and_outputs_dir, fork_run,
-                         get_run_log, prepare_exe_dir,
-                         update_and_validate_registered_only_mode,
-                         validate_run_id, validate_run_request,
-                         validate_wf_type)
-from sapporo.type import (RunId, RunListResponse, RunLog, RunRequest,
-                          RunStatus, ServiceInfo, State)
-from sapporo.util import (dump_wf_engine_params, generate_run_id,
-                          generate_service_info, get_all_run_ids, get_state,
-                          write_file)
+from sapporo.run import (cancel_run, fork_run, get_run_log, prepare_run_dir,
+                         validate_and_update_run_request, validate_run_id)
+from sapporo.type import RunId, RunListResponse, RunLog, RunStatus, ServiceInfo
+from sapporo.util import (generate_run_id, generate_service_info,
+                          get_all_run_ids, get_state)
 
 app_bp = Blueprint("sapporo", __name__)
 
@@ -47,9 +39,9 @@ def get_runs() -> Response:
     GetRunLog.
     """
     if current_app.config["GET_RUNS"] is False:
-        abort(403, "This endpoint `GET /runs` is unavailable because " +
-                   "the service provider didn't allow the request to " +
-                   "this endpoint when sapporo was started.")
+        abort(403, "This endpoint `GET /runs` is unavailable because the "
+              "service provider didn't allow the request to this endpoint "
+              "when sapporo was started.")
 
     res_body: RunListResponse = {
         "runs": [],
@@ -72,20 +64,13 @@ def post_runs() -> Response:
     This endpoint creates a new workflow run and returns a `RunId` to monitor
     its progress.
     """
-    run_request: RunRequest = cast(RunRequest, dict(request.form))
-    if current_app.config["REGISTERED_ONLY_MODE"]:
-        run_request = \
-            update_and_validate_registered_only_mode(run_request)
-    validate_run_request(run_request)
-    validate_wf_type(run_request["workflow_type"],
-                     run_request["workflow_type_version"])
     run_id: str = generate_run_id()
-    write_file(run_id, "run_request", json.dumps(run_request, indent=2))
-    write_file(run_id, "wf_params", run_request["workflow_params"])
-    dump_wf_engine_params(run_id)
-    prepare_exe_dir(run_id, request.files)
-    write_file(run_id, "state", State.QUEUED.name)
-    chmod_exe_and_outputs_dir(run_id)
+    run_request = validate_and_update_run_request(
+        run_id,
+        dict(request.form),  # type: ignore
+        request.files
+    )
+    prepare_run_dir(run_id, run_request, request.files)
     fork_run(run_id)
     response: Response = jsonify({
         "run_id": run_id

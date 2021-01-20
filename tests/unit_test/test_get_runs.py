@@ -14,7 +14,7 @@ from sapporo.app import create_app, handle_default_params, parse_args
 from sapporo.type import RunId, RunListResponse
 
 
-def get_runs(client: FlaskClient) -> Response:  # type: ignore
+def get_runs(client: FlaskClient) -> Response:
     response: Response = client.get("/runs")
 
     return response
@@ -24,11 +24,10 @@ def test_get_runs(delete_env_vars: None, tmpdir: LocalPath) -> None:
     args: Namespace = parse_args(["--run-dir", str(tmpdir)])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
     app: Flask = create_app(params)
-    app.debug = params["debug"]  # type: ignore
+    app.debug = params["debug"]
     app.testing = True
     client: FlaskClient[Response] = app.test_client()
-    from .test_post_runs_cwltool_access_remote_files import \
-        access_remote_files
+    from .test_post_runs_cwltool_access_remote_files import access_remote_files
     posts_res: Response = access_remote_files(client)
     posts_res_data: RunId = posts_res.get_json()
 

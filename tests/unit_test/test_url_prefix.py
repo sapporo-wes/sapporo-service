@@ -16,7 +16,7 @@ def test_url_prefix(delete_env_vars: None, tmpdir: LocalPath) -> None:
     args: Namespace = parse_args(["--url-prefix", "/test"])
     params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
     app: Flask = create_app(params)
-    app.debug = params["debug"]  # type: ignore
+    app.debug = params["debug"]
     app.testing = True
     client: FlaskClient[Response] = app.test_client()
     res: Response = client.get("/test/service-info")
