@@ -3,14 +3,16 @@
 import collections
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Any, Dict, Iterable, List
+from unicodedata import normalize
 from uuid import uuid4
 
 from flask import abort, current_app
-
 from sapporo.const import RUN_DIR_STRUCTURE
 from sapporo.type import ServiceInfo, State, Workflow
+from werkzeug.utils import _filename_ascii_strip_re  # type: ignore
+from werkzeug.utils import _windows_device_files  # type: ignore
 
 
 def generate_service_info() -> ServiceInfo:
@@ -157,3 +159,56 @@ def validate_wf_type(wf_type: str, wf_type_version: str) -> None:
               f"{wf_type_version}, the workflow_type_version specified in "
               f"the request, is not included in {available_wf_versions}, "
               "the available workflow_type_versions.")
+
+
+def secure_filepath(filepath: str) -> Path:
+    """
+    We know `werkzeug.secure_filename()`.
+    However, this function cannot represent the dir structure,
+
+    >>> secure_filename("../../../etc/passwd")
+    'etc_passwd'
+
+    Thus, it is incompatible with workflow engines such as snakemake.
+    Therefore, We implemented this by referring to `werkzeug.secure_filename()`
+
+    >> > PurePath("/").parts
+    ('/',)
+    >> > PurePath("//").parts
+    ('//',)
+    >> > PurePath("/foo/bar").parts
+    ('/', 'foo', 'bar')
+    >> > PurePath("foo/bar").parts
+    ('foo', 'bar')
+    >> > PurePath("/foo/bar/").parts
+    ('/', 'foo', 'bar')
+    >> > PurePath("./foo/bar/").parts
+    ('foo', 'bar')
+    >> > PurePath("/../../foo/bar//").parts
+    ('/', '..', '..', 'foo', 'bar')
+    >> > PurePath("/../.../foo/bar//").parts
+    ('/', '..', '...', 'foo', 'bar')
+    """
+    ascii_filepath = \
+        normalize("NFKD", filepath).encode("ascii", "ignore").decode("ascii")
+    pure_path = PurePath(ascii_filepath)
+    nodes = []
+    for node in pure_path.parts:
+        # Change space to underbar
+        node = "_".join(node.split())
+        # Change [^A-Za-z0-9_.-] to empty.
+        node = str(_filename_ascii_strip_re.sub("", node))
+        node = node.strip("._")
+        if node not in ["", ".", ".."]:
+            nodes.append(node)
+
+    path = Path("/".join([str(node) for node in nodes]))
+
+    if (
+        os.name == "nt"
+        and str(path)
+        and str(path).split(".")[0].upper() in _windows_device_files
+    ):
+        path = Path("_" + str(path))
+
+    return path

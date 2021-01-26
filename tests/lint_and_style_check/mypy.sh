@@ -1,4 +1,6 @@
 #!/bin/bash
+set -eu
+
 SCRIPT_DIR=$(
     cd $(dirname $0)
     pwd
@@ -8,9 +10,26 @@ BASE_DIR=$(
     pwd
 )
 
+echo "--- ${BASE_DIR}/sapporo ---"
 mypy --strict \
     --allow-untyped-calls \
     --allow-untyped-decorators \
     --ignore-missing-imports \
     --no-warn-unused-ignores \
-    ${BASE_DIR}
+    ${BASE_DIR}/sapporo
+
+echo "--- ${BASE_DIR}/tests/pytest ---"
+mypy --strict \
+    --allow-untyped-calls \
+    --allow-untyped-decorators \
+    --ignore-missing-imports \
+    --no-warn-unused-ignores \
+    ${BASE_DIR}/tests/pytest
+
+echo "--- ${BASE_DIR}/setup.py ---"
+mypy --strict \
+    --allow-untyped-calls \
+    --allow-untyped-decorators \
+    --ignore-missing-imports \
+    --no-warn-unused-ignores \
+    ${BASE_DIR}/setup.py

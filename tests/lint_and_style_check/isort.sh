@@ -1,4 +1,6 @@
 #!/bin/bash
+set -eu
+
 SCRIPT_DIR=$(
     cd $(dirname $0)
     pwd
@@ -8,5 +10,6 @@ BASE_DIR=$(
     pwd
 )
 
-cd ${BASE_DIR}
-isort . --check
+isort ${BASE_DIR} \
+    --skip "${BASE_DIR}/tests/resources" \
+    --check

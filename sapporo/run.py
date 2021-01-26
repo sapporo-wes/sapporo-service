@@ -12,14 +12,13 @@ from urllib import parse
 import requests
 from flask import abort, current_app
 from requests import Response
-from werkzeug.datastructures import FileStorage
-from werkzeug.utils import secure_filename
-
 from sapporo.type import (DefaultWorkflowEngineParameter, Log, RunLog,
                           RunRequest, State, Workflow)
 from sapporo.util import (generate_service_info, get_all_run_ids, get_path,
                           get_run_dir, get_state, get_workflow, read_file,
                           validate_wf_type, write_file)
+from werkzeug.datastructures import FileStorage
+from werkzeug.utils import secure_filename
 
 
 def validate_and_update_run_request(run_id: str,
