@@ -18,13 +18,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install mypy
+          python -m pip install --no-cache-dir --progress-bar off -U pip setuptools wheel
+          python -m pip install --no-cache-dir --progress-bar off -r requirements.txt
+          python -m pip install --no-cache-dir --progress-bar off -e .
       - name: Check with mypy
         run: |
-          mypy --strict \
-              --allow-untyped-calls \
-              --allow-untyped-decorators \
-              --ignore-missing-imports \
-              --no-warn-unused-ignores \
-              .
+          bash ./tests/lint_and_style_check/mypy.sh

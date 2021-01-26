@@ -11,8 +11,6 @@ from typing import Dict, List, Optional, Union
 
 from flask import Flask, Response, current_app, jsonify
 from jsonschema import validate
-from werkzeug.exceptions import HTTPException
-
 from sapporo.const import (DEFAULT_ACCESS_CONTROL_ALLOW_ORIGIN,
                            DEFAULT_EXECUTABLE_WORKFLOWS, DEFAULT_HOST,
                            DEFAULT_PORT, DEFAULT_RUN_DIR, DEFAULT_RUN_SH,
@@ -20,6 +18,7 @@ from sapporo.const import (DEFAULT_ACCESS_CONTROL_ALLOW_ORIGIN,
                            EXECUTABLE_WORKFLOWS_SCHEMA, SERVICE_INFO_SCHEMA)
 from sapporo.controller import app_bp
 from sapporo.type import ErrorResponse, Workflow
+from werkzeug.exceptions import HTTPException
 
 
 def parse_args(sys_args: List[str]) -> Namespace:
