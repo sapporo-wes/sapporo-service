@@ -4,16 +4,14 @@ set -Eeu
 SCRIPT_DIR=$(cd $(dirname ${BASH_SOURCE[0]}) &>/dev/null && pwd -P)
 
 workflow_params="${SCRIPT_DIR}/workflow_params.json"
-workflow="${SCRIPT_DIR}/../../../resources/file_input.nf"
-input_file="${SCRIPT_DIR}/../../../resources/nf_test_input.txt"
+workflow="${SCRIPT_DIR}/../../../../resources/nextflow/str_input.nf"
 
 curl -fsSL -X POST \
   -H "Content-Type: multipart/form-data" \
   -F "workflow_params=<${workflow_params}" \
   -F "workflow_type=Nextflow" \
   -F "workflow_type_version=v1.0" \
-  -F "workflow_url=./file_input.nf" \
+  -F "workflow_url=./str_input.nf" \
   -F "workflow_engine_name=nextflow" \
   -F "workflow_attachment[]=@${workflow}" \
-  -F "workflow_attachment[]=@${input_file}" \
-  http://localhost:${SAPPORO_PORT}/runs
+  http://${SAPPORO_HOST}:${SAPPORO_PORT}/runs

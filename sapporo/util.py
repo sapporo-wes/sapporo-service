@@ -9,10 +9,11 @@ from unicodedata import normalize
 from uuid import uuid4
 
 from flask import abort, current_app
-from sapporo.const import RUN_DIR_STRUCTURE
-from sapporo.type import ServiceInfo, State, Workflow
 from werkzeug.utils import _filename_ascii_strip_re  # type: ignore
 from werkzeug.utils import _windows_device_files  # type: ignore
+
+from sapporo.const import RUN_DIR_STRUCTURE
+from sapporo.type import ServiceInfo, State, Workflow
 
 
 def generate_service_info() -> ServiceInfo:

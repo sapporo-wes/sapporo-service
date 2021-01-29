@@ -6,4 +6,4 @@ if [[ $# != 1 ]]; then
   exit 1
 fi
 
-curl -fsSL -X GET http://localhost:${SAPPORO_PORT}/runs/${1}/status
+curl -fsSL -X GET http://${SAPPORO_HOST}:${SAPPORO_PORT}/runs/${1}/status

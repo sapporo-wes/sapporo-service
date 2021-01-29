@@ -4,11 +4,11 @@ set -Eeu
 SCRIPT_DIR=$(cd $(dirname ${BASH_SOURCE[0]}) &>/dev/null && pwd -P)
 
 workflow_params="${SCRIPT_DIR}/workflow_params.json"
-fastq_1="${SCRIPT_DIR}/../../../resources/ERR034597_1.small.fq.gz"
-fastq_2="${SCRIPT_DIR}/../../../resources/ERR034597_2.small.fq.gz"
-workflow="${SCRIPT_DIR}/../../../resources/trimming_and_qc.cwl"
-tool_1="${SCRIPT_DIR}/../../../resources/fastqc.cwl"
-tool_2="${SCRIPT_DIR}/../../../resources/trimmomatic_pe.cwl"
+fastq_1="${SCRIPT_DIR}/../../../../resources/cwltool/ERR034597_1.small.fq.gz"
+fastq_2="${SCRIPT_DIR}/../../../../resources/cwltool/ERR034597_2.small.fq.gz"
+workflow="${SCRIPT_DIR}/../../../../resources/cwltool/trimming_and_qc.cwl"
+tool_1="${SCRIPT_DIR}/../../../../resources/cwltool/fastqc.cwl"
+tool_2="${SCRIPT_DIR}/../../../../resources/cwltool/trimmomatic_pe.cwl"
 
 curl -fsSL -X POST \
   -H "Content-Type: multipart/form-data" \
@@ -22,4 +22,4 @@ curl -fsSL -X POST \
   -F "workflow_attachment[]=@${workflow}" \
   -F "workflow_attachment[]=@${tool_1}" \
   -F "workflow_attachment[]=@${tool_2}" \
-  http://localhost:${SAPPORO_PORT}/runs
+  http://${SAPPORO_HOST}:${SAPPORO_PORT}/runs

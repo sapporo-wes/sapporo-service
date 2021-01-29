@@ -24,7 +24,7 @@ mypy --strict \
     --allow-untyped-decorators \
     --ignore-missing-imports \
     --no-warn-unused-ignores \
-    ${BASE_DIR}/tests/pytest
+    ${BASE_DIR}/tests/unit_test
 
 echo "--- ${BASE_DIR}/setup.py ---"
 mypy --strict \

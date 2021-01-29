@@ -6,4 +6,4 @@ if [[ $# != 1 ]]; then
   exit 1
 fi
 
-curl -fsSL -X POST http://localhost:${SAPPORO_PORT}/runs/${1}/cancel
+curl -fsSL -X POST http://${SAPPORO_HOST}:${SAPPORO_PORT}/runs/${1}/cancel

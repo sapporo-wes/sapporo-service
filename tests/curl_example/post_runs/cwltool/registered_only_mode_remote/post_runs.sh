@@ -10,4 +10,4 @@ curl -fsSL -X POST \
   -F "workflow_name=CWL_trimming_and_qc_remote" \
   -F "workflow_params=<${workflow_params}" \
   -F "workflow_engine_name=cwltool" \
-  http://localhost:${SAPPORO_PORT}/runs
+  http://${SAPPORO_HOST}:${SAPPORO_PORT}/runs
