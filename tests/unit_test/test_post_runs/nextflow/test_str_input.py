@@ -13,7 +13,8 @@ from . import SCRIPT_DIR, TEST_HOST, TEST_PORT  # type: ignore
 def post_runs_str_input() -> RunId:
     script_path = SCRIPT_DIR.joinpath("str_input/post_runs.sh")
     proc = subprocess.run(shlex.split(f"/bin/bash {str(script_path)}"),
-                          capture_output=True,
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE,
                           encoding="utf-8",
                           env={"SAPPORO_HOST": TEST_HOST,
                                "SAPPORO_PORT": TEST_PORT})
