@@ -44,7 +44,8 @@ def post_runs_attach_all_files_with_flask(
 def post_runs_attach_all_files() -> RunId:
     script_path = SCRIPT_DIR.joinpath("attach_all_files/post_runs.sh")
     proc = subprocess.run(shlex.split(f"/bin/bash {str(script_path)}"),
-                          capture_output=True,
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE,
                           encoding="utf-8",
                           env={"SAPPORO_HOST": TEST_HOST,
                                "SAPPORO_PORT": TEST_PORT})
