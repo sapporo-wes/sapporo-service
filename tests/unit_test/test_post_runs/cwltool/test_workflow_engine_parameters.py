@@ -14,7 +14,9 @@ def post_runs_workflow_engine_parameters() -> RunId:
     script_path = \
         SCRIPT_DIR.joinpath("workflow_engine_parameters/post_runs.sh")
     proc = subprocess.run(shlex.split(f"/bin/bash {str(script_path)}"),
-                          capture_output=True,
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE,
+
                           encoding="utf-8",
                           env={"SAPPORO_HOST": TEST_HOST,
                                "SAPPORO_PORT": TEST_PORT})
