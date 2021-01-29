@@ -1,24 +1,17 @@
 #!/usr/bin/env python3
 # coding: utf-8
-from argparse import Namespace
-from pathlib import Path
-from typing import Dict, Union
-
-from flask import Flask
-from flask.testing import FlaskClient
-from flask.wrappers import Response
 from sapporo.app import create_app, handle_default_params, parse_args
 from sapporo.type import ServiceInfo
 
 
 def test_original_wes_mode(delete_env_vars: None) -> None:
-    args: Namespace = parse_args([])
-    params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
-    app: Flask = create_app(params)
-    app.debug = params["debug"]
+    args = parse_args([])
+    params = handle_default_params(args)
+    app = create_app(params)
+    app.debug = params["debug"]  # type: ignore
     app.testing = True
-    client: FlaskClient[Response] = app.test_client()
-    res: Response = client.get("/service-info")
+    client = app.test_client()
+    res = client.get("/service-info")
     res_data: ServiceInfo = res.get_json()
 
     assert res.status_code == 200
@@ -39,17 +32,17 @@ def test_original_wes_mode(delete_env_vars: None) -> None:
 
 
 def test_registered_only_mode(delete_env_vars: None) -> None:
-    args: Namespace = parse_args([
+    args = parse_args([
         "--debug",
         "--disable-get-runs",
         "--run-only-registered-workflows",
     ])
-    params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
-    app: Flask = create_app(params)
-    app.debug = params["debug"]
+    params = handle_default_params(args)
+    app = create_app(params)
+    app.debug = params["debug"]  # type: ignore
     app.testing = True
-    client: FlaskClient[Response] = app.test_client()
-    res: Response = client.get("/service-info")
+    client = app.test_client()
+    res = client.get("/service-info")
     res_data: ServiceInfo = res.get_json()
 
     assert res.status_code == 200

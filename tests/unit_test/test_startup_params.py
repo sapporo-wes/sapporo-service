@@ -6,6 +6,7 @@ from typing import Dict, Union
 
 from _pytest.monkeypatch import MonkeyPatch
 from flask import Flask
+
 from sapporo.app import create_app, handle_default_params, parse_args
 from sapporo.const import DEFAULT_HOST, DEFAULT_PORT, DEFAULT_URL_PREFIX
 
@@ -13,9 +14,9 @@ base_dir: Path = Path(__file__).parent.parent.parent.resolve()
 
 
 def test_default_params(delete_env_vars: None) -> None:
-    args: Namespace = parse_args([])
-    params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
-    app: Flask = create_app(params)
+    args = parse_args([])
+    params = handle_default_params(args)
+    app = create_app(params)
 
     assert params["host"] == DEFAULT_HOST
     assert params["port"] == DEFAULT_PORT
@@ -85,8 +86,8 @@ def test_parse_args(delete_env_vars: None) -> None:
                     "--run-sh",
                     str(base_dir.joinpath("sapporo/run.sh")),
                     "--url-prefix", "/test"])
-    params: Dict[str, Union[str, int, Path]] = handle_default_params(args)
-    app: Flask = create_app(params)
+    params = handle_default_params(args)
+    app = create_app(params)
 
     assert params["host"] == "127.0.0.1"
     assert params["port"] == 8888

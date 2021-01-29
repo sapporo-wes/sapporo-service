@@ -14,4 +14,4 @@ curl -fsSL -X POST \
   -F "workflow_url=https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/cwltool/trimming_and_qc_remote.cwl" \
   -F "workflow_engine_name=cwltool" \
   -F "workflow_engine_parameters=<${workflow_engine_parameters}" \
-  http://localhost:${SAPPORO_PORT}/runs
+  http://${SAPPORO_HOST}:${SAPPORO_PORT}/runs
