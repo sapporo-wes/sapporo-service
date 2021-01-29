@@ -16,7 +16,8 @@ SCRIPT_DIR = \
 def get_run_id(run_id: str) -> RunLog:
     script_path = SCRIPT_DIR.joinpath("get_run_id.sh")
     proc = sp.run(shlex.split(f"/bin/bash {str(script_path)} {run_id}"),
-                  capture_output=True,
+                  stdout=sp.PIPE,
+                  stderr=sp.PIPE,
                   encoding="utf-8",
                   env={"SAPPORO_HOST": TEST_HOST,
                        "SAPPORO_PORT": TEST_PORT})
@@ -29,7 +30,8 @@ def get_run_id(run_id: str) -> RunLog:
 def get_run_id_status(run_id: str) -> RunStatus:
     script_path = SCRIPT_DIR.joinpath("get_status.sh")
     proc = sp.run(shlex.split(f"/bin/bash {str(script_path)} {run_id}"),
-                  capture_output=True,
+                  stdout=sp.PIPE,
+                  stderr=sp.PIPE,
                   encoding="utf-8",
                   env={"SAPPORO_HOST": TEST_HOST,
                        "SAPPORO_PORT": TEST_PORT})
