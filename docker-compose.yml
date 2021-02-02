@@ -31,5 +31,4 @@ services:
 
 networks:
   sapporo:
-    external:
-      name: sapporo-network
+    name: sapporo-network
