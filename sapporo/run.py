@@ -13,13 +13,12 @@ import requests
 from flask import abort, current_app
 from requests import Response
 from werkzeug.datastructures import FileStorage
-from werkzeug.utils import secure_filename
 
 from sapporo.type import (DefaultWorkflowEngineParameter, Log, RunLog,
                           RunRequest, State, Workflow)
 from sapporo.util import (generate_service_info, get_all_run_ids, get_path,
                           get_run_dir, get_state, get_workflow, read_file,
-                          validate_wf_type, write_file)
+                          secure_filepath, validate_wf_type, write_file)
 
 
 def validate_and_update_run_request(run_id: str,
@@ -67,10 +66,10 @@ def validate_and_update_run_request(run_id: str,
             files.getlist("workflow_attachment[]")  # type: ignore
         exe_dir: Path = get_path(run_id, "exe_dir")
         for f in workflow_attachment:
-            file_name: str = secure_filename(f.filename)
+            file_name: Path = secure_filepath(f.filename)
             file_url: Path = exe_dir.joinpath(file_name).resolve()
             run_request["workflow_attachment"].append({
-                "file_name": file_name,
+                "file_name": str(file_name),
                 "file_url": str(file_url)
             })
 
@@ -124,7 +123,8 @@ def write_workflow_attachment(run_id: str, run_request: RunRequest,
         wf: Workflow = get_workflow(run_request["workflow_name"])
         for file in wf["workflow_attachment"]:
             file_path = \
-                exe_dir.joinpath(secure_filename(file["file_name"])).resolve()
+                exe_dir.joinpath(secure_filepath(file["file_name"])).resolve()
+            file_path.parent.mkdir(parents=True, exist_ok=True)
             response: Response = requests.get(file["file_url"])
             with file_path.open(mode="wb") as f:
                 f.write(response.content)
@@ -133,8 +133,9 @@ def write_workflow_attachment(run_id: str, run_request: RunRequest,
         workflow_attachment = \
             files.getlist("workflow_attachment[]")  # type: ignore
         for file in workflow_attachment:
-            file_name = secure_filename(file.filename)   # type: ignore
+            file_name = secure_filepath(file.filename)   # type: ignore
             file_path = exe_dir.joinpath(file_name).resolve()
+            file_path.parent.mkdir(parents=True, exist_ok=True)
             file.save(file_path)  # type: ignore
 
 

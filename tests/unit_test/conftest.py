@@ -55,4 +55,7 @@ def setup_test_server_registered_only_mode() -> Generator[None, None, None]:
             f"Failed to start the test server.\n{str(stderr)}")
     yield
     os.kill(proc.pid, signal.SIGTERM)
-    shutil.rmtree(tempdir)
+    try:
+        shutil.rmtree(tempdir)
+    except Exception:
+        pass

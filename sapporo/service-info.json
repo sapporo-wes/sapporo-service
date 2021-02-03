@@ -5,6 +5,9 @@
     },
     "Nextflow": {
       "workflow_type_version": ["v1.0"]
+    },
+    "Snakemake": {
+      "workflow_type_version": ["v1.0"]
     }
   },
   "supported_filesystem_protocols": ["http", "https", "file", "s3"],
