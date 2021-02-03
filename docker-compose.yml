@@ -1,4 +1,4 @@
-version: "3"
+version: "3.5"
 services:
   app:
     image: suecharo/sapporo-service:1.0.6
@@ -31,5 +31,4 @@ services:
 
 networks:
   sapporo:
-    external:
-      name: sapporo-network
+    name: sapporo-network
