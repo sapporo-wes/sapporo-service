@@ -171,7 +171,7 @@ GET /service-info
     "cwltool": "1.0.20191225192155",
     "ep3": "v1.0.0",
     "nextflow": "21.01.1-edge",
-    "snakemake": "v5.17.0",
+    "snakemake": "v5.32.0",
     "toil": "4.1.0"
   },
   "workflow_type_versions": {
@@ -183,6 +183,11 @@ GET /service-info
       ]
     },
     "Nextflow": {
+      "workflow_type_version": [
+        "v1.0"
+      ]
+    },
+    "Snakemake": {
       "workflow_type_version": [
         "v1.0"
       ]
@@ -232,7 +237,7 @@ $ tree run
 ```
 
 The execution of `POST /runs` is very complex.
-Examples using `curl` are provided in [GitHub - sapporo/tests/curl](https://github.com/ddbj/SAPPORO-service/tree/master/tests/curl).
+Examples using `curl` are provided in [GitHub - sapporo/tests/curl](https://github.com/ddbj/SAPPORO-service/tree/master/tests/curl_example/post_runs).
 Please use these as references.
 
 ### `run.sh`
