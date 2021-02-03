@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eEu
+set -eu
 
 function run_wf() {
   echo "RUNNING" >${state}
@@ -66,10 +66,18 @@ function run_cromwell() {
 }
 
 function run_snakemake() {
-  local container="snakemake/snakemake:v5.17.0"
-  local cmd_txt="${DOCKER_CMD} ${container} snakemake ${wf_engine_params} --snakefile ${wf_url} 1>${stdout} 2>${stderr}"
+  local container="snakemake/snakemake:v5.32.0"
+  local cmd_txt="docker run -i --rm -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} snakemake ${wf_engine_params} --snakefile ${wf_url} 1>${stdout} 2>${stderr}"
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
+
+  docker run -i --rm -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} \
+    snakemake --snakefile ${wf_url} --summary 2>/dev/null | tail -n +2 | cut -f 1 |
+    while read file_path; do
+      dir_path=$(dirname ${file_path})
+      mkdir -p "${outputs_dir}/${dir_path}"
+      cp "${exe_dir}/${file_path}" "${outputs_dir}/${file_path}" 2>/dev/null || true
+    done
 }
 
 function run_ep3() {
