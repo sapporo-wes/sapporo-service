@@ -8,6 +8,9 @@
     },
     "Snakemake": {
       "workflow_type_version": ["v1.0"]
+    },
+    "WDL": {
+      "workflow_type_version": ["1.0"]
     }
   },
   "supported_filesystem_protocols": ["http", "https", "file", "s3"],
@@ -16,7 +19,7 @@
     "cwltool": "1.0.20191225192155",
     "nextflow": "21.01.1-edge",
     "toil": "4.1.0",
-    "cromwell": "50",
+    "cromwell": "55",
     "snakemake": "v5.32.0",
     "ep3": "v1.0.0"
   },

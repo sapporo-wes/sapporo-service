@@ -33,7 +33,8 @@ def test_str_input_with_docker(setup_test_server: None) -> None:
     count = 0
     while count <= 120:
         get_status_data = get_run_id_status(run_id)
-        if str(get_status_data["state"]) == "COMPLETE":
+        if str(get_status_data["state"]) in \
+                ["COMPLETE", "EXECUTOR_ERROR", "SYSTEM_ERROR", "CANCELED"]:
             break
         sleep(3)
         count += 1

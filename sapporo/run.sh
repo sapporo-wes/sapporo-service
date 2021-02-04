@@ -59,10 +59,21 @@ function run_toil() {
 }
 
 function run_cromwell() {
-  local container="broadinstitute/cromwell:50"
-  local cmd_txt="${DOCKER_CMD} ${container} run ${wf_engine_params} ${wf_url} 1>${stdout} 2>${stderr}"
+  local container="broadinstitute/cromwell:55"
+  local wf_type=$(jq -r ".workflow_type" ${run_request})
+  local wf_type_version=$(jq -r ".workflow_type_version" ${run_request})
+  local cmd_txt="docker run -i --rm ${D_SOCK} -v ${run_dir}:${run_dir} -v /tmp:/tmp -v /usr/bin/docker:/usr/bin/docker -w=${exe_dir} ${container} run ${wf_engine_params} ${wf_url} -i ${wf_params} -m ${exe_dir}/metadata.json --type ${wf_type} --type-version ${wf_type_version} 1>${stdout} 2>${stderr}"
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
+  if [[ ${wf_type} == "CWL" ]]; then
+    jq -r ".outputs[].location" "${exe_dir}/metadata.json" | while read output_file; do
+      cp ${output_file} ${outputs_dir}/
+    done
+  elif [[ ${wf_type} == "WDL" ]]; then
+    jq -r ".outputs | to_entries[] | .value" "${exe_dir}/metadata.json" | while read output_file; do
+      cp ${output_file} ${outputs_dir}/
+    done
+  fi
 }
 
 function run_snakemake() {
