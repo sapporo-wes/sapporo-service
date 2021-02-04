@@ -8,7 +8,6 @@ services:
       # - ${PWD}/sapporo:/app/sapporo
       # The ones below are mounted for cwltool and DinD.
       - ${PWD}/run:${PWD}/run
-      - /usr/bin/docker:/usr/bin/docker
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp:/tmp
     environment:
