@@ -9,6 +9,13 @@ RUN apt update && \
     apt clean &&\
     rm -rf /var/lib/apt/lists/*
 
+ENV DOCKER_BINARY_VERSION "20.10.3"
+ENV DOCKER_BINARY_TAR "docker-${DOCKER_BINARY_VERSION}.tgz"
+ENV DOCKER_BINARY_PATH "https://download.docker.com/linux/static/stable/x86_64/${DOCKER_BINARY_TAR}"
+
+ADD ${DOCKER_BINARY_PATH} /
+RUN tar xf "/${DOCKER_BINARY_TAR}" && mv /docker/* /usr/bin/ && rmdir /docker
+
 WORKDIR /app
 
 COPY requirements.txt .
