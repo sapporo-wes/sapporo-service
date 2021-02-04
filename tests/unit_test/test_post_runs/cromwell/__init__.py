@@ -18,5 +18,5 @@ RESOURCE: Dict[str, Path] = {
     "CWL_PARAMS": RESOURCE_DIR.joinpath("test.json"),
     "WDL_WF": RESOURCE_DIR.joinpath("Dockstore.wdl"),
     "WDL_PARAMS": RESOURCE_DIR.joinpath("test.wdl.json"),
-    "DATA": RESOURCE_DIR.joinpath("rna.SRR948778.bam"),
+    "DATA": RESOURCE_DIR.joinpath("tiny.bam"),
 }

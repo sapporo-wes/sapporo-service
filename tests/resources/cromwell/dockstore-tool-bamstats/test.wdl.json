@@ -1,4 +1,4 @@
 {
-  "bamstatsWorkflow.bam_input": "rna.SRR948778.bam",
+  "bamstatsWorkflow.bam_input": "tiny.bam",
   "bamstatsWorkflow.mem_gb": "4"
 }

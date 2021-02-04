@@ -6,7 +6,7 @@ RESOURCE_DIR="${SCRIPT_DIR}/../../../../resources/cromwell/dockstore-tool-bamsta
 
 workflow="${RESOURCE_DIR}/Dockstore.cwl"
 workflow_params="${RESOURCE_DIR}/test.json"
-data="${RESOURCE_DIR}/rna.SRR948778.bam"
+data="${RESOURCE_DIR}/tiny.bam"
 tags="${SCRIPT_DIR}/tags.json"
 
 curl -fsSL -X POST \
