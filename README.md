@@ -146,18 +146,9 @@ GET /service-info
       "workflow_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/trimming_and_qc.cwl"
     }
   ],
-  "supported_filesystem_protocols": [
-    "http",
-    "https",
-    "file",
-    "s3"
-  ],
-  "supported_wes_versions": [
-    "sapporo-wes-1.0.0"
-  ],
-  "system_state_counts": {
-    "COMPLETE": 6
-  },
+  "supported_filesystem_protocols": ["http", "https", "file", "s3"],
+  "supported_wes_versions": ["sapporo-wes-1.0.0"],
+  "system_state_counts": {},
   "tags": {
     "debug": true,
     "get_runs": true,
@@ -167,7 +158,7 @@ GET /service-info
     "workflow_attachment": true
   },
   "workflow_engine_versions": {
-    "cromwell": "50",
+    "cromwell": "55",
     "cwltool": "1.0.20191225192155",
     "ep3": "v1.0.0",
     "nextflow": "21.01.1-edge",
@@ -175,23 +166,10 @@ GET /service-info
     "toil": "4.1.0"
   },
   "workflow_type_versions": {
-    "CWL": {
-      "workflow_type_version": [
-        "v1.0",
-        "v1.1",
-        "v1.1.0-dev1"
-      ]
-    },
-    "Nextflow": {
-      "workflow_type_version": [
-        "v1.0"
-      ]
-    },
-    "Snakemake": {
-      "workflow_type_version": [
-        "v1.0"
-      ]
-    }
+    "CWL": { "workflow_type_version": ["v1.0", "v1.1", "v1.1.0-dev1"] },
+    "Nextflow": { "workflow_type_version": ["v1.0"] },
+    "Snakemake": { "workflow_type_version": ["v1.0"] },
+    "WDL": { "workflow_type_version": ["1.0"] }
   }
 }
 ```
