@@ -1,7 +1,7 @@
 version: "3.5"
 services:
   app:
-    image: suecharo/sapporo-service:1.0.7
+    image: suecharo/sapporo-service:1.0.8
     container_name: sapporo
     volumes:
       # If you want to mount the host's `run.sh`, etc., uncomment below.
