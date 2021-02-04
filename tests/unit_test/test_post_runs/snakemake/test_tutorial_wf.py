@@ -33,11 +33,11 @@ def test_tutorial_wf(setup_test_server: None) -> None:
 
     from .. import get_run_id_status
     count = 0
-    while count <= 600:
+    while count <= 120:
         get_status_data = get_run_id_status(run_id)
         if str(get_status_data["state"]) == "COMPLETE":
             break
-        sleep(1)
+        sleep(3)
         count += 1
     assert str(get_status_data["state"]) == "COMPLETE"
 

@@ -37,7 +37,7 @@ def test_registered_only_mode_remote(
         get_status_data = get_run_id_status(run_id)
         if str(get_status_data["state"]) == "COMPLETE":
             break
-        sleep(1)
+        sleep(3)
         count += 1
     assert str(get_status_data["state"]) == "COMPLETE"
 

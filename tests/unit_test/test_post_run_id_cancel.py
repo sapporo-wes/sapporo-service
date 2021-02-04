@@ -45,7 +45,7 @@ def test_post_run_id_cancel(delete_env_vars: None, tmpdir: LocalPath) -> None:
         get_status_data: RunStatus = get_status_res.get_json()
         if str(get_status_data["state"]) == "CANCELED":
             break
-        sleep(1)
+        sleep(3)
         count += 1
     assert str(get_status_data["state"]) == "CANCELED"
 
