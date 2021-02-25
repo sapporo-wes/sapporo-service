@@ -14,11 +14,11 @@ SAPPORO の特徴として、workflow engine の抽象化を試みており、�
 現在、稼働が確認されている workflow engine は、下記のとおりです。
 
 - [cwltool](https://github.com/common-workflow-language/cwltool)
-- [Nextflow](https://www.nextflow.io)
-- [Toil](https://toil.ucsc-cgl.org)
+- [nextflow](https://www.nextflow.io)
+- [Toil (experimental)](https://toil.ucsc-cgl.org)
 - [cromwell](https://github.com/broadinstitute/cromwell)
 - [snakemake](https://snakemake.readthedocs.io/en/stable/)
-- [ep3](https://github.com/tom-tan/ep3)
+- [ep3 (experimental)](https://github.com/tom-tan/ep3)
 
 もう一つの特徴として、管理者により登録された workflow のみ実行できるモードへと切り替えられます。
 この機能は、共有の HPC 環境で WES を構築する時に有用です。

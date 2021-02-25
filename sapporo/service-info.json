@@ -18,10 +18,10 @@
   "workflow_engine_versions": {
     "cwltool": "1.0.20191225192155",
     "nextflow": "21.01.1-edge",
-    "toil": "4.1.0",
+    "toil (experimental)": "4.1.0",
     "cromwell": "55",
     "snakemake": "v5.32.0",
-    "ep3": "v1.0.0"
+    "ep3 (experimental)": "v1.0.0"
   },
   "auth_instructions_url": "https://github.com/ddbj/SAPPORO-service",
   "contact_info_url": "https://github.com/ddbj/SAPPORO-service",
