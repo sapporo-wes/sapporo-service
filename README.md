@@ -64,7 +64,7 @@ various workflow runners.
 optional arguments:
   -h, --help            show this help message and exit
   --host                Host address of Flask. (default: 127.0.0.1)
-  -p , --port           Port of Flask. (default: 8080)
+  -p , --port           Port of Flask. (default: 1122)
   --debug               Enable debug mode of Flask.
   -r , --run-dir        Specify the run dir. (default: ./run)
   --disable-get-runs    Disable endpoint of `GET /runs`.

@@ -29,9 +29,9 @@ COPY . .
 RUN pip install --no-cache-dir --progress-bar off -e .
 
 ENV SAPPORO_HOST 0.0.0.0
-ENV SAPPORO_PORT 8080
+ENV SAPPORO_PORT 1122
 
-EXPOSE 8080
+EXPOSE 1122
 
 ENTRYPOINT ["tini", "--"]
 CMD ["sapporo"]
