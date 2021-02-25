@@ -4,7 +4,7 @@ import collections
 import json
 import os
 from pathlib import Path, PurePath
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Union
 from unicodedata import normalize
 from uuid import uuid4
 
@@ -172,6 +172,9 @@ def secure_filepath(filepath: str) -> Path:
     Thus, it is incompatible with workflow engines such as snakemake.
     Therefore, We implemented this by referring to `werkzeug.secure_filename()`
 
+    Please check `tests/unit_test/test_secure_filepath.py`
+
+    Reference of `PurePath.parts`:
     >> > PurePath("/").parts
     ('/',)
     >> > PurePath("//").parts
@@ -212,3 +215,32 @@ def secure_filepath(filepath: str) -> Path:
         path = Path("_" + str(path))
 
     return path
+
+
+def path_hierarchy(original_path: Path, dir_path: Path) -> Any:
+    hierarchy: Dict[str, Any] = {
+        "type": "directory",
+        "name": dir_path.name,
+        "path": str(dir_path.relative_to(original_path)),
+    }
+
+    try:
+        hierarchy["children"] = [
+            path_hierarchy(original_path, dir_path.joinpath(child))
+            for child in dir_path.iterdir()
+        ]
+    except Exception:
+        hierarchy["type"] = "file"
+
+    return hierarchy
+
+
+def str2bool(val: Union[str, bool]) -> bool:
+    if isinstance(val, bool):
+        return val
+    if val.lower() in ["true", "yes", "y"]:
+        return True
+    if val.lower() in ["false", "no", "n"]:
+        return False
+
+    return bool(val)

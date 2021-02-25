@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # coding: utf-8
-from flask import Blueprint, Response, abort, request
+from pathlib import Path
+from shutil import make_archive
+from tempfile import NamedTemporaryFile
+
+from flask import Blueprint, Response, abort, g, request, send_file
 from flask.globals import current_app
 from flask.json import jsonify
 
@@ -9,7 +13,8 @@ from sapporo.run import (cancel_run, fork_run, get_run_log, prepare_run_dir,
                          validate_and_update_run_request, validate_run_id)
 from sapporo.type import RunId, RunListResponse, RunLog, RunStatus, ServiceInfo
 from sapporo.util import (generate_run_id, generate_service_info,
-                          get_all_run_ids, get_state)
+                          get_all_run_ids, get_run_dir, get_state,
+                          path_hierarchy, secure_filepath, str2bool)
 
 app_bp = Blueprint("sapporo", __name__)
 
@@ -80,7 +85,7 @@ def post_runs() -> Response:
     return response
 
 
-@app_bp.route("/runs/<run_id>", methods=["GET"])
+@app_bp.route("/runs/<string:run_id>", methods=["GET"])
 def get_runs_id(run_id: str) -> Response:
     """
     This endpoint provides detailed information about a given workflow run.
@@ -98,7 +103,7 @@ def get_runs_id(run_id: str) -> Response:
     return response
 
 
-@app_bp.route("/runs/<run_id>/cancel", methods=["POST"])
+@app_bp.route("/runs/<string:run_id>/cancel", methods=["POST"])
 def post_runs_id_cancel(run_id: str) -> Response:
     """
     Cancel a running workflow.
@@ -112,7 +117,7 @@ def post_runs_id_cancel(run_id: str) -> Response:
     return response
 
 
-@app_bp.route("/runs/<run_id>/status", methods=["GET"])
+@app_bp.route("/runs/<string:run_id>/status", methods=["GET"])
 def get_runs_id_status(run_id: str) -> Response:
     """
     This provides an abbreviated (and likely fast depending on implementation)
@@ -126,5 +131,62 @@ def get_runs_id_status(run_id: str) -> Response:
     }
     response: Response = jsonify(res_body)
     response.status_code = GET_STATUS_CODE
+
+    return response
+
+
+@app_bp.route("/runs/<string:run_id>/data/", methods=["GET"])
+@app_bp.route("/runs/<string:run_id>/data/<path:subpath>", methods=["GET"])
+def get_runs_id_data(run_id: str, subpath: str = "") -> Response:
+    """
+    This provides a remote url to download a file or directory under the
+    `run_dir` of the Sapporo-service.
+
+    - In the case of `path/to/file`, this returns the file.
+    - In the case of `path/to/dir`, this returns the list of files under
+      directory in JSON format.
+    - In the case of `path/to/dir?download=true`, this returns the directory
+      in zip format.
+
+    The path is relative to the base directory of each run.
+    See `README.md` in sapporo-service for the structure of `run_dir`.
+    For example, if you want to download the output `foo.txt`, specify
+    something like `outputs/foo.txt`.
+
+    `..` will be ignored.
+    """
+    validate_run_id(run_id)
+    requested_path = secure_filepath(subpath)
+    path = get_run_dir(run_id).joinpath(secure_filepath(subpath))
+    if not path.exists():
+        parent = Path(f"runs/{run_id}/data").joinpath(requested_path.parent)
+        abort(404,
+              f"The specified path: {requested_path} does not exist. "
+              f"Please make another request to `<endpoint>/{parent}/` again "
+              "and check the dir structure.")
+    if path.is_file():
+        return send_file(path, as_attachment=True)
+    else:
+        if str2bool(request.args.get("download", False)):
+            with NamedTemporaryFile() as f:
+                res = make_archive(f.name, "zip",
+                                   root_dir=path.parent, base_dir=path.name)
+                if "temp_files" not in g:
+                    g.temp_files = [Path(f"{f.name}.zip")]
+                else:
+                    g.temp_files.append(Path(f"{f.name}.zip"))
+                return send_file(res, as_attachment=True,
+                                 attachment_filename=f"{path.name}.zip")
+        else:
+            response: Response = jsonify(path_hierarchy(path, path))
+            response.status_code = GET_STATUS_CODE
+            return response
+
+
+@app_bp.after_request
+def delete_temp_files(response: Response) -> Response:
+    if "temp_files" in g:
+        for temp_file in g.temp_files:
+            temp_file.unlink(missing_ok=False)
 
     return response

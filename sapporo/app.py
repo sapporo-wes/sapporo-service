@@ -20,6 +20,7 @@ from sapporo.const import (DEFAULT_ACCESS_CONTROL_ALLOW_ORIGIN,
                            EXECUTABLE_WORKFLOWS_SCHEMA, SERVICE_INFO_SCHEMA)
 from sapporo.controller import app_bp
 from sapporo.type import ErrorResponse, Workflow
+from sapporo.util import str2bool
 
 
 def parse_args(sys_args: List[str]) -> Namespace:
@@ -197,12 +198,6 @@ def handle_default_url_prefix(url_prefix: Optional[List[str]]) -> str:
         return os.environ.get("SAPPORO_URL_PREFIX", DEFAULT_URL_PREFIX)
 
     return url_prefix[0]
-
-
-def str2bool(val: Union[str, bool]) -> bool:
-    if isinstance(val, bool):
-        return val
-    return False if val.lower() in ["false", "no", "n"] else bool(val)
 
 
 def check_uniqueness_wf_name(executable_wf_path: Path) -> None:
