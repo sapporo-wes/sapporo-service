@@ -15,7 +15,7 @@ services:
     environment:
       # Priority: [Command Line Argument] -> [Environment Variable] -> [Default Values]
       - SAPPORO_HOST=0.0.0.0
-      - SAPPORO_PORT=8080
+      - SAPPORO_PORT=1122
       - SAPPORO_DEBUG=True
       - SAPPORO_RUN_DIR=${PWD}/run
       # - SAPPORO_GET_RUNS=True
@@ -23,7 +23,7 @@ services:
       # - SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN=*
       # - SAPPORO_URL_PREFIX=/
     ports:
-      - 0.0.0.0:8080:8080
+      - 0.0.0.0:1122:1122
     restart: on-failure
     working_dir: /app
     command: ["sleep", "infinity"]
