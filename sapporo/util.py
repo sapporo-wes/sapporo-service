@@ -26,7 +26,6 @@ def generate_service_info() -> ServiceInfo:
         service_info["supported_wes_versions"] = ["1.0.0"]
     service_info["system_state_counts"] = count_system_state()  # type: ignore
     service_info["tags"]["debug"] = current_app.config["DEBUG"]
-    service_info["tags"]["run_dir"] = str(current_app.config["RUN_DIR"])
     service_info["tags"]["get_runs"] = current_app.config["GET_RUNS"]
     service_info["tags"]["workflow_attachment"] = \
         current_app.config["WORKFLOW_ATTACHMENT"]
