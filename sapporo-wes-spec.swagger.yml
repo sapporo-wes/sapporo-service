@@ -1,7 +1,7 @@
 basePath: "/ga4gh/wes/v1"
 swagger: "2.0"
 info:
-  title: GA4GH Workflow Execution Service API specification extended for SAPPORO
+  title: GA4GH Workflow Execution Service API specification extended for Sapporo-service
   version: "sapporo-wes-1.0.0"
   x-logo:
     url: "https://www.ga4gh.org/wp-content/themes/ga4gh-theme/gfx/GA-logo-horizontal-tag-RGB.svg"
@@ -33,12 +33,13 @@ info:
     ## Authorization and Authentication
 
     Users must supply credentials that establish their identity and authorization in order to use a WES endpoint. We recommend that WES implementations use an OAuth2 [**bearer token**](https://oauth.net/2/bearer-tokens/), although they can choose other mechanisms if appropriate. WES callers can use the `auth_instructions_url` from the [**`service-info` endpoint**](https://ga4gh.github.io/workflow-execution-service-schemas/#/WorkflowExecutionService/GetServiceInfo) to learn how to obtain and use a bearer token for a particular implementation.
-    <br><br>
+
 
     The WES implementation is responsible for checking that a user is authorized to submit workflow run requests. The particular authorization policy is up to the WES implementer.
-    <br><br>
+
 
     Systems like WES need to also address the ability to pass credentials with jobs for input and output access. In the current version of WES, the passing of credentials to authenticate and authorize access to inputs and outputs, as well as mandates about necessary file transfer protocols to support, are out of scope. However, parallel work on the Data Object Service is addressing ways to pass around access credentials with data object references, opening up the possibility that a future version of WES will provide concrete mechanisms for workflow runs to access data using credentials different than those used for WES. This is a work in progress and support of DOS in WES will be added in a future release of WES.
+
 schemes:
   - http
   - https
@@ -142,7 +143,6 @@ paths:
       description: >-
         This endpoint creates a new workflow run and
         returns a `RunId` to monitor its progress.
-
 
         The `workflow_attachment` array may be used to upload files
         that are required to execute the workflow, including the primary
@@ -352,6 +352,59 @@ paths:
           type: string
       tags:
         - WorkflowExecutionService
+  /runs/{run_id}/data/path/to/file-or-dir:
+    get:
+      summary: Download the files and directories under the run directory of Sapporo-service.
+      description: >
+        This provides a remote url to download a file or directory under the `run_dir` of the Sapporo-service.
+
+
+        - In the case of `path/to/file`, this returns the download link for the file.
+
+        - In the case of `path/to/dir`, this returns the list of files under directory in JSON format.
+
+        - In the case of `path/to/dir?download=true`, this returns the download link of the directory in zip format.
+
+
+        The path is relative to the base directory of each run.
+        See `README.md` in sapporo-service for the structure of `run_dir`.
+        For example, if you want to download the output `foo.txt`, specify something like `outputs/foo.txt`.
+
+        `..` will be ignored.
+      x-swagger-router-controller: ga4gh.wes.server
+      operationId: GetData
+      responses:
+        "200":
+          description: ""
+          schema:
+            type: string
+            format: binary
+        "401":
+          description: The request is unauthorized.
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "404":
+          description: The requested workflow run wasn't found.
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "403":
+          description: The requester is not authorized to perform this action.
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        "500":
+          description: An unexpected error occurred.
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: run_id
+          in: path
+          required: true
+          type: string
+        - name: download
+          in: query
+          type: boolean
+      tags:
+        - WorkflowExecutionService
 definitions:
   DefaultWorkflowEngineParameter:
     type: object
@@ -405,7 +458,7 @@ definitions:
         type: integer
         format: int32
         description: Exit code of the program
-    description: Log and other info
+    description: The logs, and other key info like timing and exit code, for the overall run of this workflow.
   ServiceInfo:
     type: object
     properties:
@@ -477,7 +530,7 @@ definitions:
         items:
           $ref: "#/definitions/Workflow"
         description: >-
-          List of workflows that can be executed
+          List of workflows that can be executed.
     description: >-
       A message containing useful information about the running service, including supported versions and
       default settings.
@@ -530,13 +583,10 @@ definitions:
         description: workflow run ID
       request:
         $ref: "#/definitions/RunRequest"
-        description: The original request message used to initiate this execution.
       state:
         $ref: "#/definitions/State"
-        description: The state of the run e.g. RUNNING (see State)
       run_log:
         $ref: "#/definitions/Log"
-        description: The logs, and other key info like timing and exit code, for the overall run of this workflow.
       task_logs:
         type: array
         items:
@@ -574,7 +624,6 @@ definitions:
         type: string
         description: >-
           OPTIONAL
-
           Specify the name of the workflow engine to run workflow.
       workflow_engine_parameters:
         type: object
@@ -582,14 +631,12 @@ definitions:
           type: string
         description: >-
           OPTIONAL
-
           Additional parameters can be sent to the workflow engine using this field. Default values
           for these parameters can be obtained using the ServiceInfo endpoint.
       workflow_url:
         type: string
         description: >-
           REQUIRED
-
           The workflow CWL or WDL document.
           When `workflow_attachments` is used to attach files, the `workflow_url` may be a relative path
           to one of the attachments.
@@ -597,19 +644,17 @@ definitions:
         type: string
         description: >-
           OPTIONAL
-
           The `workflow_name` is only used when SAPPORO is in the mode to
-          execute only registered workflows. In the original EWS, it is
+          execute only registered workflows. In the original WES, it is
           OPTIONAL. To see the registered workflows, use `GET /service-info`.
-
       workflow_attachment:
         type: array
         items:
           $ref: "#/definitions/AttachedFile"
         description: >-
           OPTIONAL
-
-          This field is the field for the response.
+          As a workflow attachment, it returns a list of files attached to the run request.
+          The file_url is generated by using the file distribution feature of the sapporo-service server.
     description: |-
       To execute a workflow, send a run request including all the details needed to begin downloading
       and executing a given workflow.
