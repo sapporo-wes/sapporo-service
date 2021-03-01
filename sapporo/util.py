@@ -8,7 +8,7 @@ from typing import Any, Dict, Iterable, List, Union
 from unicodedata import normalize
 from uuid import uuid4
 
-from flask import abort, current_app
+from flask import abort, current_app, request
 from werkzeug.utils import _filename_ascii_strip_re  # type: ignore
 from werkzeug.utils import _windows_device_files  # type: ignore
 
@@ -20,10 +20,7 @@ def generate_service_info() -> ServiceInfo:
     with current_app.config["SERVICE_INFO"].open(mode="r") as f:
         service_info: ServiceInfo = json.load(f)
 
-    if current_app.config["REGISTERED_ONLY_MODE"]:
-        service_info["supported_wes_versions"] = ["sapporo-wes-1.0.0"]
-    else:
-        service_info["supported_wes_versions"] = ["1.0.0"]
+    service_info["supported_wes_versions"] = ["sapporo-wes-1.0.0"]
     service_info["system_state_counts"] = count_system_state()  # type: ignore
     service_info["tags"]["debug"] = current_app.config["DEBUG"]
     service_info["tags"]["get_runs"] = current_app.config["GET_RUNS"]
@@ -32,10 +29,9 @@ def generate_service_info() -> ServiceInfo:
     service_info["tags"]["registered_only_mode"] = \
         current_app.config["REGISTERED_ONLY_MODE"]
 
-    if current_app.config["REGISTERED_ONLY_MODE"]:
-        with current_app.config["EXECUTABLE_WORKFLOWS"].open(mode="r") as f:
-            executable_workflows: List[Workflow] = json.load(f)
-        service_info["executable_workflows"] = executable_workflows
+    with current_app.config["EXECUTABLE_WORKFLOWS"].open(mode="r") as f:
+        executable_workflows: List[Workflow] = json.load(f)
+    service_info["executable_workflows"] = executable_workflows
 
     return service_info
 
@@ -113,11 +109,21 @@ def read_file(run_id: str, file_type: str) -> Any:
 
 def dump_outputs_list(inputted_run_dir: str) -> None:
     run_dir: Path = Path(inputted_run_dir).resolve()
+    run_id = run_dir.name
+    with run_dir.joinpath(
+            RUN_DIR_STRUCTURE["sapporo_config"]).open(mode="r") as f:
+        sapporo_config = json.load(f)
+    base_remote_url = \
+        f"{sapporo_config['sapporo_endpoint']}/runs/{run_id}/data/"
     outdir_path: Path = run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"])
     output_files: List[Path] = sorted(list(walk_all_files(outdir_path)))
-    outputs: Dict[str, str] = {}
+    outputs = []
     for output_file in output_files:
-        outputs[str(output_file.relative_to(outdir_path))] = str(output_file)
+        outputs.append({
+            "file_name": output_file.name,
+            "file_url":
+                f"{base_remote_url}/{str(output_file.relative_to(run_dir))}"
+        })
     with run_dir.joinpath(RUN_DIR_STRUCTURE["outputs"]).open(mode="w") as f:
         f.write(json.dumps(outputs, indent=2))
 
@@ -244,3 +250,17 @@ def str2bool(val: Union[str, bool]) -> bool:
         return False
 
     return bool(val)
+
+
+def dump_sapporo_config(run_id: str) -> str:
+    return json.dumps({
+        "get_runs": current_app.config["GET_RUNS"],
+        "workflow_attachment": current_app.config["WORKFLOW_ATTACHMENT"],
+        "registered_only_mode": current_app.config["REGISTERED_ONLY_MODE"],
+        "service_info": current_app.config["SERVICE_INFO"],
+        "executable_workflows": current_app.config["EXECUTABLE_WORKFLOWS"],
+        "run_sh": current_app.config["RUN_SH"],
+        "url_prefix": current_app.config["URL_PREFIX"],
+        "sapporo_endpoint":
+            f"{request.host_url}{current_app.config['URL_PREFIX']}"
+    }, indent=2)

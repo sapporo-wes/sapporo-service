@@ -24,6 +24,7 @@ EXECUTABLE_WORKFLOWS_SCHEMA: Path = \
     SRC_DIR.joinpath("executable_workflows.schema.json").resolve()
 
 RUN_DIR_STRUCTURE: Dict[str, str] = {
+    "sapporo_config": "sapporo_config.json",
     "run_request": "run_request.json",
     "state": "state.txt",
     "exe_dir": "exe",

@@ -4,8 +4,8 @@ from pathlib import Path
 from shutil import make_archive
 from tempfile import NamedTemporaryFile
 
-from flask import Blueprint, Response, abort, g, request, send_file
-from flask.globals import current_app
+from flask import (Blueprint, Response, abort, current_app, g, request,
+                   send_file)
 from flask.json import jsonify
 
 from sapporo.const import GET_STATUS_CODE, POST_STATUS_CODE

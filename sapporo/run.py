@@ -10,45 +10,39 @@ from typing import Dict, List, Optional, Union
 from urllib import parse
 
 import requests
-from flask import abort, current_app
+from flask import abort, current_app, request
 from requests import Response
 from werkzeug.datastructures import FileStorage
 
 from sapporo.type import (DefaultWorkflowEngineParameter, Log, RunLog,
                           RunRequest, State, Workflow)
-from sapporo.util import (generate_service_info, get_all_run_ids, get_path,
-                          get_run_dir, get_state, get_workflow, read_file,
-                          secure_filepath, validate_wf_type, write_file)
+from sapporo.util import (dump_sapporo_config, generate_service_info,
+                          get_all_run_ids, get_path, get_run_dir, get_state,
+                          get_workflow, read_file, secure_filepath,
+                          validate_wf_type, write_file)
 
 
 def validate_and_update_run_request(run_id: str,
                                     run_request: RunRequest,
                                     files: Dict[str, FileStorage]) \
         -> RunRequest:
-    if current_app.config["REGISTERED_ONLY_MODE"]:
-        for field in ["workflow_params", "workflow_engine_name"]:
-            if field not in run_request:
-                abort(400,
-                      f"{field} not included in the form data of the request.")
-        if "workflow_name" not in run_request:
-            abort(400,
-                  "Currently, Sapporo is running with registered_only_mode. "
-                  "Therefore, you need to run the workflow with the "
-                  "workflow_name.")
+    if current_app.config["REGISTERED_ONLY_MODE"] and \
+            "workflow_url" in run_request:
+        abort(400,
+              "Currently, Sapporo is running with registered_only_mode. "
+              "Therefore, you need to specify a workflow using "
+              "`workflow_name` field. A list of executable workflows can "
+              "be retrieved requesting `GET /service-info`")
+
+    if "workflow_name" in run_request:
         wf: Workflow = get_workflow(run_request["workflow_name"])
-        run_request["workflow_url"] = wf["workflow_url"]
-        run_request["workflow_type"] = wf["workflow_type"]
-        run_request["workflow_type_version"] = wf["workflow_type_version"]
-        run_request["workflow_attachment"] = wf["workflow_attachment"]
-    else:
-        for field in ["workflow_params", "workflow_type",
-                      "workflow_type_version", "workflow_url",
-                      "workflow_engine_name"]:
-            if field not in run_request:
-                abort(400,
-                      f"{field} not included in the form data of the request.")
-        run_request["workflow_name"] = \
-            parse.urlparse(run_request["workflow_url"]).path.split("/")[-1]
+        run_request.update(wf)  # type: ignore
+
+    for field in ["workflow_params", "workflow_type", "workflow_type_version",
+                  "workflow_url", "workflow_engine_name"]:
+        if field not in run_request:
+            abort(400,
+                  f"{field} not included in the form data of the request.")
 
     if "workflow_attachment" not in run_request:
         run_request["workflow_attachment"] = []
@@ -57,20 +51,27 @@ def validate_and_update_run_request(run_id: str,
     if "tags" not in run_request:
         run_request["tags"] = "{}"
 
-    tags = json.loads(run_request["tags"])
-    if "workflow_name" in tags:
-        run_request["workflow_name"] = tags["workflow_name"]
+    if "workflow_name" not in run_request:
+        tags = json.loads(run_request["tags"])
+        if "workflow_name" in tags:
+            run_request["workflow_name"] = tags["workflow_name"]
+        else:
+            run_request["workflow_name"] = \
+                parse.urlparse(run_request["workflow_url"]).path.split("/")[-1]
 
     if current_app.config["WORKFLOW_ATTACHMENT"]:
         workflow_attachment = \
             files.getlist("workflow_attachment[]")  # type: ignore
         exe_dir: Path = get_path(run_id, "exe_dir")
+        endpoint = f"{request.host_url}{current_app.config['URL_PREFIX']}"
+        base_remote_url = f"{endpoint}/runs/{run_id}/data/"
         for f in workflow_attachment:
             file_name: Path = secure_filepath(f.filename)
-            file_url: Path = exe_dir.joinpath(file_name).resolve()
+            file_path: Path = exe_dir.joinpath(file_name).resolve()
             run_request["workflow_attachment"].append({
                 "file_name": str(file_name),
-                "file_url": str(file_url)
+                "file_url": base_remote_url +
+                str(file_path.relative_to(exe_dir.parent))
             })
 
     validate_wf_type(run_request["workflow_type"],
@@ -90,6 +91,7 @@ def prepare_run_dir(run_id: str, run_request: RunRequest,  # type: ignore
     outputs_dir.mkdir(parents=True, exist_ok=True)
     outputs_dir.chmod(0o777)
 
+    write_file(run_id, "sapporo_config", dump_sapporo_config(run_id))
     write_file(run_id, "run_request", json.dumps(run_request, indent=2))
     write_file(run_id, "wf_params", run_request["workflow_params"])
     write_file(run_id, "wf_engine_params",
@@ -118,16 +120,21 @@ def write_workflow_attachment(run_id: str, run_request: RunRequest,
                               files: Dict[str, FileStorage]) -> None:
     exe_dir: Path = get_path(run_id, "exe_dir")
 
-    file_path: Path
-    if current_app.config["REGISTERED_ONLY_MODE"]:
-        wf: Workflow = get_workflow(run_request["workflow_name"])
-        for file in wf["workflow_attachment"]:
-            file_path = \
-                exe_dir.joinpath(secure_filepath(file["file_name"])).resolve()
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            response: Response = requests.get(file["file_url"])
-            with file_path.open(mode="wb") as f:
-                f.write(response.content)
+    # file_path: Path
+    endpoint = f"{request.host_url}{current_app.config['URL_PREFIX']}"
+    for file in run_request["workflow_attachment"]:
+        if "file_name" in file and "file_url" in file:
+            file_name: str = file["file_name"]
+            file_url: str = file["file_url"]
+            parsed_url = parse.urlparse(file_url)
+            if parsed_url.scheme in ["http", "https"] and \
+                    not file_url.startswith(endpoint):
+                file_path = \
+                    exe_dir.joinpath(secure_filepath(file_name)).resolve()
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                response: Response = requests.get(file["file_url"])
+                with file_path.open(mode="wb") as f:
+                    f.write(response.content)
 
     if current_app.config["WORKFLOW_ATTACHMENT"]:
         workflow_attachment = \

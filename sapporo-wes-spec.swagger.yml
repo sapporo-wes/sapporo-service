@@ -156,9 +156,9 @@ paths:
         directories with '..' -- implementations should guard against
         maliciously constructed filenames.
 
-        The `workflow_name` is only used when SAPPORO is in the mode to
-        execute only registered workflows. In the original EWS, it is
-        OPTIONAL. To see the registered workflows, use `GET /service-info`.
+        The `workflow_name` is used to execute the workflow registered in Sapporo-service.
+        Please request to `GET /service-ino` to check registered workflows.
+        If `workflow_name` is specified, `workflow_url`, `workflow_type` and `workflow_type_version` will be ignored.
 
         The `workflow_url` is either an absolute URL to a workflow
         file that is accessible by the WES endpoint, or a relative URL
@@ -593,7 +593,8 @@ definitions:
           $ref: "#/definitions/Log"
         description: The logs, and other key info like timing and exit code, for each step in the workflow run.
       outputs:
-        type: object
+        items:
+          $ref: "#/definitions/AttachedFile"
         description: The outputs from the workflow run.
   RunRequest:
     type: object
@@ -644,9 +645,7 @@ definitions:
         type: string
         description: >-
           OPTIONAL
-          The `workflow_name` is only used when SAPPORO is in the mode to
-          execute only registered workflows. In the original WES, it is
-          OPTIONAL. To see the registered workflows, use `GET /service-info`.
+          The `workflow_name` is used to execute the workflow registered in Sapporo-service. Please request to `GET /service-ino` to check registered workflows. If `workflow_name` is specified, `workflow_url`, `workflow_type` and `workflow_type_version` will be ignored.
       workflow_attachment:
         type: array
         items:
