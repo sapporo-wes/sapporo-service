@@ -98,7 +98,7 @@ It can also be switched by giving `True` or `False` to the environment variable 
 
 #### Standard WES mode
 
-As API specifications, please check [GitHub - GA4GH WES](https://github.com/ga4gh/workflow-execution-service-schemas) and [SwaggerUI - GA4GH WES](https://suecharo.github.io/genpei-swagger-ui/dist/).
+As API specifications, please check [GitHub - GA4GH WES](https://github.com/ga4gh/workflow-execution-service-schemas).
 
 **When using SAPPORO, It is different from the standard WES API specification, you must specify `workflow_engine_name` in the request parameter of `POST /runs`.**
 I personally think this part is standard WES API specification's mistake, so I am sending a request to fix it.
@@ -247,6 +247,12 @@ The following three startup arguments and environment variables are provided to 
     - If `--url-prefix /foo/bar` is set, `GET /service-info` becomes `GET /foo/bar/service-info`.
 
 The contents of the response of `GET /service-info` are managed in [`service-info.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/service-info.json). The default location of `service-info.json` is under the application directory of SAPPORO. You can override by using the startup argument `--service-info` or the environment variable `SAPPORO_SERVICE_INFO`.
+
+## Generate download link
+
+SAPPORO-service provides the file and directory under run_dir as download link.
+
+For details, please check `/runs/{ run_id}/data/path-to-file-or-dir` in [SwaggerUI - SAPPORO WES](https://suecharo.github.io/sapporo-swagger-ui/dist/) for more information.
 
 ## Development
 

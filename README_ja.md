@@ -96,7 +96,7 @@ SAPPORO には 2 つのモードがあります。
 
 #### 標準 WES モード
 
-標準 WES モードの API 仕様は、[GitHub - GA4GH WES](https://github.com/ga4gh/workflow-execution-service-schemas) や [SwaggerUI - GA4GH WES](https://suecharo.github.io/genpei-swagger-ui/dist/) を確認してください。
+標準 WES モードの API 仕様は、[GitHub - GA4GH WES](https://github.com/ga4gh/workflow-execution-service-schemas) を確認してください。
 
 **標準 WES API の仕様と異なる点として、`POST /runs` の request parameter に `workflow_engine_name` を指定する必要があります。**
 これは、個人的には、標準 WES API 仕様の不備であると考えていて、修正要求を出しています。
@@ -248,6 +248,12 @@ WES の機能を制限するための起動時引数・環境変数として、�
 
 `GET /service-info` の response の中身として、[`service-info.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/service-info.json) で管理しています。
 `service-info.json` の default の位置は、SAPPORO のアプリケーション直下ですが、起動時引数の `--service-info` や環境変数の `SAPPORO_SERVICE_INFO` で上書きできます。
+
+## Generate download link
+
+SAPPORO-service は run_dir 以下の file と directory を download link として提供します。
+
+詳しくは、[SwaggerUI - SAPPORO WES](https://suecharo.github.io/sapporo-swagger-ui/dist/) の `/runs/{run_id}/data/path-to-file-or-dir` を確認してください。
 
 ## Development
 
