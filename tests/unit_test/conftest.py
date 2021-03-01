@@ -13,7 +13,7 @@ import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
 TEST_HOST = "127.0.0.1"
-TEST_PORT = "8888"
+TEST_PORT = "1122"
 
 
 @pytest.fixture()

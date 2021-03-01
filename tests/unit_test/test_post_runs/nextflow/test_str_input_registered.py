@@ -10,8 +10,8 @@ from sapporo.type import RunId
 from . import SCRIPT_DIR, TEST_HOST, TEST_PORT  # type: ignore
 
 
-def post_runs_file_input_with_docker() -> RunId:
-    script_path = SCRIPT_DIR.joinpath("file_input_with_docker/post_runs.sh")
+def post_runs_str_input_registered() -> RunId:
+    script_path = SCRIPT_DIR.joinpath("str_input_registered/post_runs.sh")
     proc = subprocess.run(shlex.split(f"/bin/bash {str(script_path)}"),
                           stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE,
@@ -24,8 +24,9 @@ def post_runs_file_input_with_docker() -> RunId:
     return res_data
 
 
-def test_file_input_with_docker(setup_test_server: None) -> None:
-    res_data = post_runs_file_input_with_docker()
+def test_str_input_registered(setup_test_server_registered_only_mode: None) \
+        -> None:
+    res_data = post_runs_str_input_registered()
     assert "run_id" in res_data
     run_id = res_data["run_id"]
 
@@ -44,22 +45,17 @@ def test_file_input_with_docker(setup_test_server: None) -> None:
     data = get_run_id(run_id)
 
     assert data["request"]["tags"] == "{}"
-    assert any(["file_input.nf" in obj["file_name"]
-                for obj in data["request"]["workflow_attachment"]])
-    assert any(["nf_test_input.txt" in obj["file_name"]
-                for obj in data["request"]["workflow_attachment"]])
     assert data["request"]["workflow_engine_name"] == "nextflow"
-    assert data["request"]["workflow_engine_parameters"] == \
-        "{\n  \"-with-docker\": \"ubuntu:20.04\"\n}\n"
-    assert data["request"]["workflow_name"] == "file_input.nf"
+    assert data["request"]["workflow_engine_parameters"] == "{}"
+    assert data["request"]["workflow_name"] == "nextflow_str_input"
     assert data["request"]["workflow_params"] == \
-        "{\n  \"input_file\": \"./nf_test_input.txt\"\n}\n"
+        "{\n  \"str\": \"sapporo-nextflow-str-input\"\n}\n"
     assert data["request"]["workflow_type"] == "Nextflow"
     assert data["request"]["workflow_type_version"] == "v1.0"
-    assert data["request"]["workflow_url"] == "./file_input.nf"
+    assert data["request"]["workflow_url"] == "./str_input.nf"
     assert data["run_id"] == run_id
     assert data["run_log"]["exit_code"] == 0
-    assert data["run_log"]["name"] == "file_input.nf"
+    assert data["run_log"]["name"] == "nextflow_str_input"
     assert "[100%] 1 of 1" in data["run_log"]["stdout"]
     assert str(data["state"]) == "COMPLETE"
     assert data["task_logs"] is None

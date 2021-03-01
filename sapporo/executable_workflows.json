@@ -1,24 +1,160 @@
 [
   {
-    "workflow_name": "CWL_trimming_and_qc_remote",
+    "workflow_name": "cwltool_attach_all_files",
+    "workflow_url": "./trimming_and_qc.cwl",
+    "workflow_type": "CWL",
+    "workflow_type_version": "v1.0",
+    "workflow_attachment": [
+      {
+        "file_name": "trimming_and_qc.cwl",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/cwltool/trimming_and_qc.cwl"
+      },
+      {
+        "file_name": "fastqc.cwl",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/cwltool/fastqc.cwl"
+      },
+      {
+        "file_name": "trimmomatic_pe.cwl",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/cwltool/trimmomatic_pe.cwl"
+      }
+    ]
+  },
+  {
+    "workflow_name": "cwltool_remote_workflow",
     "workflow_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/cwltool/trimming_and_qc_remote.cwl",
     "workflow_type": "CWL",
     "workflow_type_version": "v1.0",
     "workflow_attachment": []
   },
   {
-    "workflow_name": "CWL_trimming_and_qc_local",
-    "workflow_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/cwltool/trimming_and_qc.cwl",
+    "workflow_name": "nextflow_file_input",
+    "workflow_url": "./file_input.nf",
+    "workflow_type": "Nextflow",
+    "workflow_type_version": "v1.0",
+    "workflow_attachment": [
+      {
+        "file_name": "file_input.nf",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/nextflow/file_input.nf"
+      },
+      {
+        "file_name": "nf_test_input.txt",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/nextflow/nf_test_input.txt"
+      }
+    ]
+  },
+  {
+    "workflow_name": "nextflow_params_outdir",
+    "workflow_url": "./params_outdir.nf",
+    "workflow_type": "Nextflow",
+    "workflow_type_version": "v1.0",
+    "workflow_attachment": [
+      {
+        "file_name": "params_outdir.nf",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/nextflow/params_outdir.nf"
+      }
+    ]
+  },
+  {
+    "workflow_name": "nextflow_str_input",
+    "workflow_url": "./str_input.nf",
+    "workflow_type": "Nextflow",
+    "workflow_type_version": "v1.0",
+    "workflow_attachment": [
+      {
+        "file_name": "str_input.nf",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/nextflow/str_input.nf"
+      }
+    ]
+  },
+  {
+    "workflow_name": "snakemake_tutorial_wf",
+    "workflow_url": "./Snakefile",
+    "workflow_type": "Snakemake",
+    "workflow_type_version": "v1.0",
+    "workflow_attachment": [
+      {
+        "file_name": "Snakefile",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/snakemake/Snakefile"
+      },
+      {
+        "file_name": "scripts/plot-quals.py",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/snakemake/scripts/plot-quals.py"
+      },
+      {
+        "file_name": "envs/stats.yaml",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/snakemake/envs/stats.yaml"
+      },
+      {
+        "file_name": "envs/calling.yaml",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/snakemake/envs/calling.yaml"
+      },
+      {
+        "file_name": "envs/mapping.yaml",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/snakemake/envs/mapping.yaml"
+      },
+      {
+        "file_name": "data/samples/A.fastq",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/snakemake/data/samples/A.fastq"
+      },
+      {
+        "file_name": "data/samples/B.fastq",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/snakemake/data/samples/B.fastq"
+      },
+      {
+        "file_name": "data/samples/C.fastq",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/snakemake/data/samples/C.fastq"
+      },
+      {
+        "file_name": "data/genome.fa",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/snakemake/data/genome.fa"
+      },
+      {
+        "file_name": "data/genome.fa.amb",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/snakemake/data/genome.fa.amb"
+      },
+      {
+        "file_name": "data/genome.fa.fai",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/snakemake/data/genome.fa.fai"
+      },
+      {
+        "file_name": "data/genome.fa.sa",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/snakemake/data/genome.fa.sa"
+      },
+      {
+        "file_name": "data/genome.fa.pac",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/snakemake/data/genome.fa.pac"
+      },
+      {
+        "file_name": "data/genome.fa.ann",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/snakemake/data/genome.fa.ann"
+      },
+      {
+        "file_name": "data/genome.fa.bwt",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/snakemake/data/genome.fa.bwt"
+      }
+    ]
+  },
+  {
+    "workflow_name": "cromwell_bamstats_cwl",
+    "workflow_url": "./Dockstore.cwl",
     "workflow_type": "CWL",
     "workflow_type_version": "v1.0",
     "workflow_attachment": [
       {
-        "file_name": "fastqc.cwl",
-        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/cwltool/fastqc.cwl"
-      },
+        "file_name": "Dockstore.cwl",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/cromwell/dockstore-tool-bamstats/Dockstore.cwl"
+      }
+    ]
+  },
+  {
+    "workflow_name": "cromwell_bamstats_wdl",
+    "workflow_url": "./Dockstore.wdl",
+    "workflow_type": "WDL",
+    "workflow_type_version": "1.0",
+    "workflow_attachment": [
       {
-        "file_name": "trimming_pe.cwl",
-        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/cwltool/trimming_pe.cwl"
+        "file_name": "Dockstore.wdl",
+        "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/cromwell/dockstore-tool-bamstats/Dockstore.wdl"
       }
     ]
   }

@@ -7,7 +7,7 @@ workflow_params="${SCRIPT_DIR}/workflow_params.json"
 
 curl -fsSL -X POST \
   -H "Content-Type: multipart/form-data" \
-  -F "workflow_name=CWL_trimming_and_qc_remote" \
+  -F "workflow_name=nextflow_str_input" \
   -F "workflow_params=<${workflow_params}" \
-  -F "workflow_engine_name=cwltool" \
+  -F "workflow_engine_name=nextflow" \
   http://${SAPPORO_HOST}:${SAPPORO_PORT}/runs

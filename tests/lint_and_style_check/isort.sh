@@ -10,6 +10,8 @@ BASE_DIR=$(
     pwd
 )
 
+cd ${BASE_DIR}
+
 isort ${BASE_DIR} \
     --skip "${BASE_DIR}/tests/resources" \
     --check

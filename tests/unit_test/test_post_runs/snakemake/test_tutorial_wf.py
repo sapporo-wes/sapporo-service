@@ -33,7 +33,7 @@ def test_tutorial_wf(setup_test_server: None) -> None:
 
     from .. import get_run_id_status
     count = 0
-    while count <= 120:
+    while count <= 240:
         get_status_data = get_run_id_status(run_id)
         if str(get_status_data["state"]) in \
                 ["COMPLETE", "EXECUTOR_ERROR", "SYSTEM_ERROR", "CANCELED"]:
@@ -45,10 +45,7 @@ def test_tutorial_wf(setup_test_server: None) -> None:
     from .. import get_run_id
     data = get_run_id(run_id)
 
-    assert "calls/all.vcf" in data["outputs"]
-    assert "mapped/A.sorted.bam" in data["outputs"]
-    assert "mapped/B.sorted.bam" in data["outputs"]
-    assert "plots/quals.svg" in data["outputs"]
+    assert len(data["outputs"]) == 4
     assert "{}" == data["request"]["tags"]
     assert len(data["request"]["workflow_attachment"]) == 15
     assert "snakemake" == data["request"]["workflow_engine_name"]

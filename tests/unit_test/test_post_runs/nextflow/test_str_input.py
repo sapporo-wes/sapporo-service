@@ -43,7 +43,6 @@ def test_str_input(setup_test_server: None) -> None:
     from .. import get_run_id
     data = get_run_id(run_id)
 
-    assert any(["test_output.txt" in key for key in data["outputs"].keys()])
     assert data["request"]["tags"] == "{}"
     assert any(["str_input.nf" in obj["file_name"]
                 for obj in data["request"]["workflow_attachment"]])

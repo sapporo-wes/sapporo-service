@@ -10,9 +10,9 @@ from sapporo.type import RunId
 from . import RESOURCE_REMOTE, SCRIPT_DIR, TEST_HOST, TEST_PORT  # type: ignore
 
 
-def post_runs_tags_workflow_name() -> RunId:
+def post_runs_remote_workflow_registered() -> RunId:
     script_path = \
-        SCRIPT_DIR.joinpath("tags_workflow_name/post_runs.sh")
+        SCRIPT_DIR.joinpath("remote_workflow_registered/post_runs.sh")
     proc = subprocess.run(shlex.split(f"/bin/bash {str(script_path)}"),
                           stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE,
@@ -25,8 +25,9 @@ def post_runs_tags_workflow_name() -> RunId:
     return res_data
 
 
-def test_tags_workflow_name(setup_test_server: None) -> None:
-    res_data = post_runs_tags_workflow_name()
+def test_remote_workflow_registered(
+        setup_test_server_registered_only_mode: None) -> None:
+    res_data = post_runs_remote_workflow_registered()
     assert "run_id" in res_data
     run_id = res_data["run_id"]
 
@@ -45,19 +46,17 @@ def test_tags_workflow_name(setup_test_server: None) -> None:
     data = get_run_id(run_id)
 
     assert len(data["outputs"]) == 6
-    assert "{\n  \"workflow_name\": \"CWL_tags_workflow_name\"\n}\n" \
-        == data["request"]["tags"]
+    assert "{}" == data["request"]["tags"]
     assert len(data["request"]["workflow_attachment"]) == 0
     assert "cwltool" == data["request"]["workflow_engine_name"]
     assert "{}" == data["request"]["workflow_engine_parameters"]
-    assert "CWL_tags_workflow_name" == \
-        data["request"]["workflow_name"]
+    assert "cwltool_remote_workflow" == data["request"]["workflow_name"]
     assert "CWL" == data["request"]["workflow_type"]
     assert "v1.0" == data["request"]["workflow_type_version"]
     assert RESOURCE_REMOTE["WF_REMOTE"] == data["request"]["workflow_url"]
     assert run_id == data["run_id"]
     assert data["run_log"]["exit_code"] == 0
-    assert data["run_log"]["name"] == "CWL_tags_workflow_name"
+    assert data["run_log"]["name"] == "cwltool_remote_workflow"
     assert "Final process status is success" in data["run_log"]["stderr"]
     assert str(data["state"]) == "COMPLETE"
     assert data["task_logs"] is None

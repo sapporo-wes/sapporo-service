@@ -63,7 +63,9 @@ def validate_and_update_run_request(run_id: str,
         workflow_attachment = \
             files.getlist("workflow_attachment[]")  # type: ignore
         exe_dir: Path = get_path(run_id, "exe_dir")
-        endpoint = f"{request.host_url}{current_app.config['URL_PREFIX']}"
+        host = request.host_url.strip("/")
+        url_prefix = current_app.config['URL_PREFIX'].strip("/")
+        endpoint = f"{host}/{url_prefix}".strip("/")
         base_remote_url = f"{endpoint}/runs/{run_id}/data/"
         for f in workflow_attachment:
             file_name: Path = secure_filepath(f.filename)
@@ -120,8 +122,9 @@ def write_workflow_attachment(run_id: str, run_request: RunRequest,
                               files: Dict[str, FileStorage]) -> None:
     exe_dir: Path = get_path(run_id, "exe_dir")
 
-    # file_path: Path
-    endpoint = f"{request.host_url}{current_app.config['URL_PREFIX']}"
+    host = request.host_url.strip("/")
+    url_prefix = current_app.config['URL_PREFIX'].strip("/")
+    endpoint = f"{host}/{url_prefix}".strip("/")
     for file in run_request["workflow_attachment"]:
         if "file_name" in file and "file_url" in file:
             file_name: str = file["file_name"]

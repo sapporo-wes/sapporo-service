@@ -44,7 +44,7 @@ def test_bamstats_wdl(setup_test_server: None) -> None:
     from .. import get_run_id
     data = get_run_id(run_id)
 
-    assert "bamstats_report.zip" in data["outputs"]
+    assert len(data["outputs"]) == 1
     assert "{\n  \"workflow_name\": \"dockstore-tool-bamstats-wdl\"\n}\n" == \
         data["request"]["tags"]
     assert len(data["request"]["workflow_attachment"]) == 2

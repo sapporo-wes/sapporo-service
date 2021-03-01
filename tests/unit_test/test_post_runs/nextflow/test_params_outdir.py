@@ -43,8 +43,6 @@ def test_params_outdir(setup_test_server: None) -> None:
     from .. import get_run_id
     data = get_run_id(run_id)
 
-    assert any(["test_output.txt" in key for key in data["outputs"].keys()])
-    assert len(data["outputs"].keys()) == 1
     assert data["request"]["tags"] == "{}"
     assert any(["params_outdir.nf" in obj["file_name"]
                 for obj in data["request"]["workflow_attachment"]])

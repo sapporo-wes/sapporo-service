@@ -122,7 +122,7 @@ def dump_outputs_list(inputted_run_dir: str) -> None:
         outputs.append({
             "file_name": output_file.name,
             "file_url":
-                f"{base_remote_url}/{str(output_file.relative_to(run_dir))}"
+                f"{base_remote_url}{str(output_file.relative_to(run_dir))}"
         })
     with run_dir.joinpath(RUN_DIR_STRUCTURE["outputs"]).open(mode="w") as f:
         f.write(json.dumps(outputs, indent=2))
@@ -253,14 +253,18 @@ def str2bool(val: Union[str, bool]) -> bool:
 
 
 def dump_sapporo_config(run_id: str) -> str:
+    host = request.host_url.strip("/")
+    url_prefix = current_app.config['URL_PREFIX'].strip("/")
+    endpoint = f"{host}/{url_prefix}".strip("/")
+
     return json.dumps({
         "get_runs": current_app.config["GET_RUNS"],
         "workflow_attachment": current_app.config["WORKFLOW_ATTACHMENT"],
         "registered_only_mode": current_app.config["REGISTERED_ONLY_MODE"],
-        "service_info": current_app.config["SERVICE_INFO"],
-        "executable_workflows": current_app.config["EXECUTABLE_WORKFLOWS"],
-        "run_sh": current_app.config["RUN_SH"],
+        "service_info": str(current_app.config["SERVICE_INFO"]),
+        "executable_workflows":
+            str(current_app.config["EXECUTABLE_WORKFLOWS"]),
+        "run_sh": str(current_app.config["RUN_SH"]),
         "url_prefix": current_app.config["URL_PREFIX"],
-        "sapporo_endpoint":
-            f"{request.host_url}{current_app.config['URL_PREFIX']}"
+        "sapporo_endpoint": endpoint
     }, indent=2)

@@ -74,12 +74,7 @@ def test_attach_all_files(setup_test_server: None) -> None:
     from .. import get_run_id
     data = get_run_id(run_id)
 
-    assert "ERR034597_1.small.fq.trimmed.1P.fq" in data["outputs"]
-    assert "ERR034597_1.small.fq.trimmed.1U.fq" in data["outputs"]
-    assert "ERR034597_1.small.fq.trimmed.2P.fq" in data["outputs"]
-    assert "ERR034597_1.small.fq.trimmed.2U.fq" in data["outputs"]
-    assert "ERR034597_1.small_fastqc.html" in data["outputs"]
-    assert "ERR034597_2.small_fastqc.html" in data["outputs"]
+    assert len(data["outputs"]) == 6
     assert "{}" == data["request"]["tags"]
     assert len(data["request"]["workflow_attachment"]) == 5
     assert "cwltool" == data["request"]["workflow_engine_name"]

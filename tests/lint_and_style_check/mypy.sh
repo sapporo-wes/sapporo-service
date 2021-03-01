@@ -10,6 +10,8 @@ BASE_DIR=$(
     pwd
 )
 
+cd ${BASE_DIR}
+
 echo "--- ${BASE_DIR}/sapporo ---"
 mypy --strict \
     --allow-untyped-calls \

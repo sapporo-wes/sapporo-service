@@ -10,6 +10,8 @@ BASE_DIR=$(
     pwd
 )
 
+cd ${BASE_DIR}
+
 flake8 ${BASE_DIR} \
     --exclude "${BASE_DIR}/tests/resources" \
     --count --show-source --statistics
