@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # coding: utf-8
+import sys
 from pathlib import Path
 from shutil import make_archive
 from tempfile import NamedTemporaryFile
-import sys
+
 from flask import (Blueprint, Response, abort, current_app, g, request,
                    send_file)
 from flask.json import jsonify
