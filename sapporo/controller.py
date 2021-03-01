@@ -3,7 +3,7 @@
 from pathlib import Path
 from shutil import make_archive
 from tempfile import NamedTemporaryFile
-
+import sys
 from flask import (Blueprint, Response, abort, current_app, g, request,
                    send_file)
 from flask.json import jsonify
@@ -187,6 +187,12 @@ def get_runs_id_data(run_id: str, subpath: str = "") -> Response:
 def delete_temp_files(response: Response) -> Response:
     if "temp_files" in g:
         for temp_file in g.temp_files:
-            temp_file.unlink(missing_ok=False)
+            try:
+                if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+                    temp_file.unlink(missing_ok=False)
+                else:
+                    temp_file.unlink()
+            except Exception:
+                pass
 
     return response
