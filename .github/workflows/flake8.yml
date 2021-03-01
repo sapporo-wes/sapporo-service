@@ -3,7 +3,7 @@ name: flake8
 on: [push, pull_request]
 
 jobs:
-  build:
+  flake8:
     runs-on: ubuntu-latest
 
     strategy:
@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
