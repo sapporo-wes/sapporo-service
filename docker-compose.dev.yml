@@ -9,7 +9,9 @@ services:
       - ${PWD}/sapporo:/app/sapporo
       - ${PWD}/tests:/app/tests
       # The ones below are mounted for cwltool and DinD.
-      - ${PWD}/run:${PWD}/run
+      - type: bind
+        source: ${PWD}/run
+        target: ${PWD}/run
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp:/tmp
     environment:
