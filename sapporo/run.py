@@ -36,7 +36,11 @@ def validate_and_update_run_request(run_id: str,
 
     if "workflow_name" in run_request:
         wf: Workflow = get_workflow(run_request["workflow_name"])
-        run_request.update(wf)  # type: ignore
+        run_request["workflow_url"] = wf["workflow_url"]
+        run_request["workflow_type"] = wf["workflow_type"]
+        run_request["workflow_type_version"] = wf["workflow_type_version"]
+        if "workflow_attachment" not in run_request:
+            run_request["workflow_attachment"] = wf["workflow_attachment"]
 
     for field in ["workflow_params", "workflow_type", "workflow_type_version",
                   "workflow_url", "workflow_engine_name"]:
@@ -44,7 +48,11 @@ def validate_and_update_run_request(run_id: str,
             abort(400,
                   f"{field} not included in the form data of the request.")
 
-    if "workflow_attachment" not in run_request:
+    if "workflow_attachment" in run_request:
+        if type(run_request["workflow_attachment"]) is str:  # type: ignore
+            run_request["workflow_attachment"] = \
+                json.loads(run_request["workflow_attachment"])  # type: ignore
+    else:
         run_request["workflow_attachment"] = []
     if "workflow_engine_parameters" not in run_request:
         run_request["workflow_engine_parameters"] = "{}"
