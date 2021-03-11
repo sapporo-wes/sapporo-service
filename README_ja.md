@@ -6,7 +6,7 @@
 [![mypy](https://github.com/ddbj/SAPPORO-service/workflows/mypy/badge.svg)](https://github.com/ddbj/SAPPORO-service/actions?query=workflow%3Amypy)
 [![Apache License](https://img.shields.io/badge/license-Apache%202.0-orange.svg?style=flat&color=important)](http://www.apache.org/licenses/LICENSE-2.0)
 
-<img src="https://raw.githubusercontent.com/ddbj/SAPPORO/master/logo/SAPPORO-Service.svg" width="400" style="display: block; margin-left: auto; margin-right: auto;" alt="SAPPORO-service logo">
+<img src="https://raw.githubusercontent.com/ddbj/SAPPORO/master/logo/SAPPORO-Service.svg" width="400" style="display: block; margin-left: auto; margin-right: auto; margin-top: 30px; margin-bottom: 30px;" alt="SAPPORO-service logo">
 
 SAPPORO は、[Global Alliance for Genomics and Health](https://www.ga4gh.org) (GA4GH) により制定された [Workflow Execution Service](https://github.com/ga4gh/workflow-execution-service-schemas) (WES) API 定義に準拠した標準実装です。
 
