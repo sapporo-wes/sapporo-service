@@ -157,8 +157,13 @@ def get_runs_id_data(run_id: str, subpath: str = "") -> Response:
     `..` will be ignored.
     """
     validate_run_id(run_id)
-    requested_path = secure_filepath(subpath)
-    path = get_run_dir(run_id).joinpath(secure_filepath(subpath))
+    if Path(subpath).name[0] == ".":
+        requested_path = \
+            secure_filepath(str(Path(subpath).parent)
+                            ).joinpath(Path(subpath).name)
+    else:
+        requested_path = secure_filepath(subpath)
+    path = get_run_dir(run_id).joinpath(requested_path)
     if not path.exists():
         parent = Path(f"runs/{run_id}/data").joinpath(requested_path.parent)
         abort(400,
