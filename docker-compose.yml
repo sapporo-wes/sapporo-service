@@ -1,7 +1,7 @@
 version: "3.5"
 services:
   app:
-    image: ghcr.io/ddbj/sapporo-service:1.0.10
+    image: ghcr.io/ddbj/sapporo-service:1.0.11
     container_name: sapporo
     volumes:
       # If you want to mount the host's `run.sh`, etc., uncomment below.
