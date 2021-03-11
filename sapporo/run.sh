@@ -145,7 +145,7 @@ aws --endpoint-url ${endpoint} s3 cp ${outputs_dir} s3://${bucket_name}/${dirnam
   local up_stdout="${run_dir}/upload.stdout.log"
   local up_stderr="${run_dir}/upload.stderr.log"
 
-  local cmd_txt="${DOCKER_CMD} --entrypoint=/bin/bash -v ${export_script}:/export.sh ${container} /export.sh 1>>${up_stdout} 2>>${up_stderr}"
+  local cmd_txt="${DOCKER_CMD} --network sapporo-network --entrypoint=/bin/bash -v ${export_script}:/export.sh ${container} /export.sh 1>>${up_stdout} 2>>${up_stderr}"
 
   echo ${cmd_txt} >>${up_stdout}
   eval ${cmd_txt} || uploader_error
