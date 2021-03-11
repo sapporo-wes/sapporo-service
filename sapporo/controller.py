@@ -161,7 +161,7 @@ def get_runs_id_data(run_id: str, subpath: str = "") -> Response:
     path = get_run_dir(run_id).joinpath(secure_filepath(subpath))
     if not path.exists():
         parent = Path(f"runs/{run_id}/data").joinpath(requested_path.parent)
-        abort(404,
+        abort(400,
               f"The specified path: {requested_path} does not exist. "
               f"Please make another request to `<endpoint>/{parent}/` again "
               "and check the dir structure.")

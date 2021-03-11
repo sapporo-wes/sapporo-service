@@ -141,7 +141,7 @@ def get_workflow(workflow_name: str) -> Workflow:
         if wf["workflow_name"] == workflow_name:
             return wf
 
-    abort(404,
+    abort(400,
           f"The workflow_name: {workflow_name} you requested doesn't "
           "exist. Please request `GET /service-info` again and check "
           "the registered executable workflows.")
@@ -268,3 +268,27 @@ def dump_sapporo_config(run_id: str) -> str:
         "url_prefix": current_app.config["URL_PREFIX"],
         "sapporo_endpoint": endpoint
     }, indent=2)
+
+
+def validate_meta_charactors(_type: str, content: str) -> None:
+    """
+    This function validates the string that will actually be evaluated in eval
+    in run.sh. The possible types of strings are 'workflow_url',
+    'workflow_engine_name', and 'workflow_engine_params'. If these strings
+    contain any of the characters in the list of prohibited character types
+    below, this will abort.
+
+    In POST /runs, this is called as shown below:
+
+    validate_meta_charactors("workflow_engine_params", joined_params)
+    validate_meta_charactors("workflow_url", run_request["workflow_url"])
+    validate_meta_charactors("workflow_engine_name",
+                             run_request["workflow_engine_name"])
+    """
+    prohibited_caracters = [";", "!", "?", "(", ")", "[", "]", "{", "}", "*",
+                            "\\", "&", r"`", "^", "<", ">", "|", "$"]
+    for char in content:
+        if char in prohibited_caracters:
+            abort(400,
+                  f"The run cannot be executed because the entered {_type}"
+                  f"contains the prohibited character '{char}'.")

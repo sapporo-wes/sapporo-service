@@ -172,6 +172,7 @@ wf_engine_params_file="${run_dir}/workflow_engine_params.txt"
 cmd="${run_dir}/cmd.txt"
 task_logs="${run_dir}/task.log"
 
+# Meta characters are escaped.
 wf_engine_name=$(jq -r ".workflow_engine_name" ${run_request})
 wf_url=$(jq -r ".workflow_url" ${run_request})
 wf_engine_params=$(head -n 1 ${wf_engine_params_file})

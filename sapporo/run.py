@@ -19,7 +19,8 @@ from sapporo.type import (DefaultWorkflowEngineParameter, Log, RunLog,
 from sapporo.util import (dump_sapporo_config, generate_service_info,
                           get_all_run_ids, get_path, get_run_dir, get_state,
                           get_workflow, read_file, secure_filepath,
-                          validate_wf_type, write_file)
+                          validate_meta_charactors, validate_wf_type,
+                          write_file)
 
 
 def validate_and_update_run_request(run_id: str,
@@ -87,6 +88,10 @@ def validate_and_update_run_request(run_id: str,
     validate_wf_type(run_request["workflow_type"],
                      run_request["workflow_type_version"])
 
+    validate_meta_charactors("workflow_url", run_request["workflow_url"])
+    validate_meta_charactors("workflow_engine_name",
+                             run_request["workflow_engine_name"])
+
     return run_request
 
 
@@ -122,6 +127,8 @@ def generate_wf_engine_params_str(run_request: RunRequest) -> str:
         params.append(str(key))
         params.append(str(val))
     joined_params: str = " ".join(params)
+
+    validate_meta_charactors("workflow_engine_params", joined_params)
 
     return joined_params
 
@@ -173,7 +180,7 @@ def fork_run(run_id: str) -> None:
 def validate_run_id(run_id: str) -> None:
     all_run_ids: List[str] = get_all_run_ids()
     if run_id not in all_run_ids:
-        abort(404,
+        abort(400,
               f"The run_id {run_id} you requested does not exist, "
               "please check with GET /runs.")
 
