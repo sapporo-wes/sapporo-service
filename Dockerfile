@@ -34,4 +34,4 @@ ENV SAPPORO_PORT 1122
 EXPOSE 1122
 
 ENTRYPOINT ["tini", "--"]
-CMD ["sapporo"]
+CMD ["uwsgi", "--yaml", "./uwsgi.yml"]

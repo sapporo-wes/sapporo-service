@@ -19,30 +19,31 @@ def read_requirements_txt() -> List[str]:
 
 
 def main() -> None:
-    setup(name="sapporo",
-          version="1.0.11",
-          description="Implementation of a GA4GH workflow execution " +
-                      "service that can easily support various " +
-                      "workflow runners.",
-          long_description=LONG_DESCRIPTION.open(mode="r").read(),
-          long_description_content_type="text/markdown",
-          author="DDBJ(DNA Data Bank of Japan)",
-          author_email="t.ohta@nig.ac.jp",
-          url="https://github.com/ddbj/SAPPORO-service",
-          license="Apache2.0",
-          python_requires=">=3.6",
-          platforms="any",
-          include_package_data=True,
-          zip_safe=False,
-          classifiers=["Programming Language :: Python"],
-          packages=["sapporo"],
-          install_requires=read_requirements_txt(),
-          entry_points={
-              "console_scripts": [
-                  "sapporo=sapporo.app:main",
-              ]
-          }
-          )
+    setup(
+        name="sapporo",
+        version="1.0.11",
+        description="Implementation of a GA4GH workflow execution " +
+        "service that can easily support various " +
+        "workflow runners.",
+        long_description=LONG_DESCRIPTION.open(mode="r").read(),
+        long_description_content_type="text/markdown",
+        author="DDBJ(DNA Data Bank of Japan)",
+        author_email="t.ohta@nig.ac.jp",
+        url="https://github.com/ddbj/SAPPORO-service",
+        license="Apache2.0",
+        python_requires=">=3.6",
+        platforms="any",
+        include_package_data=True,
+        zip_safe=False,
+        classifiers=["Programming Language :: Python"],
+        packages=["sapporo"],
+        install_requires=read_requirements_txt(),
+        entry_points={
+            "console_scripts": [
+                "sapporo=sapporo.app:main",
+            ]
+        }
+    )
 
 
 if __name__ == "__main__":

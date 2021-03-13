@@ -2,7 +2,9 @@
 .git
 .github
 .gitignore
+.vscode
 docker-compose.dev.yml
 docker-compose.yml
 Dockerfile
 run
+sapporo.egg-info
