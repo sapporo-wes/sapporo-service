@@ -1,10 +1,15 @@
-.dockerignore
-.git
-.github
-.gitignore
-.vscode
-docker-compose.dev.yml
-docker-compose.yml
-Dockerfile
-run
-sapporo.egg-info
+# Ignore everything
+**
+
+!LICENSE
+!MANIFEST.in
+!README_ja.md
+!README.md
+!requirements.txt
+!sapporo
+!sapporo-wes-spec.swagger.yml
+!setup.py
+!tests
+!uwsgi.yml
+
+**/__pycache__
