@@ -2,20 +2,14 @@ version: "3.5"
 services:
   app:
     image: ghcr.io/ddbj/sapporo-service:1.0.11
-    container_name: sapporo
+    container_name: sapporo-service
     volumes:
-      # If you want to mount the host's `run.sh`, etc., uncomment below.
-      # - ${PWD}/sapporo:/app/sapporo
       # The ones below are mounted for cwltool and DinD.
-      - type: bind
-        source: ${PWD}/run
-        target: ${PWD}/run
+      - ${PWD}/run:${PWD}/run
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp:/tmp
     environment:
       # Priority: [Command Line Argument] -> [Environment Variable] -> [Default Values]
-      - SAPPORO_HOST=0.0.0.0
-      - SAPPORO_PORT=1122
       - SAPPORO_DEBUG=False
       - SAPPORO_RUN_DIR=${PWD}/run
       # - SAPPORO_GET_RUNS=False
@@ -29,7 +23,7 @@ services:
     command: [
         "uwsgi",
         "--yaml",
-        "./uwsgi.yml",
+        "/app/uwsgi.yml",
         "--http",
         "0.0.0.0:1122",
         "--workers",

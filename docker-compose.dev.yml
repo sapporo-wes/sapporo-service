@@ -1,17 +1,16 @@
-version: "3.2"
+version: "3.5"
 services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: sapporo
+      dockerfile: Dockerfile-dev
+    image: sapporo-service-dev
+    container_name: sapporo-service-dev
     volumes:
       - ${PWD}/sapporo:/app/sapporo
       - ${PWD}/tests:/app/tests
       # The ones below are mounted for cwltool and DinD.
-      - type: bind
-        source: ${PWD}/run
-        target: ${PWD}/run
+      - ${PWD}/run:${PWD}/run
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp:/tmp
     environment:
@@ -29,3 +28,9 @@ services:
     restart: on-failure
     working_dir: /app
     command: ["sleep", "infinity"]
+    networks:
+      - sapporo
+
+networks:
+  sapporo:
+    name: sapporo-network

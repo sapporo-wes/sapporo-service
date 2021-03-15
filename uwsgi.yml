@@ -1,6 +1,5 @@
 uwsgi:
-  http: 0.0.0.0:1122
-  workers: 1
+  chdir: /app
   module: sapporo.uwsgi
   callable: app
   strict: true

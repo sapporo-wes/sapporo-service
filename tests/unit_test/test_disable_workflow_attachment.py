@@ -27,11 +27,11 @@ def test_disable_workflow_attachment(delete_env_vars: None,
     from .test_get_run_id_status import get_run_id_status
     count = 0
     while count <= 120:
+        sleep(3)
         get_status_res = get_run_id_status(client, run_id)
         get_status_data = get_status_res.get_json()
         if get_status_data["state"] == "EXECUTOR_ERROR":
             break
-        sleep(3)
         count += 1
     assert str(get_status_data["state"]) == "EXECUTOR_ERROR"
 

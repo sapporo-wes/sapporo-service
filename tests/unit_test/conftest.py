@@ -8,12 +8,12 @@ import subprocess as sp
 import tempfile
 from time import sleep
 from typing import Generator
-
+from os import environ
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
 TEST_HOST = "127.0.0.1"
-TEST_PORT = "1122"
+TEST_PORT = "8888"
 
 
 @pytest.fixture()
@@ -26,10 +26,26 @@ def delete_env_vars(monkeypatch: MonkeyPatch) -> None:
 @pytest.fixture()
 def setup_test_server() -> Generator[None, None, None]:
     tempdir = tempfile.mkdtemp()
-    proc = sp.Popen(shlex.split(f"sapporo --run-dir {tempdir} "
-                                f"--host {TEST_HOST} --port {TEST_PORT}"),
-                    stdout=sp.PIPE,
-                    stderr=sp.PIPE)
+    if environ.get("TEST_SERVER_MODE", "uwsgi") == "uwsgi":
+        proc = sp.Popen(shlex.split("/usr/local/bin/uwsgi "
+                                    "--yaml /app/uwsgi.yml "
+                                    f"--http {TEST_HOST}:{TEST_PORT}"),
+                        env={"SAPPORO_HOST": str(TEST_HOST),
+                             "SAPPORO_PORT": str(TEST_PORT),
+                             "SAPPORO_DEBUG": str(True),
+                             "SAPPORO_RUN_DIR": str(tempdir)},
+                        stdout=sp.PIPE,
+                        stderr=sp.PIPE)
+    else:
+        proc = sp.Popen(shlex.split("/usr/local/bin/sapporo "
+                                    f"--host {TEST_HOST} --port {TEST_PORT} "
+                                    f"--run-dir {tempdir} "),
+                        env={"SAPPORO_HOST": str(TEST_HOST),
+                             "SAPPORO_PORT": str(TEST_PORT),
+                             "SAPPORO_DEBUG": str(True),
+                             "SAPPORO_RUN_DIR": str(tempdir)},
+                        stdout=sp.PIPE,
+                        stderr=sp.PIPE)
     sleep(3)
     if proc.poll() is not None:
         stderr = proc.communicate()[1]
@@ -37,27 +53,7 @@ def setup_test_server() -> Generator[None, None, None]:
             f"Failed to start the test server.\n{str(stderr)}")
     yield
     os.kill(proc.pid, signal.SIGTERM)
-    try:
-        shutil.rmtree(tempdir)
-    except Exception:
-        pass
-
-
-@pytest.fixture()
-def setup_test_server_registered_only_mode() -> Generator[None, None, None]:
-    tempdir = tempfile.mkdtemp()
-    proc = sp.Popen(shlex.split(f"sapporo --run-dir {tempdir} "
-                                f"--host {TEST_HOST} --port {TEST_PORT} "
-                                "--run-only-registered-workflows"),
-                    stdout=sp.PIPE,
-                    stderr=sp.PIPE)
     sleep(3)
-    if proc.poll() is not None:
-        stderr = proc.communicate()[1]
-        raise Exception(
-            f"Failed to start the test server.\n{str(stderr)}")
-    yield
-    os.kill(proc.pid, signal.SIGTERM)
     try:
         shutil.rmtree(tempdir)
     except Exception:

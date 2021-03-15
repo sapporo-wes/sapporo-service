@@ -170,7 +170,8 @@ def fork_run(run_id: str) -> None:
     stderr: Path = get_path(run_id, "stderr")
     cmd: str = f"/bin/bash {current_app.config['RUN_SH']} {run_dir}"
     write_file(run_id, "state", State.QUEUED.name)
-    with stdout.open(mode="w") as f_stdout, stderr.open(mode="w") as f_stderr:
+    with stdout.open(mode="w", encoding="utf-8") as f_stdout, \
+            stderr.open(mode="w", encoding="utf-8") as f_stderr:
         process = Popen(shlex.split(cmd), stdout=f_stdout, stderr=f_stderr)
     pid: Optional[int] = process.pid
     if pid is not None:

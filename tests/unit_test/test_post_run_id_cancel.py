@@ -41,11 +41,12 @@ def test_post_run_id_cancel(delete_env_vars: None, tmpdir: LocalPath) -> None:
     from .test_get_run_id_status import get_run_id_status
     count: int = 0
     while count <= 120:
+        sleep(3)
         get_status_res: Response = get_run_id_status(client, run_id)
         get_status_data: RunStatus = get_status_res.get_json()
-        if str(get_status_data["state"]) == "CANCELED":
+        if str(get_status_data["state"]) in \
+                ["COMPLETE", "EXECUTOR_ERROR", "SYSTEM_ERROR", "CANCELED"]:
             break
-        sleep(3)
         count += 1
     assert str(get_status_data["state"]) == "CANCELED"
 

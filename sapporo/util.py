@@ -17,7 +17,8 @@ from sapporo.type import ServiceInfo, State, Workflow
 
 
 def generate_service_info() -> ServiceInfo:
-    with current_app.config["SERVICE_INFO"].open(mode="r") as f:
+    service_info_path = current_app.config["SERVICE_INFO"]
+    with service_info_path.open(mode="r", encoding="utf-8") as f:
         service_info: ServiceInfo = json.load(f)
 
     service_info["supported_wes_versions"] = ["sapporo-wes-1.0.0"]
@@ -29,7 +30,8 @@ def generate_service_info() -> ServiceInfo:
     service_info["tags"]["registered_only_mode"] = \
         current_app.config["REGISTERED_ONLY_MODE"]
 
-    with current_app.config["EXECUTABLE_WORKFLOWS"].open(mode="r") as f:
+    executable_workflows_path = current_app.config["EXECUTABLE_WORKFLOWS"]
+    with executable_workflows_path.open(mode="r", encoding="utf-8") as f:
         executable_workflows: List[Workflow] = json.load(f)
     service_info["executable_workflows"] = executable_workflows
 
@@ -84,7 +86,7 @@ def count_system_state() -> Dict[str, int]:
 def write_file(run_id: str, file_type: str, content: str) -> None:
     file: Path = get_path(run_id, file_type)
     file.parent.mkdir(parents=True, exist_ok=True)
-    with file.open(mode="w") as f:
+    with file.open(mode="w", encoding="utf-8") as f:
         f.write(content)
 
 
@@ -98,7 +100,7 @@ def read_file(run_id: str, file_type: str) -> Any:
     file: Path = get_path(run_id, file_type)
     if file.exists() is False:
         return None
-    with file.open(mode="r") as f:
+    with file.open(mode="r", encoding="utf-8") as f:
         if file_type in json_file_type:
             return json.load(f)
         elif file_type in oneline_txt_file_type:
@@ -110,8 +112,8 @@ def read_file(run_id: str, file_type: str) -> Any:
 def dump_outputs_list(inputted_run_dir: str) -> None:
     run_dir: Path = Path(inputted_run_dir).resolve()
     run_id = run_dir.name
-    with run_dir.joinpath(
-            RUN_DIR_STRUCTURE["sapporo_config"]).open(mode="r") as f:
+    config_path = run_dir.joinpath(RUN_DIR_STRUCTURE["sapporo_config"])
+    with config_path.open(mode="r", encoding="utf-8") as f:
         sapporo_config = json.load(f)
     base_remote_url = \
         f"{sapporo_config['sapporo_endpoint']}/runs/{run_id}/data/"
@@ -124,7 +126,8 @@ def dump_outputs_list(inputted_run_dir: str) -> None:
             "file_url":
                 f"{base_remote_url}{str(output_file.relative_to(run_dir))}"
         })
-    with run_dir.joinpath(RUN_DIR_STRUCTURE["outputs"]).open(mode="w") as f:
+    output_path = run_dir.joinpath(RUN_DIR_STRUCTURE["outputs"])
+    with output_path.open(mode="w", encoding="utf-8") as f:
         f.write(json.dumps(outputs, indent=2))
 
 

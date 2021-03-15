@@ -1,1 +1,3 @@
 include LICENSE
+include sapporo-wes-spec.swagger.yml
+include uwsgi.yml

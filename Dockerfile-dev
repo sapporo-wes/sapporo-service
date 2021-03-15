@@ -1,0 +1,29 @@
+# FROM python:3.8.8-buster
+FROM python@sha256:d90d328f14fc16e1b2be053ca18a01bb561c543730d5d781b58cc561faabac33
+
+ADD https://download.docker.com/linux/static/stable/x86_64/docker-20.10.3.tgz /tmp/
+RUN tar xf /tmp/docker-20.10.3.tgz -C /tmp && \
+    mv /tmp/docker/* /usr/bin/ && \
+    rmdir /tmp/docker && \
+    rm -f /tmp/docker-20.10.3.tgz
+
+ADD https://github.com/moparisthebest/static-curl/releases/download/v7.75.0/curl-i386 /usr/bin/curl
+ADD https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 /usr/bin/jq
+ADD https://github.com/krallin/tini/releases/download/v0.19.0/tini /usr/bin/tini
+RUN chmod +x /usr/bin/curl && \
+    chmod +x /usr/bin/jq && \
+    chmod +x /usr/bin/tini
+
+WORKDIR /app
+COPY . .
+RUN pip install --no-cache-dir --progress-bar off -U pip setuptools wheel && \
+    pip install --no-cache-dir --progress-bar off -e .[tests]
+
+ENV SAPPORO_HOST 0.0.0.0
+ENV SAPPORO_PORT 1122
+ENV SAPPORO_DEBUG True
+
+EXPOSE 1122
+
+ENTRYPOINT ["tini", "--"]
+CMD ["sleep", "infinity"]

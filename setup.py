@@ -10,8 +10,8 @@ LONG_DESCRIPTION: Path = BASE_DIR.joinpath("README.md")
 setup(
     name="sapporo",
     version="1.0.11",
-    description="SAPPORO is a standard implementation conforming to the "
-    "Global Alliance for Genomics and Health (GA4GH) Workflow Execution "
+    description="SAPPORO-service is a standard implementation conforming to "
+    "the Global Alliance for Genomics and Health (GA4GH) Workflow Execution "
     "Service (WES) API specification.",
     long_description=LONG_DESCRIPTION.open(mode="r").read(),
     long_description_content_type="text/markdown",
@@ -45,6 +45,15 @@ setup(
         "pytest",
         "typing-extensions",
     ],
+    extras_require={
+        "tests": [
+            "flake8",
+            "isort",
+            "mypy",
+            "pytest",
+            "typing-extensions",
+        ],
+    },
     entry_points={
         "console_scripts": [
             "sapporo=sapporo.app:main",

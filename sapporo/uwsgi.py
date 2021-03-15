@@ -7,7 +7,6 @@ from flask import Flask
 
 from sapporo.app import create_app, handle_default_params, parse_args
 
-
 params: Dict[str, Union[str, int, Path]] = \
     handle_default_params(parse_args([]))
 app: Flask = create_app(params)

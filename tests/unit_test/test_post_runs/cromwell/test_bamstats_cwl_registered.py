@@ -25,8 +25,7 @@ def post_runs_bamstats_cwl_registered() -> RunId:
     return res_data
 
 
-def test_bamstats_cwl_registered(
-        setup_test_server_registered_only_mode: None) -> None:
+def test_bamstats_cwl_registered(setup_test_server: None) -> None:
     res_data = post_runs_bamstats_cwl_registered()
     assert "run_id" in res_data
     run_id = res_data["run_id"]
@@ -34,11 +33,11 @@ def test_bamstats_cwl_registered(
     from .. import get_run_id_status
     count = 0
     while count <= 120:
+        sleep(3)
         get_status_data = get_run_id_status(run_id)
         if str(get_status_data["state"]) in \
                 ["COMPLETE", "EXECUTOR_ERROR", "SYSTEM_ERROR", "CANCELED"]:
             break
-        sleep(3)
         count += 1
     assert str(get_status_data["state"]) == "COMPLETE"
 

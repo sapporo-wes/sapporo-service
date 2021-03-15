@@ -201,7 +201,7 @@ def handle_default_url_prefix(url_prefix: Optional[List[str]]) -> str:
 
 
 def check_uniqueness_wf_name(executable_wf_path: Path) -> None:
-    with executable_wf_path.open(mode="r") as f:
+    with executable_wf_path.open(mode="r", encoding="utf-8") as f:
         executable_wfs: List[Workflow] = json.load(f)
     wf_names: List[str] = [wf["workflow_name"] for wf in executable_wfs]
     if len(wf_names) != len(set(wf_names)):
@@ -216,7 +216,8 @@ def validate_json(service_info: Path, executable_wf: Path) -> None:
         [executable_wf, EXECUTABLE_WORKFLOWS_SCHEMA]
     ]
     for data, schema in pairs:
-        with data.open(mode="r") as f_d, schema.open(mode="r") as f_s:
+        with data.open(mode="r", encoding="utf-8") as f_d, \
+                schema.open(mode="r", encoding="utf-8") as f_s:
             validate(json.load(f_d), json.load(f_s))
 
 
@@ -282,6 +283,10 @@ def create_app(params: Dict[str, Union[str, int, Path]]) -> Flask:
     validate_json(app.config["SERVICE_INFO"],
                   app.config["EXECUTABLE_WORKFLOWS"])
     check_uniqueness_wf_name(app.config["EXECUTABLE_WORKFLOWS"])
+    if params["debug"]:
+        app.config["FLASK_ENV"] = "development"
+        app.config["DEBUG"] = True
+        app.config["TESTING"] = True
 
     return app
 
@@ -293,7 +298,6 @@ def main() -> None:
     app.run(
         host=params["host"],  # type: ignore
         port=params["port"],  # type: ignore
-        debug=params["debug"]  # type: ignore
     )
 
 
