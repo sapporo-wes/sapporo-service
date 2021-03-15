@@ -48,7 +48,7 @@ def setup_test_server() -> Generator[None, None, None]:
                         stdout=sp.PIPE, stderr=sp.PIPE)
     else:
         pre_proc = sp.run("which sapporo", shell=True,
-                          encoding="utf-8", capture_output=True)
+                          encoding="utf-8", stdout=sp.PIPE, stderr=sp.PIPE)
         sapporo_path = pre_proc.stdout.strip()
         proc = sp.Popen(shlex.split(f"{sapporo_path} "
                                     f"--host {TEST_HOST} --port {TEST_PORT} "
