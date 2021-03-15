@@ -7,11 +7,15 @@ import signal
 import subprocess as sp
 import tempfile
 from os import environ
+from pathlib import Path
 from time import sleep
 from typing import Generator
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
+
+UNIT_TEST_DIR = Path(__file__).parent.resolve()
+ROOT_DIR = UNIT_TEST_DIR.parent.parent.resolve()
 
 TEST_HOST = "127.0.0.1"
 TEST_PORT = "8888"
@@ -28,17 +32,25 @@ def delete_env_vars(monkeypatch: MonkeyPatch) -> None:
 def setup_test_server() -> Generator[None, None, None]:
     tempdir = tempfile.mkdtemp()
     if environ.get("TEST_SERVER_MODE", "uwsgi") == "uwsgi":
-        proc = sp.Popen(shlex.split("/usr/local/bin/uwsgi "
-                                    "--yaml /app/uwsgi.yml "
-                                    f"--http {TEST_HOST}:{TEST_PORT}"),
-                        env={"SAPPORO_HOST": str(TEST_HOST),
-                             "SAPPORO_PORT": str(TEST_PORT),
-                             "SAPPORO_DEBUG": str(True),
+        pre_proc = sp.run("which uwsgi", shell=True,
+                          encoding="utf-8", capture_output=True)
+        uwsgi_path = pre_proc.stdout.strip()
+        proc = sp.Popen(shlex.split(f"{uwsgi_path} "
+                                    f"--http {TEST_HOST}:{TEST_PORT} "
+                                    f"--chdir {str(ROOT_DIR)} "
+                                    "--module sapporo.uwsgi "
+                                    "--callable app "
+                                    "--master --need-app --single-interpreter "
+                                    "--enable-threads --die-on-term --vacuum"),
+                        env={"SAPPORO_DEBUG": str(True),
                              "SAPPORO_RUN_DIR": str(tempdir)},
                         stdout=sp.PIPE,
                         stderr=sp.PIPE)
     else:
-        proc = sp.Popen(shlex.split("/usr/local/bin/sapporo "
+        pre_proc = sp.run("which sapporo", shell=True,
+                          encoding="utf-8", capture_output=True)
+        sapporo_path = pre_proc.stdout.strip()
+        proc = sp.Popen(shlex.split(f"{sapporo_path} "
                                     f"--host {TEST_HOST} --port {TEST_PORT} "
                                     f"--run-dir {tempdir} "),
                         env={"SAPPORO_HOST": str(TEST_HOST),
