@@ -33,7 +33,7 @@ def setup_test_server() -> Generator[None, None, None]:
     tempdir = tempfile.mkdtemp()
     if environ.get("TEST_SERVER_MODE", "uwsgi") == "uwsgi":
         pre_proc = sp.run("which uwsgi", shell=True,
-                          encoding="utf-8", capture_output=True)
+                          encoding="utf-8", stdout=sp.PIPE, stderr=sp.PIPE)
         uwsgi_path = pre_proc.stdout.strip()
         proc = sp.Popen(shlex.split(f"{uwsgi_path} "
                                     f"--http {TEST_HOST}:{TEST_PORT} "
@@ -44,8 +44,8 @@ def setup_test_server() -> Generator[None, None, None]:
                                     "--enable-threads --die-on-term --vacuum"),
                         env={"SAPPORO_DEBUG": str(True),
                              "SAPPORO_RUN_DIR": str(tempdir)},
-                        stdout=sp.PIPE,
-                        stderr=sp.PIPE)
+                        encoding="utf-8",
+                        stdout=sp.PIPE, stderr=sp.PIPE)
     else:
         pre_proc = sp.run("which sapporo", shell=True,
                           encoding="utf-8", capture_output=True)
@@ -57,8 +57,8 @@ def setup_test_server() -> Generator[None, None, None]:
                              "SAPPORO_PORT": str(TEST_PORT),
                              "SAPPORO_DEBUG": str(True),
                              "SAPPORO_RUN_DIR": str(tempdir)},
-                        stdout=sp.PIPE,
-                        stderr=sp.PIPE)
+                        encoding="utf-8",
+                        stdout=sp.PIPE, stderr=sp.PIPE)
     sleep(3)
     if proc.poll() is not None:
         stderr = proc.communicate()[1]
