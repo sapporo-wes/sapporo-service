@@ -1,5 +1,5 @@
 # FROM python:3.8.8-buster
-FROM python@sha256:d90d328f14fc16e1b2be053ca18a01bb561c543730d5d781b58cc561faabac33
+FROM python@sha256:d90d328f14fc16e1b2be053ca18a01bb561c543730d5d781b58cc561faabac33 as builder
 
 WORKDIR /app
 COPY . .
@@ -23,17 +23,20 @@ RUN tar xf /tmp/docker-20.10.3.tgz -C /tmp && \
     rmdir /tmp/docker && \
     rm -f /tmp/docker-20.10.3.tgz
 
-ADD https://github.com/moparisthebest/static-curl/releases/download/v7.75.0/curl-i386 /usr/bin/curl
-ADD https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 /usr/bin/jq
-ADD https://github.com/krallin/tini/releases/download/v0.19.0/tini /usr/bin/tini
-RUN chmod +x /usr/bin/curl && \
-    chmod +x /usr/bin/jq && \
-    chmod +x /usr/bin/tini
+RUN apt update && \
+    apt install -y --no-install-recommends \
+    curl \
+    jq \
+    libxml2 \
+    tini && \
+    apt clean &&\
+    rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/local/lib/python3.7/site-packages/* /usr/local/lib/python3.7/site-packages/
-COPY --from=build-testing /usr/local/bin/uwsgi /usr/local/bin/uwsgi
+COPY --from=builder /usr/local/lib/python3.8/site-packages /usr/local/lib/python3.8/site-packages
+COPY --from=builder /usr/local/bin/uwsgi /usr/local/bin/uwsgi
 
 WORKDIR /app
+COPY . .
 
 ENV SAPPORO_HOST 0.0.0.0
 ENV SAPPORO_PORT 1122

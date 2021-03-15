@@ -7,10 +7,11 @@ from typing import Dict, Union
 from _pytest.monkeypatch import MonkeyPatch
 from flask import Flask
 
+import sapporo
 from sapporo.app import create_app, handle_default_params, parse_args
 from sapporo.const import DEFAULT_HOST, DEFAULT_PORT, DEFAULT_URL_PREFIX
 
-base_dir: Path = Path(__file__).parent.parent.parent.resolve()
+base_dir: Path = Path(sapporo.__file__).parent.resolve()
 
 
 def test_default_params(delete_env_vars: None) -> None:
@@ -24,12 +25,10 @@ def test_default_params(delete_env_vars: None) -> None:
     assert app.config["GET_RUNS"] is True
     assert app.config["WORKFLOW_ATTACHMENT"] is True
     assert app.config["REGISTERED_ONLY_MODE"] is False
-    assert app.config["SERVICE_INFO"] == \
-        base_dir.joinpath("sapporo/service-info.json")
+    assert app.config["SERVICE_INFO"] == base_dir.joinpath("service-info.json")
     assert app.config["EXECUTABLE_WORKFLOWS"] == \
-        base_dir.joinpath("sapporo/executable_workflows.json")
-    assert app.config["RUN_SH"] == \
-        base_dir.joinpath("sapporo/run.sh")
+        base_dir.joinpath("executable_workflows.json")
+    assert app.config["RUN_SH"] == base_dir.joinpath("run.sh")
     assert app.config["URL_PREFIX"] == DEFAULT_URL_PREFIX
 
 
@@ -43,11 +42,11 @@ def test_env_vars(delete_env_vars: None, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS",
                        "True")
     monkeypatch.setenv("SAPPORO_SERVICE_INFO",
-                       str(base_dir.joinpath("sapporo/service-info.json")))
+                       str(base_dir.joinpath("service-info.json")))
     monkeypatch.setenv("SAPPORO_EXECUTABLE_WORKFLOWS",
-                       str(base_dir.joinpath("sapporo/executable_workflows.json")))  # noqa: E501
+                       str(base_dir.joinpath("executable_workflows.json")))  # noqa: E501
     monkeypatch.setenv("SAPPORO_RUN_SH",
-                       str(base_dir.joinpath("sapporo/run.sh")))
+                       str(base_dir.joinpath("run.sh")))
     monkeypatch.setenv("SAPPORO_URL_PREFIX", "/test")
 
     args: Namespace = parse_args([])
@@ -61,12 +60,10 @@ def test_env_vars(delete_env_vars: None, monkeypatch: MonkeyPatch) -> None:
     assert app.config["GET_RUNS"] is False
     assert app.config["WORKFLOW_ATTACHMENT"] is False
     assert app.config["REGISTERED_ONLY_MODE"] is True
-    assert app.config["SERVICE_INFO"] == \
-        base_dir.joinpath("sapporo/service-info.json")
+    assert app.config["SERVICE_INFO"] == base_dir.joinpath("service-info.json")
     assert app.config["EXECUTABLE_WORKFLOWS"] == \
-        base_dir.joinpath("sapporo/executable_workflows.json")
-    assert app.config["RUN_SH"] == \
-        base_dir.joinpath("sapporo/run.sh")
+        base_dir.joinpath("executable_workflows.json")
+    assert app.config["RUN_SH"] == base_dir.joinpath("run.sh")
     assert app.config["URL_PREFIX"] == "/test"
 
 
@@ -80,11 +77,11 @@ def test_parse_args(delete_env_vars: None) -> None:
                     "--disable-workflow-attachment",
                     "--run-only-registered-workflows",
                     "--service-info",
-                    str(base_dir.joinpath("sapporo/service-info.json")),
+                    str(base_dir.joinpath("service-info.json")),
                     "--executable-workflows",
-                    str(base_dir.joinpath("sapporo/executable_workflows.json")),  # noqa: E501
+                    str(base_dir.joinpath("executable_workflows.json")),  # noqa: E501
                     "--run-sh",
-                    str(base_dir.joinpath("sapporo/run.sh")),
+                    str(base_dir.joinpath("run.sh")),
                     "--url-prefix", "/test"])
     params = handle_default_params(args)
     app = create_app(params)
@@ -96,10 +93,8 @@ def test_parse_args(delete_env_vars: None) -> None:
     assert app.config["GET_RUNS"] is False
     assert app.config["WORKFLOW_ATTACHMENT"] is False
     assert app.config["REGISTERED_ONLY_MODE"] is True
-    assert app.config["SERVICE_INFO"] == \
-        base_dir.joinpath("sapporo/service-info.json")
+    assert app.config["SERVICE_INFO"] == base_dir.joinpath("service-info.json")
     assert app.config["EXECUTABLE_WORKFLOWS"] == \
-        base_dir.joinpath("sapporo/executable_workflows.json")
-    assert app.config["RUN_SH"] == \
-        base_dir.joinpath("sapporo/run.sh")
+        base_dir.joinpath("executable_workflows.json")
+    assert app.config["RUN_SH"] == base_dir.joinpath("run.sh")
     assert app.config["URL_PREFIX"] == "/test"

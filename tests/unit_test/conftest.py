@@ -6,9 +6,10 @@ import shutil
 import signal
 import subprocess as sp
 import tempfile
+from os import environ
 from time import sleep
 from typing import Generator
-from os import environ
+
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
