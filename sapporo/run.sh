@@ -111,7 +111,7 @@ function cancel_cwltool() {
 }
 
 function generate_outputs_list() {
-  python3 -c "from sapporo.util import dump_outputs_list; dump_outputs_list('${run_dir}')"
+  python3 -c "from sapporo.util import dump_outputs_list; dump_outputs_list('${run_dir}')" || executor_error
 }
 
 function upload() {

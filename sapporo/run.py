@@ -172,7 +172,11 @@ def fork_run(run_id: str) -> None:
     write_file(run_id, "state", State.QUEUED.name)
     with stdout.open(mode="w", encoding="utf-8") as f_stdout, \
             stderr.open(mode="w", encoding="utf-8") as f_stderr:
-        process = Popen(shlex.split(cmd), stdout=f_stdout, stderr=f_stderr)
+        process = Popen(shlex.split(cmd),
+                        cwd=str(run_dir),
+                        env={"PATH": os.environ.get("PATH", "")},
+                        encoding="utf-8",
+                        stdout=f_stdout, stderr=f_stderr)
     pid: Optional[int] = process.pid
     if pid is not None:
         write_file(run_id, "pid", str(pid))

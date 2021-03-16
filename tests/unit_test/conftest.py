@@ -32,31 +32,29 @@ def delete_env_vars(monkeypatch: MonkeyPatch) -> None:
 def setup_test_server() -> Generator[None, None, None]:
     tempdir = tempfile.mkdtemp()
     if environ.get("TEST_SERVER_MODE", "uwsgi") == "uwsgi":
-        pre_proc = sp.run("which uwsgi", shell=True,
-                          encoding="utf-8", stdout=sp.PIPE, stderr=sp.PIPE)
-        uwsgi_path = pre_proc.stdout.strip()
-        proc = sp.Popen(shlex.split(f"{uwsgi_path} "
+        proc = sp.Popen(shlex.split(f"uwsgi "
                                     f"--http {TEST_HOST}:{TEST_PORT} "
                                     f"--chdir {str(ROOT_DIR)} "
                                     "--module sapporo.uwsgi "
                                     "--callable app "
                                     "--master --need-app --single-interpreter "
                                     "--enable-threads --die-on-term --vacuum"),
+                        cwd=str(UNIT_TEST_DIR),
                         env={"SAPPORO_DEBUG": str(True),
-                             "SAPPORO_RUN_DIR": str(tempdir)},
+                             "SAPPORO_RUN_DIR": str(tempdir),
+                             "PATH": os.environ.get("PATH", "")},
                         encoding="utf-8",
                         stdout=sp.PIPE, stderr=sp.PIPE)
     else:
-        pre_proc = sp.run("which sapporo", shell=True,
-                          encoding="utf-8", stdout=sp.PIPE, stderr=sp.PIPE)
-        sapporo_path = pre_proc.stdout.strip()
-        proc = sp.Popen(shlex.split(f"{sapporo_path} "
+        proc = sp.Popen(shlex.split(f"sapporo "
                                     f"--host {TEST_HOST} --port {TEST_PORT} "
                                     f"--run-dir {tempdir} "),
+                        cwd=str(UNIT_TEST_DIR),
                         env={"SAPPORO_HOST": str(TEST_HOST),
                              "SAPPORO_PORT": str(TEST_PORT),
                              "SAPPORO_DEBUG": str(True),
-                             "SAPPORO_RUN_DIR": str(tempdir)},
+                             "SAPPORO_RUN_DIR": str(tempdir),
+                             "PATH": os.environ.get("PATH", "")},
                         encoding="utf-8",
                         stdout=sp.PIPE, stderr=sp.PIPE)
     sleep(3)
