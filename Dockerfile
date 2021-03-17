@@ -3,8 +3,8 @@ FROM python@sha256:d90d328f14fc16e1b2be053ca18a01bb561c543730d5d781b58cc561faaba
 
 WORKDIR /app
 COPY . .
-RUN pip install --no-cache-dir --progress-bar off -U pip setuptools wheel && \
-    pip install --no-cache-dir --progress-bar off .
+RUN python3 -m pip install --no-cache-dir --progress-bar off -U pip setuptools wheel && \
+    python3 -m pip install --no-cache-dir --progress-bar off .
 
 # FROM python:3.8.8-slim-buster
 FROM python@sha256:1389669225e7fa05a9bac20d64551b6b6d84ee3200330d8d8de74c6d2314fdc7

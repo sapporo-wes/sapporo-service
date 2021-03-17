@@ -7,17 +7,18 @@ RUN tar xf /tmp/docker-20.10.3.tgz -C /tmp && \
     rmdir /tmp/docker && \
     rm -f /tmp/docker-20.10.3.tgz
 
-ADD https://github.com/moparisthebest/static-curl/releases/download/v7.75.0/curl-i386 /usr/bin/curl
-ADD https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 /usr/bin/jq
-ADD https://github.com/krallin/tini/releases/download/v0.19.0/tini /usr/bin/tini
-RUN chmod +x /usr/bin/curl && \
-    chmod +x /usr/bin/jq && \
-    chmod +x /usr/bin/tini
+RUN apt update && \
+    apt install -y --no-install-recommends \
+    curl \
+    jq \
+    tini && \
+    apt clean && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY . .
-RUN pip install --no-cache-dir --progress-bar off -U pip setuptools wheel && \
-    pip install --no-cache-dir --progress-bar off -e .[tests]
+RUN python3 -m pip install --no-cache-dir --progress-bar off -U pip setuptools wheel && \
+    python3 -m pip install --no-cache-dir --progress-bar off -e .[tests]
 
 ENV SAPPORO_HOST 0.0.0.0
 ENV SAPPORO_PORT 1122
