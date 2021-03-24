@@ -10,14 +10,14 @@ LONG_DESCRIPTION: Path = BASE_DIR.joinpath("README.md")
 setup(
     name="sapporo",
     version="1.0.12",
-    description="SAPPORO-service is a standard implementation conforming to "
+    description="sapporo-service is a standard implementation conforming to "
     "the Global Alliance for Genomics and Health (GA4GH) Workflow Execution "
     "Service (WES) API specification.",
     long_description=LONG_DESCRIPTION.open(mode="r").read(),
     long_description_content_type="text/markdown",
     author="DDBJ(DNA Data Bank of Japan)",
     author_email="t.ohta@nig.ac.jp",
-    url="https://github.com/ddbj/SAPPORO-service",
+    url="https://github.com/ddbj/sapporo-service",
     license="Apache2.0",
     python_requires=">=3.6",
     platforms="any",

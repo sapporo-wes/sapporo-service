@@ -1,18 +1,18 @@
-# SAPPORO-service
+# sapporo-service
 
-[![pytest](https://github.com/ddbj/SAPPORO-service/workflows/pytest/badge.svg)](https://github.com/ddbj/SAPPORO-service/actions?query=workflow%3Apytest)
-[![flake8](https://github.com/ddbj/SAPPORO-service/workflows/flake8/badge.svg)](https://github.com/ddbj/SAPPORO-service/actions?query=workflow%3Aflake8)
-[![isort](https://github.com/ddbj/SAPPORO-service/workflows/isort/badge.svg)](https://github.com/ddbj/SAPPORO-service/actions?query=workflow%3Aisort)
-[![mypy](https://github.com/ddbj/SAPPORO-service/workflows/mypy/badge.svg)](https://github.com/ddbj/SAPPORO-service/actions?query=workflow%3Amypy)
+[![pytest](https://github.com/ddbj/sapporo-service/workflows/pytest/badge.svg)](https://github.com/ddbj/sapporo-service/actions?query=workflow%3Apytest)
+[![flake8](https://github.com/ddbj/sapporo-service/workflows/flake8/badge.svg)](https://github.com/ddbj/sapporo-service/actions?query=workflow%3Aflake8)
+[![isort](https://github.com/ddbj/sapporo-service/workflows/isort/badge.svg)](https://github.com/ddbj/sapporo-service/actions?query=workflow%3Aisort)
+[![mypy](https://github.com/ddbj/sapporo-service/workflows/mypy/badge.svg)](https://github.com/ddbj/sapporo-service/actions?query=workflow%3Amypy)
 [![Apache License](https://img.shields.io/badge/license-Apache%202.0-orange.svg?style=flat&color=important)](http://www.apache.org/licenses/LICENSE-2.0)
 
-<img src="https://raw.githubusercontent.com/ddbj/SAPPORO/master/logo/SAPPORO-Service.svg" width="400" style="display: block; margin-left: auto; margin-right: auto; margin-top: 30px; margin-bottom: 30px;" alt="SAPPORO-service logo">
+<img src="https://raw.githubusercontent.com/ddbj/sapporo/master/logo/sapporo-service.svg" width="400" style="display: block; margin-left: auto; margin-right: auto; margin-top: 30px; margin-bottom: 30px;" alt="sapporo-service logo">
 
-[Japanese Document](https://github.com/ddbj/SAPPORO-service/blob/master/README_ja.md)
+[Japanese Document](https://github.com/ddbj/sapporo-service/blob/master/README_ja.md)
 
-SAPPORO is a standard implementation conforming to the [Global Alliance for Genomics and Health](https://www.ga4gh.org) (GA4GH) [Workflow Execution Service](https://github.com/ga4gh/workflow-execution-service-schemas) (WES) API specification.
+sapporo-service is a standard implementation conforming to the [Global Alliance for Genomics and Health](https://www.ga4gh.org) (GA4GH) [Workflow Execution Service](https://github.com/ga4gh/workflow-execution-service-schemas) (WES) API specification.
 
-One of SAPPORO's features is the abstraction of workflow engines, which makes it easy to convert various workflow engines into WES.
+One of sapporo-service's features is the abstraction of workflow engines, which makes it easy to convert various workflow engines into WES.
 Currently, the following workflow engines have been confirmed to work.
 
 - [cwltool](https://github.com/common-workflow-language/cwltool)
@@ -22,12 +22,12 @@ Currently, the following workflow engines have been confirmed to work.
 - [snakemake](https://snakemake.readthedocs.io/en/stable/)
 - [ep3 (experimental)](https://github.com/tom-tan/ep3)
 
-Another feature of SAPPORO is the mode that can only execute workflows registered by the system administrator.
+Another feature of sapporo-service is the mode that can only execute workflows registered by the system administrator.
 This feature is useful when building a WES in a shared HPC environment.
 
 ## Install and Run
 
-SAPPORO supports Python 3.6 or newer.
+sapporo-service supports Python 3.6 or newer.
 
 ```bash
 $ pip3 install sapporo
@@ -49,7 +49,7 @@ $ docker-compose logs
 
 ## Usage
 
-The help for the SAPPORO startup command is as follows.
+The help for the sapporo-service startup command is as follows.
 
 ```bash
 $ sapporo --help
@@ -87,7 +87,7 @@ optional arguments:
 
 ### Operating Mode
 
-There are two startup modes in SAPPORO.
+There are two startup modes in sapporo-service.
 
 - Standard WES mode (Default)
 - Execute only registered workflows mode
@@ -100,12 +100,12 @@ It can also be switched by giving `True` or `False` to the environment variable 
 
 As API specifications, please check [GitHub - GA4GH WES](https://github.com/ga4gh/workflow-execution-service-schemas).
 
-**When using SAPPORO, It is different from the standard WES API specification, you must specify `workflow_engine_name` in the request parameter of `POST /runs`.**
+**When using sapporo-service, It is different from the standard WES API specification, you must specify `workflow_engine_name` in the request parameter of `POST /runs`.**
 I personally think this part is standard WES API specification's mistake, so I am sending a request to fix it.
 
 #### Execute only registered workflows mode
 
-As API specifications for the execute only registered workflows mode, please check [SwaggerUI - SAPPORO WES](https://suecharo.github.io/sapporo-swagger-ui/dist/).
+As API specifications for the execute only registered workflows mode, please check [SwaggerUI - sapporo WES](https://suecharo.github.io/sapporo-swagger-ui/dist/).
 
 Basically, it conforms to the standard WES API.
 The changes are as follows.
@@ -118,8 +118,8 @@ The following is an example of requesting `GET /service-info` in the execute onl
 ```json
 GET /service-info
 {
-  "auth_instructions_url": "https://github.com/ddbj/SAPPORO-service",
-  "contact_info_url": "https://github.com/ddbj/SAPPORO-service",
+  "auth_instructions_url": "https://github.com/ddbj/sapporo-service",
+  "contact_info_url": "https://github.com/ddbj/sapporo-service",
   "default_workflow_engine_parameters": [],
   "executable_workflows": [
     {
@@ -127,23 +127,23 @@ GET /service-info
       "workflow_name": "CWL_trimming_and_qc_remote",
       "workflow_type": "CWL",
       "workflow_type_version": "v1.0",
-      "workflow_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/trimming_and_qc_remote.cwl"
+      "workflow_url": "https://raw.githubusercontent.com/ddbj/sapporo-service/master/tests/resources/trimming_and_qc_remote.cwl"
     },
     {
       "workflow_attachment": [
         {
           "file_name": "fastqc.cwl",
-          "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/fastqc.cwl"
+          "file_url": "https://raw.githubusercontent.com/ddbj/sapporo-service/master/tests/resources/fastqc.cwl"
         },
         {
           "file_name": "trimming_pe.cwl",
-          "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/trimming_pe.cwl"
+          "file_url": "https://raw.githubusercontent.com/ddbj/sapporo-service/master/tests/resources/trimming_pe.cwl"
         }
       ],
       "workflow_name": "CWL_trimming_and_qc_local",
       "workflow_type": "CWL",
       "workflow_type_version": "v1.0",
-      "workflow_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/trimming_and_qc.cwl"
+      "workflow_url": "https://raw.githubusercontent.com/ddbj/sapporo-service/master/tests/resources/trimming_and_qc.cwl"
     }
   ],
   "supported_filesystem_protocols": ["http", "https", "file", "s3"],
@@ -153,7 +153,6 @@ GET /service-info
     "debug": true,
     "get_runs": true,
     "registered_only_mode": true,
-    "run_dir": "/home/ubuntu/git/github.com/ddbj/SAPPORO-service/run",
     "wes_name": "sapporo",
     "workflow_attachment": true
   },
@@ -174,11 +173,11 @@ GET /service-info
 }
 ```
 
-The executable workflows are managed at [`executable_workflows.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/executable_workflows.json). Also, the schema for this definition is [`executable_workflows.schema.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/executable_workflows.schema.json). The default location of these files is under the application directory of SAPPORO. You can override them by using the startup argument `--executable-workflows` or the environment variable `SAPPORO_EXECUTABLE_WORKFLOWS`.
+The executable workflows are managed at [`executable_workflows.json`](https://github.com/ddbj/sapporo-service/blob/master/sapporo/executable_workflows.json). Also, the schema for this definition is [`executable_workflows.schema.json`](https://github.com/ddbj/sapporo-service/blob/master/sapporo/executable_workflows.schema.json). The default location of these files is under the application directory of sapporo-service. You can override them by using the startup argument `--executable-workflows` or the environment variable `SAPPORO_EXECUTABLE_WORKFLOWS`.
 
 ### Run Dir
 
-SAPPORO manages the submitted workflows, workflow parameters, output files, etc.
+sapporo-service manages the submitted workflows, workflow parameters, output files, etc.
 on the file system. You can override the location of run dir by using the startup argument `--run-dir` or the environment variable `SAPPORO_RUN_DIR`.
 
 The run dir structure is as follows. You can initialize and delete each run by physical deletion with `rm`.
@@ -215,15 +214,15 @@ $ tree run
 ```
 
 The execution of `POST /runs` is very complex.
-Examples using `curl` are provided in [GitHub - sapporo/tests/curl](https://github.com/ddbj/SAPPORO-service/tree/master/tests/curl_example/post_runs).
+Examples using `curl` are provided in [GitHub - sapporo/tests/curl](https://github.com/ddbj/sapporo-service/tree/master/tests/curl_example/post_runs).
 Please use these as references.
 
 ### `run.sh`
 
-We use [`run.sh`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/run.sh) to abstract the workflow engine.
-When `POST /runs` is called, SAPPORO fork the execution of `run.sh` after dumping the necessary files to run dir. Therefore, you can apply various workflow engines to WES by editing `run.sh`.
+We use [`run.sh`](https://github.com/ddbj/sapporo-service/blob/master/sapporo/run.sh) to abstract the workflow engine.
+When `POST /runs` is called, sapporo-service fork the execution of `run.sh` after dumping the necessary files to run dir. Therefore, you can apply various workflow engines to WES by editing `run.sh`.
 
-The default position of `run.sh` is under the application directory of SAPPORO. You can override it by using the startup argument `--run-sh` or the environment variable `SAPPORO_RUN_SH`.
+The default position of `run.sh` is under the application directory of sapporo-service. You can override it by using the startup argument `--run-sh` or the environment variable `SAPPORO_RUN_SH`.
 
 ### Other Startup Arguments
 
@@ -246,13 +245,13 @@ The following three startup arguments and environment variables are provided to 
   - Set the URL PREFIX.
     - If `--url-prefix /foo/bar` is set, `GET /service-info` becomes `GET /foo/bar/service-info`.
 
-The contents of the response of `GET /service-info` are managed in [`service-info.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/service-info.json). The default location of `service-info.json` is under the application directory of SAPPORO. You can override by using the startup argument `--service-info` or the environment variable `SAPPORO_SERVICE_INFO`.
+The contents of the response of `GET /service-info` are managed in [`service-info.json`](https://github.com/ddbj/sapporo-service/blob/master/sapporo/service-info.json). The default location of `service-info.json` is under the application directory of sapporo-service. You can override by using the startup argument `--service-info` or the environment variable `SAPPORO_SERVICE_INFO`.
 
 ## Generate download link
 
-SAPPORO-service provides the file and directory under run_dir as download link.
+sapporo-service provides the file and directory under run_dir as download link.
 
-For details, please check `/runs/{ run_id}/data/path-to-file-or-dir` in [SwaggerUI - SAPPORO WES](https://suecharo.github.io/sapporo-swagger-ui/dist/) for more information.
+For details, please check `/runs/{ run_id}/data/path-to-file-or-dir` in [SwaggerUI - sapporo WES](https://suecharo.github.io/sapporo-swagger-ui/dist/) for more information.
 
 ## Development
 
@@ -281,4 +280,4 @@ $ pytest .
 
 ## License
 
-[Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0). See the [LICENSE](https://github.com/ddbj/SAPPORO-service/blob/master/LICENSE).
+[Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0). See the [LICENSE](https://github.com/ddbj/sapporo-service/blob/master/LICENSE).

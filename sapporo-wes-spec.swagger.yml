@@ -1,7 +1,7 @@
 basePath: "/ga4gh/wes/v1"
 swagger: "2.0"
 info:
-  title: GA4GH Workflow Execution Service API specification extended for Sapporo-service
+  title: GA4GH Workflow Execution Service API specification extended for sapporo-service
   version: "sapporo-wes-1.0.0"
   x-logo:
     url: "https://www.ga4gh.org/wp-content/themes/ga4gh-theme/gfx/GA-logo-horizontal-tag-RGB.svg"
@@ -156,7 +156,7 @@ paths:
         directories with '..' -- implementations should guard against
         maliciously constructed filenames.
 
-        The `workflow_name` is used to execute the workflow registered in Sapporo-service.
+        The `workflow_name` is used to execute the workflow registered in sapporo-service.
         Please request to `GET /service-ino` to check registered workflows.
         If `workflow_name` is specified, `workflow_url`, `workflow_type` and `workflow_type_version` will be ignored.
 
@@ -354,9 +354,9 @@ paths:
         - WorkflowExecutionService
   /runs/{run_id}/data/path-to-file-or-dir:
     get:
-      summary: Download the files and directories under the run directory of Sapporo-service.
+      summary: Download the files and directories under the run directory of sapporo-service.
       description: >
-        This provides a remote url to download a file or directory under the `run_dir` of the Sapporo-service.
+        This provides a remote url to download a file or directory under the `run_dir` of the sapporo-service.
 
 
         - In the case of `path/to/file`, this returns the download link for the file.
@@ -645,7 +645,7 @@ definitions:
         type: string
         description: >-
           OPTIONAL
-          The `workflow_name` is used to execute the workflow registered in Sapporo-service. Please request to `GET /service-ino` to check registered workflows. If `workflow_name` is specified, `workflow_url`, `workflow_type` and `workflow_type_version` will be ignored.
+          The `workflow_name` is used to execute the workflow registered in sapporo-service. Please request to `GET /service-ino` to check registered workflows. If `workflow_name` is specified, `workflow_url`, `workflow_type` and `workflow_type_version` will be ignored.
       workflow_attachment:
         type: array
         items:

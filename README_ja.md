@@ -1,16 +1,16 @@
-# SAPPORO-service
+# sapporo-service
 
-[![pytest](https://github.com/ddbj/SAPPORO-service/workflows/pytest/badge.svg)](https://github.com/ddbj/SAPPORO-service/actions?query=workflow%3Apytest)
-[![flake8](https://github.com/ddbj/SAPPORO-service/workflows/flake8/badge.svg)](https://github.com/ddbj/SAPPORO-service/actions?query=workflow%3Aflake8)
-[![isort](https://github.com/ddbj/SAPPORO-service/workflows/isort/badge.svg)](https://github.com/ddbj/SAPPORO-service/actions?query=workflow%3Aisort)
-[![mypy](https://github.com/ddbj/SAPPORO-service/workflows/mypy/badge.svg)](https://github.com/ddbj/SAPPORO-service/actions?query=workflow%3Amypy)
+[![pytest](https://github.com/ddbj/sapporo-service/workflows/pytest/badge.svg)](https://github.com/ddbj/sapporo-service/actions?query=workflow%3Apytest)
+[![flake8](https://github.com/ddbj/sapporo-service/workflows/flake8/badge.svg)](https://github.com/ddbj/sapporo-service/actions?query=workflow%3Aflake8)
+[![isort](https://github.com/ddbj/sapporo-service/workflows/isort/badge.svg)](https://github.com/ddbj/sapporo-service/actions?query=workflow%3Aisort)
+[![mypy](https://github.com/ddbj/sapporo-service/workflows/mypy/badge.svg)](https://github.com/ddbj/sapporo-service/actions?query=workflow%3Amypy)
 [![Apache License](https://img.shields.io/badge/license-Apache%202.0-orange.svg?style=flat&color=important)](http://www.apache.org/licenses/LICENSE-2.0)
 
-<img src="https://raw.githubusercontent.com/ddbj/SAPPORO/master/logo/SAPPORO-Service.svg" width="400" style="display: block; margin-left: auto; margin-right: auto; margin-top: 30px; margin-bottom: 30px;" alt="SAPPORO-service logo">
+<img src="https://raw.githubusercontent.com/ddbj/sapporo/master/logo/sapporo-service.svg" width="400" style="display: block; margin-left: auto; margin-right: auto; margin-top: 30px; margin-bottom: 30px;" alt="sapporo-service logo">
 
-SAPPORO は、[Global Alliance for Genomics and Health](https://www.ga4gh.org) (GA4GH) により制定された [Workflow Execution Service](https://github.com/ga4gh/workflow-execution-service-schemas) (WES) API 定義に準拠した標準実装です。
+sapporo-service は、[Global Alliance for Genomics and Health](https://www.ga4gh.org) (GA4GH) により制定された [Workflow Execution Service](https://github.com/ga4gh/workflow-execution-service-schemas) (WES) API 定義に準拠した標準実装です。
 
-SAPPORO の特徴として、workflow engine の抽象化を試みており、様々な workflow engine を容易に WES 化できます。
+sapporo-service の特徴として、workflow engine の抽象化を試みており、様々な workflow engine を容易に WES 化できます。
 現在、稼働が確認されている workflow engine は、下記のとおりです。
 
 - [cwltool](https://github.com/common-workflow-language/cwltool)
@@ -47,7 +47,7 @@ $ docker-compose logs
 
 ## Usage
 
-SAPPORO の起動コマンドのヘルプは以下の通りです。
+sapporo-service の起動コマンドのヘルプは以下の通りです。
 
 ```bash
 $ sapporo --help
@@ -85,7 +85,7 @@ optional arguments:
 
 ### Operating Mode
 
-SAPPORO には 2 つのモードがあります。
+sapporo-service には 2 つのモードがあります。
 
 - 標準 WES モード (Default)
 - 登録された workflow のみを実行するモード
@@ -103,7 +103,7 @@ SAPPORO には 2 つのモードがあります。
 
 #### 登録された workflow のみを実行するモード
 
-登録された workflow のみを実行するモードの API 仕様は、[SwaggerUI - SAPPORO WES](https://suecharo.github.io/sapporo-swagger-ui/dist/) を確認してください。
+登録された workflow のみを実行するモードの API 仕様は、[SwaggerUI - sapporo WES](https://suecharo.github.io/sapporo-swagger-ui/dist/) を確認してください。
 
 基本的には、標準 WES API を準拠しています。具体的な変更点としては、以下の通りです。
 
@@ -115,8 +115,8 @@ SAPPORO には 2 つのモードがあります。
 ```json
 GET /service-info
 {
-  "auth_instructions_url": "https://github.com/ddbj/SAPPORO-service",
-  "contact_info_url": "https://github.com/ddbj/SAPPORO-service",
+  "auth_instructions_url": "https://github.com/ddbj/sapporo-service",
+  "contact_info_url": "https://github.com/ddbj/sapporo-service",
   "default_workflow_engine_parameters": [],
   "executable_workflows": [
     {
@@ -124,23 +124,23 @@ GET /service-info
       "workflow_name": "CWL_trimming_and_qc_remote",
       "workflow_type": "CWL",
       "workflow_type_version": "v1.0",
-      "workflow_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/trimming_and_qc_remote.cwl"
+      "workflow_url": "https://raw.githubusercontent.com/ddbj/sapporo-service/master/tests/resources/trimming_and_qc_remote.cwl"
     },
     {
       "workflow_attachment": [
         {
           "file_name": "fastqc.cwl",
-          "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/fastqc.cwl"
+          "file_url": "https://raw.githubusercontent.com/ddbj/sapporo-service/master/tests/resources/fastqc.cwl"
         },
         {
           "file_name": "trimming_pe.cwl",
-          "file_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/trimming_pe.cwl"
+          "file_url": "https://raw.githubusercontent.com/ddbj/sapporo-service/master/tests/resources/trimming_pe.cwl"
         }
       ],
       "workflow_name": "CWL_trimming_and_qc_local",
       "workflow_type": "CWL",
       "workflow_type_version": "v1.0",
-      "workflow_url": "https://raw.githubusercontent.com/ddbj/SAPPORO-service/master/tests/resources/trimming_and_qc.cwl"
+      "workflow_url": "https://raw.githubusercontent.com/ddbj/sapporo-service/master/tests/resources/trimming_and_qc.cwl"
     }
   ],
   "supported_filesystem_protocols": ["http", "https", "file", "s3"],
@@ -150,7 +150,6 @@ GET /service-info
     "debug": true,
     "get_runs": true,
     "registered_only_mode": true,
-    "run_dir": "/home/ubuntu/git/github.com/ddbj/SAPPORO-service/run",
     "wes_name": "sapporo",
     "workflow_attachment": true
   },
@@ -171,13 +170,13 @@ GET /service-info
 }
 ```
 
-実行できる workflow は [`executable_workflows.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/executable_workflows.json) にて管理されています。
-また、この定義の schema は [`executable_workflows.schema.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/executable_workflows.schema.json) です。
-これらの file の default の位置は、SAPPORO のアプリケーション直下ですが、起動時引数の `--executable-workflows` や環境変数の `SAPPORO_EXECUTABLE_WORKFLOWS` で上書きできます。
+実行できる workflow は [`executable_workflows.json`](https://github.com/ddbj/sapporo-service/blob/master/sapporo/executable_workflows.json) にて管理されています。
+また、この定義の schema は [`executable_workflows.schema.json`](https://github.com/ddbj/sapporo-service/blob/master/sapporo/executable_workflows.schema.json) です。
+これらの file の default の位置は、sapporo-service のアプリケーション直下ですが、起動時引数の `--executable-workflows` や環境変数の `SAPPORO_EXECUTABLE_WORKFLOWS` で上書きできます。
 
 ### Run Dir
 
-SAPPORO は、投入された workflow や workflow parameter、output files などを file system 上で管理しています。
+sapporo-service は、投入された workflow や workflow parameter、output files などを file system 上で管理しています。
 これら全ての file をまとめた directory を run dir と呼んでおり、default は `${PWD}/run` です。run dir の場所は、起動時引数 `--run-dir` や環境変数 `SAPPORO_RUN_DIR` で上書きできます。
 
 run dir 構造は、以下のようになっており、それぞれの run における file 群が配置されています。初期化やそれぞれの run の削除は `rm` を用いた物理的な削除により行えます。
@@ -214,16 +213,16 @@ $ tree run
 ```
 
 `POST /runs` の実行は非常に複雑です。
-`curl` を用いた例として、[GitHub - sapporo/tests/curl_example/post_runs](https://github.com/ddbj/SAPPORO-service/tree/master/tests/curl_example/post_runs) が用意されています。
+`curl` を用いた例として、[GitHub - sapporo/tests/curl_example/post_runs](https://github.com/ddbj/sapporo-service/tree/master/tests/curl_example/post_runs) が用意されています。
 参考にしてください。
 
 ### `run.sh`
 
-workflow engine の抽象化を shell script の [`run.sh`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/run.sh) で行っています。
-`POST /runs` が呼ばれると、SAPPORO は必要な file 群を run dir に dump した後、`run.sh` の実行を fork します。
+workflow engine の抽象化を shell script の [`run.sh`](https://github.com/ddbj/sapporo-service/blob/master/sapporo/run.sh) で行っています。
+`POST /runs` が呼ばれると、sapporo-service は必要な file 群を run dir に dump した後、`run.sh` の実行を fork します。
 そのため、`run.sh` を編集することによって、様々な workflow engine の WES 化を行えます。
 
-`run.sh` の default の位置は、SAPPORO のアプリケーション直下ですが、起動時引数の `--run-sh` や環境変数の `SAPPORO_RUN_SH` で上書きできます。
+`run.sh` の default の位置は、sapporo-service のアプリケーション直下ですが、起動時引数の `--run-sh` や環境変数の `SAPPORO_RUN_SH` で上書きできます。
 
 ### Other Startup Arguments
 
@@ -246,14 +245,14 @@ WES の機能を制限するための起動時引数・環境変数として、�
   - URL PREFIX を設定する。
     - `--url-prefix /foo/bar` とした場合、`GET /service-info` が `GET /foo/bar/service-info` となる
 
-`GET /service-info` の response の中身として、[`service-info.json`](https://github.com/ddbj/SAPPORO-service/blob/master/sapporo/service-info.json) で管理しています。
-`service-info.json` の default の位置は、SAPPORO のアプリケーション直下ですが、起動時引数の `--service-info` や環境変数の `SAPPORO_SERVICE_INFO` で上書きできます。
+`GET /service-info` の response の中身として、[`service-info.json`](https://github.com/ddbj/sapporo-service/blob/master/sapporo/service-info.json) で管理しています。
+`service-info.json` の default の位置は、sapporo-service のアプリケーション直下ですが、起動時引数の `--service-info` や環境変数の `SAPPORO_SERVICE_INFO` で上書きできます。
 
 ## Generate download link
 
-SAPPORO-service は run_dir 以下の file と directory を download link として提供します。
+sapporo-service は run_dir 以下の file と directory を download link として提供します。
 
-詳しくは、[SwaggerUI - SAPPORO WES](https://suecharo.github.io/sapporo-swagger-ui/dist/) の `/runs/{run_id}/data/path-to-file-or-dir` を確認してください。
+詳しくは、[SwaggerUI - sapporo WES](https://suecharo.github.io/sapporo-swagger-ui/dist/) の `/runs/{run_id}/data/path-to-file-or-dir` を確認してください。
 
 ## Development
 
@@ -287,4 +286,4 @@ $ pytest .
 ## License
 
 [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0).
-See the [LICENSE](https://github.com/ddbj/SAPPORO-service/blob/master/LICENSE).
+See the [LICENSE](https://github.com/ddbj/sapporo-service/blob/master/LICENSE).

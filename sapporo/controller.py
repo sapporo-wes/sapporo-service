@@ -141,7 +141,7 @@ def get_runs_id_status(run_id: str) -> Response:
 def get_runs_id_data(run_id: str, subpath: str = "") -> Response:
     """
     This provides a remote url to download a file or directory under the
-    `run_dir` of the Sapporo-service.
+    `run_dir` of the sapporo-service.
 
     - In the case of `path/to/file`, this returns the file.
     - In the case of `path/to/dir`, this returns the list of files under

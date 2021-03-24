@@ -8,7 +8,7 @@ on:
 
 jobs:
   upload_ghcr:
-    if: github.repository == 'ddbj/SAPPORO-service'
+    if: github.repository == 'ddbj/sapporo-service'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

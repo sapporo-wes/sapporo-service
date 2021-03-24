@@ -275,7 +275,7 @@ class RunRequest(TypedDict):
         to attach files, the `workflow_url` may be a relative path to one of
         the attachments.
     workflow_name:
-        The `workflow_name` is only used when SAPPORO is in the mode to
+        The `workflow_name` is only used when sapporo-service is in the mode to
         execute only registered workflows. In the original EWS, it is
         OPTIONAL. To see the registered workflows, use `GET /service-info`.
     workflow_attachment:

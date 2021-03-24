@@ -23,8 +23,8 @@
     "snakemake": "v5.32.0",
     "ep3 (experimental)": "v1.0.0"
   },
-  "auth_instructions_url": "https://github.com/ddbj/SAPPORO-service",
-  "contact_info_url": "https://github.com/ddbj/SAPPORO-service",
+  "auth_instructions_url": "https://github.com/ddbj/sapporo-service",
+  "contact_info_url": "https://github.com/ddbj/sapporo-service",
   "tags": {
     "wes_name": "sapporo"
   }

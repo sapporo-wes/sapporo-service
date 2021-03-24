@@ -13,7 +13,7 @@ SCRIPT_DIR = Path(__file__).parent.parent.parent.parent.joinpath(
 RESOURCE_DIR: Path = Path(__file__).parent.parent.parent.parent.joinpath(
     "resources/nextflow").resolve()
 REMOTE_URL: str = "https://raw.githubusercontent.com/ddbj/" +\
-    "SAPPORO-service/master/tests/resources/nextflow/"
+    "sapporo-service/master/tests/resources/nextflow/"
 
 RESOURCE: Dict[str, Path] = {
     "FILE_INPUT": RESOURCE_DIR.joinpath("file_input.nf"),

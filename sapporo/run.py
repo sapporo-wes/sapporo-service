@@ -30,7 +30,8 @@ def validate_and_update_run_request(run_id: str,
     if current_app.config["REGISTERED_ONLY_MODE"] and \
             "workflow_url" in run_request:
         abort(400,
-              "Currently, Sapporo is running with registered_only_mode. "
+              "Currently, sapporo-service is running with "
+              "registered_only_mode. "
               "Therefore, you need to specify a workflow using "
               "`workflow_name` field. A list of executable workflows can "
               "be retrieved requesting `GET /service-info`")
