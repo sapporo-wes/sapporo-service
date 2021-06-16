@@ -21,6 +21,7 @@ services:
       - app
     networks:
       - sapporo
+    restart: always
 
   app:
     image: ghcr.io/ddbj/sapporo-service:1.0.13
@@ -56,6 +57,7 @@ services:
       ]
     networks:
       - sapporo
+    restart: always
 
 networks:
   sapporo:
