@@ -50,8 +50,11 @@ services:
         "/app/uwsgi.yml",
         "--uwsgi-socket",
         ":1122",
-        "--workers",
-        "1", # Number of workers to process http requests
+        "--master",
+        "--processes",
+        "4",
+        "--threads",
+        "2",
       ]
     networks:
       - sapporo
