@@ -7,7 +7,7 @@ services:
       - 1122:1122
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./tmp/log/nginx:/var/log/nginx
+      - ./nginx/log:/var/log/nginx
     environment:
       - TZ="Asia/Tokyo"
     command: [
