@@ -12,7 +12,7 @@ def test_original_wes_mode(delete_env_vars: None) -> None:
     app.testing = True
     client = app.test_client()
     res = client.get("/service-info")
-    res_data: ServiceInfo = res.get_json()
+    res_data: ServiceInfo = res.get_json()  # type: ignore
 
     assert res.status_code == 200
     assert "auth_instructions_url" in res_data
@@ -46,7 +46,7 @@ def test_arguments(delete_env_vars: None) -> None:
     app.testing = True
     client = app.test_client()
     res = client.get("/service-info")
-    res_data: ServiceInfo = res.get_json()
+    res_data: ServiceInfo = res.get_json()  # type: ignore
 
     assert res.status_code == 200
     assert "auth_instructions_url" in res_data

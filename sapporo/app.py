@@ -11,7 +11,6 @@ from typing import Dict, List, Optional, Union
 
 from flask import Flask, Response, current_app, jsonify
 from jsonschema import validate
-from werkzeug.exceptions import HTTPException
 
 from sapporo.const import (DEFAULT_ACCESS_CONTROL_ALLOW_ORIGIN,
                            DEFAULT_EXECUTABLE_WORKFLOWS, DEFAULT_HOST,
@@ -227,7 +226,7 @@ def fix_errorhandler(app: Flask) -> Flask:
     @app.errorhandler(403)
     @app.errorhandler(404)
     @app.errorhandler(500)
-    def error_handler(error: HTTPException) -> Response:
+    def error_handler(error: Exception) -> Response:
         res_body: ErrorResponse = {
             "msg": error.description,  # type: ignore
             "status_code": error.code,  # type: ignore

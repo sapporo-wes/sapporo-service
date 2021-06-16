@@ -3,16 +3,16 @@
 from time import sleep
 
 from flask.testing import FlaskClient
-from flask.wrappers import Response
 from py._path.local import LocalPath
+from werkzeug.test import TestResponse
 
 from sapporo.app import create_app, handle_default_params, parse_args
 from sapporo.type import RunStatus
 
 
 def get_run_id_status(client: FlaskClient,  # type: ignore
-                      run_id: str) -> Response:
-    res: Response = client.get(f"/runs/{run_id}/status")
+                      run_id: str) -> TestResponse:
+    res: TestResponse = client.get(f"/runs/{run_id}/status")
 
     return res
 
@@ -32,7 +32,7 @@ def test_get_runs(delete_env_vars: None, tmpdir: LocalPath) -> None:
     sleep(3)
 
     res = get_run_id_status(client, run_id)
-    res_data: RunStatus = res.get_json()
+    res_data: RunStatus = res.get_json()  # type: ignore
 
     assert res.status_code == 200
     assert "run_id" in res_data

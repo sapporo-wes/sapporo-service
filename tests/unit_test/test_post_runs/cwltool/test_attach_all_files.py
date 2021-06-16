@@ -6,7 +6,7 @@ import subprocess
 from time import sleep
 
 from flask.testing import FlaskClient
-from flask.wrappers import Response
+from werkzeug.test import TestResponse
 
 from sapporo.type import RunId, RunRequest
 
@@ -32,11 +32,11 @@ def post_runs_attach_all_files_with_flask(
         (RESOURCE["TOOL_1"].open(mode="rb"), RESOURCE["TOOL_1"].name),
         (RESOURCE["TOOL_2"].open(mode="rb"), RESOURCE["TOOL_2"].name)
     ]
-    res: Response = client.post("/runs", data=data,
-                                content_type="multipart/form-data")
+    res: TestResponse = client.post("/runs", data=data,
+                                    content_type="multipart/form-data")
 
     assert res.status_code == 200
-    res_data: RunId = res.get_json()
+    res_data: RunId = res.get_json()  # type: ignore
 
     return res_data
 

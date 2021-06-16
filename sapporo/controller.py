@@ -182,7 +182,7 @@ def get_runs_id_data(run_id: str, subpath: str = "") -> Response:
                 else:
                     g.temp_files.append(Path(f"{f.name}.zip"))
                 return send_file(res, as_attachment=True,
-                                 attachment_filename=f"{path.name}.zip")
+                                 download_name=f"{path.name}.zip")
         else:
             response: Response = jsonify(path_hierarchy(path, path))
             response.status_code = GET_STATUS_CODE

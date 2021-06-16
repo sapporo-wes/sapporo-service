@@ -3,6 +3,7 @@
 from py._path.local import LocalPath
 
 from sapporo.app import create_app, handle_default_params, parse_args
+from sapporo.type import ErrorResponse
 
 
 def test_disable_get_runs(delete_env_vars: None, tmpdir: LocalPath) -> None:
@@ -14,7 +15,7 @@ def test_disable_get_runs(delete_env_vars: None, tmpdir: LocalPath) -> None:
     client = app.test_client()
     from .test_get_runs import get_runs
     get_runs_res = get_runs(client)
-    get_runs_data = get_runs_res.get_json()
+    get_runs_data: ErrorResponse = get_runs_res.get_json()  # type: ignore
 
     assert get_runs_res.status_code == 403
     assert "status_code" in get_runs_data

@@ -43,7 +43,6 @@ setup(
         "isort",
         "mypy",
         "pytest",
-        "types-requests",
         "typing-extensions",
     ],
     extras_require={
@@ -52,7 +51,6 @@ setup(
             "isort",
             "mypy",
             "pytest",
-            "types-requests",
             "typing-extensions",
         ],
     },

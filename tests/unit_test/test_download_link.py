@@ -4,6 +4,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from py._path.local import LocalPath
+from werkzeug.test import TestResponse
 
 from sapporo.app import create_app, handle_default_params, parse_args
 
@@ -27,18 +28,18 @@ def test_download_link(delete_env_vars: None, tmpdir: LocalPath) -> None:
     with run_dir.joinpath("test/test.txt").open(mode="w") as f:
         f.write("test")
 
-    res = client.get(f"/runs/{run_id}/data/test.txt")
-    assert res.data.decode("utf-8") == "test"
+    res_file: TestResponse = client.get(f"/runs/{run_id}/data/test.txt")
+    assert res_file.data.decode("utf-8") == "test"
 
-    res = client.get(f"/runs/{run_id}/data/test")
-    res_data = res.json
-    assert "test" == res_data["name"]
-    assert "." == res_data["path"]
-    assert "directory" == res_data["type"]
-    assert "children" in res_data
-    assert "test.txt" == res_data["children"][0]["name"]
-    assert "test.txt" == res_data["children"][0]["path"]
-    assert "file" == res_data["children"][0]["type"]
+    res_dir: TestResponse = client.get(f"/runs/{run_id}/data/test")
+    res_data = res_dir.get_json()
+    assert "test" == res_data["name"]  # type: ignore
+    assert "." == res_data["path"]  # type: ignore
+    assert "directory" == res_data["type"]  # type: ignore
+    assert "children" in res_data  # type: ignore
+    assert "test.txt" == res_data["children"][0]["name"]  # type: ignore
+    assert "test.txt" == res_data["children"][0]["path"]  # type: ignore
+    assert "file" == res_data["children"][0]["type"]  # type: ignore
 
     res = client.get(f"/runs/{run_id}/data/test?download=true")
     assert res.status_code == 200

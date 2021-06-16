@@ -6,7 +6,6 @@ import subprocess
 from time import sleep
 
 from flask.testing import FlaskClient
-from flask.wrappers import Response
 
 from sapporo.type import RunId, RunRequest
 
@@ -25,11 +24,11 @@ def post_runs_remote_workflow_with_flask(
         "workflow_engine_name": "cwltool",
         "workflow_url": RESOURCE_REMOTE["WF_REMOTE"]
     }
-    res: Response = client.post("/runs", data=data,
-                                content_type="multipart/form-data")
+    res = client.post("/runs", data=data,
+                      content_type="multipart/form-data")
 
     assert res.status_code == 200
-    res_data: RunId = res.get_json()
+    res_data: RunId = res.get_json()  # type: ignore
 
     return res_data
 

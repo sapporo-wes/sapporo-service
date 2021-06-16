@@ -2,11 +2,11 @@
 # coding: utf-8
 from time import sleep
 
-from flask.wrappers import Response
 from py._path.local import LocalPath
+from werkzeug.test import TestResponse
 
 from sapporo.app import create_app, handle_default_params, parse_args
-from sapporo.type import RunLog
+from sapporo.type import RunLog, RunStatus
 
 
 def test_disable_workflow_attachment(delete_env_vars: None,
@@ -29,15 +29,15 @@ def test_disable_workflow_attachment(delete_env_vars: None,
     while count <= 120:
         sleep(3)
         get_status_res = get_run_id_status(client, run_id)
-        get_status_data = get_status_res.get_json()
-        if get_status_data["state"] == "EXECUTOR_ERROR":
+        get_status_data: RunStatus = get_status_res.get_json()  # type: ignore
+        if get_status_data["state"] == "EXECUTOR_ERROR":  # type: ignore
             break
         count += 1
     assert str(get_status_data["state"]) == "EXECUTOR_ERROR"
 
     from .test_get_run_id import get_run_id
-    detail_res: Response = get_run_id(client, run_id)
-    detail_res_data: RunLog = detail_res.get_json()
+    detail_res: TestResponse = get_run_id(client, run_id)
+    detail_res_data: RunLog = detail_res.get_json()  # type: ignore
 
     assert detail_res.status_code == 200
     assert detail_res_data["run_log"]["exit_code"] == 1

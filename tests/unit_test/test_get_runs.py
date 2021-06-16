@@ -3,15 +3,15 @@
 from time import sleep
 
 from flask.testing import FlaskClient
-from flask.wrappers import Response
 from py._path.local import LocalPath
+from werkzeug.test import TestResponse
 
 from sapporo.app import create_app, handle_default_params, parse_args
 from sapporo.type import RunListResponse
 
 
-def get_runs(client: FlaskClient) -> Response:  # type: ignore
-    res: Response = client.get("/runs")
+def get_runs(client: FlaskClient) -> TestResponse:  # type: ignore
+    res: TestResponse = client.get("/runs")
 
     return res
 
@@ -31,7 +31,7 @@ def test_get_runs(delete_env_vars: None, tmpdir: LocalPath) -> None:
     sleep(3)
 
     res = get_runs(client)
-    res_data: RunListResponse = res.get_json()
+    res_data: RunListResponse = res.get_json()  # type: ignore
 
     assert res.status_code == 200
     assert "runs" in res_data
