@@ -32,13 +32,11 @@ services:
       - /tmp:/tmp
     environment:
       # Priority: [Command Line Argument] -> [Environment Variable] -> [Default Values]
-      # - SAPPORO_HOST=0.0.0.0 # Not available when using the uwsgi server.
-      # - SAPPORO_PORT=1122 # Not available when using the uwsgi server.
       - SAPPORO_DEBUG=False
       - SAPPORO_RUN_DIR=${PWD}/run
-      # - SAPPORO_GET_RUNS=False
+      - SAPPORO_GET_RUNS=False
+      - SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN=*
       # - SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS=False
-      # - SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN=*
       # - SAPPORO_URL_PREFIX=/
     expose:
       - 1122
