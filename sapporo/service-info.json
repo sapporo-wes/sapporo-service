@@ -21,7 +21,7 @@
     "toil (experimental)": "4.1.0",
     "cromwell": "55",
     "snakemake": "v5.32.0",
-    "ep3 (experimental)": "v1.0.0"
+    "ep3 (experimental)": "v1.7.0"
   },
   "auth_instructions_url": "https://github.com/ddbj/sapporo-service",
   "contact_info_url": "https://github.com/ddbj/sapporo-service",
