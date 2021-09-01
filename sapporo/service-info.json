@@ -16,11 +16,11 @@
   "supported_filesystem_protocols": ["http", "https", "file", "s3"],
   "default_workflow_engine_parameters": [],
   "workflow_engine_versions": {
-    "cwltool": "1.0.20191225192155",
-    "nextflow": "21.01.1-edge",
+    "cwltool": "3.1",
+    "nextflow": "21.04.3",
     "toil (experimental)": "4.1.0",
-    "cromwell": "55",
-    "snakemake": "v5.32.0",
+    "cromwell": "67",
+    "snakemake": "v6.7.0",
     "ep3 (experimental)": "v1.7.0"
   },
   "auth_instructions_url": "https://github.com/ddbj/sapporo-service",

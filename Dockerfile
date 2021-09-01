@@ -1,13 +1,13 @@
-# FROM python:3.8.8-buster
-FROM python@sha256:d90d328f14fc16e1b2be053ca18a01bb561c543730d5d781b58cc561faabac33 as builder
+# FROM python:3.8.12-buster
+FROM python@sha256:48ad1f497c43eb06c95f4177c705631c7dd600791987b421f9fed464757687e2 as builder
 
 WORKDIR /app
 COPY . .
 RUN python3 -m pip install --no-cache-dir --progress-bar off -U pip setuptools wheel && \
     python3 -m pip install --no-cache-dir --progress-bar off .
 
-# FROM python:3.8.8-slim-buster
-FROM python@sha256:1389669225e7fa05a9bac20d64551b6b6d84ee3200330d8d8de74c6d2314fdc7
+# FROM python:3.8.12-slim-buster
+FROM python@sha256:687563144f2de27d7820d6b04103ffeab8afb7245df5dfeedce67d2150b630bf
 
 LABEL org.opencontainers.image.authors="DDBJ(DNA Data Bank of Japan) <t.ohta@nig.ac.jp>"
 LABEL org.opencontainers.image.url="https://github.com/ddbj/sapporo-service"
@@ -17,11 +17,11 @@ LABEL org.opencontainers.image.description="sapporo-service is a standard implem
     Global Alliance for Genomics and Health (GA4GH) Workflow Execution Service (WES) API specification."
 LABEL org.opencontainers.image.licenses="Apache2.0"
 
-ADD https://download.docker.com/linux/static/stable/x86_64/docker-20.10.3.tgz /tmp/
-RUN tar xf /tmp/docker-20.10.3.tgz -C /tmp && \
+ADD https://download.docker.com/linux/static/stable/x86_64/docker-20.10.8.tgz /tmp/
+RUN tar xf /tmp/docker-20.10.8.tgz -C /tmp && \
     mv /tmp/docker/* /usr/bin/ && \
     rmdir /tmp/docker && \
-    rm -f /tmp/docker-20.10.3.tgz
+    rm -f /tmp/docker-20.10.8.tgz
 
 RUN apt update && \
     apt install -y --no-install-recommends \
