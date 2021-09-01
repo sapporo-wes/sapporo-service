@@ -45,7 +45,7 @@ def test_tutorial_wf_registered(setup_test_server: None) -> None:
     from .. import get_run_id
     data = get_run_id(run_id)
 
-    assert len(data["outputs"]) == 4
+    assert len(data["outputs"]) == 3
     assert "{}" == data["request"]["tags"]
     assert len(data["request"]["workflow_attachment"]) == 15
     assert "snakemake" == data["request"]["workflow_engine_name"]
