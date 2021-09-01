@@ -9,7 +9,7 @@ LONG_DESCRIPTION: Path = BASE_DIR.joinpath("README.md")
 
 setup(
     name="sapporo",
-    version="1.0.14",
+    version="1.0.15",
     description="sapporo-service is a standard implementation conforming to "
     "the Global Alliance for Genomics and Health (GA4GH) Workflow Execution "
     "Service (WES) API specification.",
