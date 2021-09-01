@@ -13,7 +13,7 @@ SCRIPT_DIR = Path(__file__).parent.parent.parent.parent.joinpath(
 RESOURCE_DIR: Path = Path(__file__).parent.parent.parent.parent.joinpath(
     "resources/cwltool").resolve()
 REMOTE_URL: str = "https://raw.githubusercontent.com/ddbj/" +\
-    "sapporo-service/master/tests/resources/cwltool/"
+    "sapporo-service/main/tests/resources/cwltool/"
 
 RESOURCE: Dict[str, Path] = {
     "FQ_1": RESOURCE_DIR.joinpath("ERR034597_1.small.fq.gz"),
