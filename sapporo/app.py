@@ -235,7 +235,7 @@ def fix_errorhandler(app: Flask) -> Flask:
         response.status_code = error.code  # type: ignore
         return response
 
-    @app.errorhandler(Exception)
+    @app.errorhandler(Exception)  # type: ignore
     def error_handler_exception(exception: Exception) -> Response:
         current_app.logger.error(exception.args[0])
         current_app.logger.debug(format_exc())
