@@ -12,7 +12,7 @@ inputs:
 
 steps:
   qc_1:
-    run: https://raw.githubusercontent.com/ddbj/sapporo-service/main/tests/resources/cwltool/fastqc.cwl
+    run: https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwltool/fastqc.cwl
     in:
       nthreads: nthreads
       fastq: fastq_1
@@ -21,7 +21,7 @@ steps:
       - stdout
       - stderr
   qc_2:
-    run: https://raw.githubusercontent.com/ddbj/sapporo-service/main/tests/resources/cwltool/fastqc.cwl
+    run: https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwltool/fastqc.cwl
     in:
       nthreads: nthreads
       fastq: fastq_2
@@ -30,7 +30,7 @@ steps:
       - stdout
       - stderr
   trimming:
-    run: https://raw.githubusercontent.com/ddbj/sapporo-service/main/tests/resources/cwltool/trimmomatic_pe.cwl
+    run: https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwltool/trimmomatic_pe.cwl
     in:
       nthreads: nthreads
       fastq_1: fastq_1

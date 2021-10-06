@@ -12,7 +12,7 @@ SCRIPT_DIR = Path(__file__).parent.parent.parent.parent.joinpath(
     "curl_example/post_runs/cwltool").resolve()
 RESOURCE_DIR: Path = Path(__file__).parent.parent.parent.parent.joinpath(
     "resources/cwltool").resolve()
-REMOTE_URL: str = "https://raw.githubusercontent.com/ddbj/" +\
+REMOTE_URL: str = "https://raw.githubusercontent.com/sapporo-wes/" +\
     "sapporo-service/main/tests/resources/cwltool/"
 
 RESOURCE: Dict[str, Path] = {

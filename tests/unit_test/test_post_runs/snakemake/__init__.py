@@ -12,7 +12,7 @@ SCRIPT_DIR = Path(__file__).parent.parent.parent.parent.joinpath(
     "curl_example/post_runs/snakemake").resolve()
 RESOURCE_DIR: Path = Path(__file__).parent.parent.parent.parent.joinpath(
     "resources/snakemake").resolve()
-REMOTE_URL: str = "https://raw.githubusercontent.com/ddbj/" +\
+REMOTE_URL: str = "https://raw.githubusercontent.com/sapporo-wes/" +\
     "sapporo-service/main/tests/resources/snakemake/"
 
 RESOURCE: Dict[str, Path] = {

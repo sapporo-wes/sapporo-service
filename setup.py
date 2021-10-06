@@ -17,7 +17,7 @@ setup(
     long_description_content_type="text/markdown",
     author="DDBJ(DNA Data Bank of Japan)",
     author_email="t.ohta@nig.ac.jp",
-    url="https://github.com/ddbj/sapporo-service",
+    url="https://github.com/sapporo-wes/sapporo-service",
     license="Apache2.0",
     python_requires=">=3.6",
     platforms="any",

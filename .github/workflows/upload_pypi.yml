@@ -8,7 +8,7 @@ on:
 
 jobs:
   upload_pypi:
-    if: github.repository == 'ddbj/sapporo-service'
+    if: github.repository == 'sapporo-wes/sapporo-service'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
