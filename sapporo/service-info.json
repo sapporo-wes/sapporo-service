@@ -16,7 +16,7 @@
   "supported_filesystem_protocols": ["http", "https", "file", "s3"],
   "default_workflow_engine_parameters": [],
   "workflow_engine_versions": {
-    "cwltool": "3.1",
+    "cwltool": "3.1.20211020155521",
     "nextflow": "21.04.3",
     "toil (experimental)": "4.1.0",
     "cromwell": "67",
