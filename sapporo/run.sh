@@ -77,6 +77,21 @@ function run_cromwell() {
 }
 
 function run_snakemake() {
+  local wf_basedir="$(dirname ${wf_url})"
+  # NOTE this are common conventions but not hard requirements for Sankemake Standardized Usage.
+  local wf_schemas_dir="${wf_basedir}/schemas"
+  local wf_scripts_dir="${wf_basedir}/scripts"
+  local wf_results_dir="${wf_basedir}/results"
+  (
+    # scripts need to be executable
+
+    [[ -d "${exe_dir}" ]] && cd "${exe_dir}"
+    if [[ -d "${wf_scripts_dir}" ]]; then
+      # directory is local (not an URL) and it exists
+      chmod a+x "${wf_scripts_dir}/"*
+    fi
+  )
+
   local container="snakemake/snakemake:v6.9.1"
   local cmd_txt="docker run -i --rm -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} snakemake ${wf_engine_params} --configfile ${wf_params} --snakefile ${wf_url} 1>${stdout} 2>${stderr}"
   echo ${cmd_txt} >${cmd}
