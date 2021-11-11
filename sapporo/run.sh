@@ -31,7 +31,7 @@ function run_wf() {
 }
 
 function run_cwltool() {
-  local container="quay.io/commonwl/cwltool:3.1.20211020155521"
+  local container="quay.io/commonwl/cwltool:3.1.20211107152837"
   local cmd_txt="${DOCKER_CMD} ${container} --outdir ${outputs_dir} ${wf_engine_params} ${wf_url} ${wf_params} 1>${stdout} 2>${stderr}"
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
@@ -59,7 +59,7 @@ function run_toil() {
 }
 
 function run_cromwell() {
-  local container="broadinstitute/cromwell:67"
+  local container="broadinstitute/cromwell:71"
   local wf_type=$(jq -r ".workflow_type" ${run_request})
   local wf_type_version=$(jq -r ".workflow_type_version" ${run_request})
   local cmd_txt="docker run -i --rm ${D_SOCK} -v ${run_dir}:${run_dir} -v /tmp:/tmp -v /usr/bin/docker:/usr/bin/docker -w=${exe_dir} ${container} run ${wf_engine_params} ${wf_url} -i ${wf_params} -m ${exe_dir}/metadata.json --type ${wf_type} --type-version ${wf_type_version} 1>${stdout} 2>${stderr}"
