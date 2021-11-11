@@ -20,7 +20,7 @@
     "nextflow": "21.04.3",
     "toil (experimental)": "4.1.0",
     "cromwell": "67",
-    "snakemake": "v6.7.0",
+    "snakemake": "v6.9.1",
     "ep3 (experimental)": "v1.7.0"
   },
   "auth_instructions_url": "https://github.com/sapporo-wes/sapporo-service",

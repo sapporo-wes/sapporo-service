@@ -77,13 +77,13 @@ function run_cromwell() {
 }
 
 function run_snakemake() {
-  local container="snakemake/snakemake:v6.7.0"
-  local cmd_txt="docker run -i --rm -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} snakemake ${wf_engine_params} --snakefile ${wf_url} 1>${stdout} 2>${stderr}"
+  local container="snakemake/snakemake:v6.9.1"
+  local cmd_txt="docker run -i --rm -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} snakemake ${wf_engine_params} --configfile ${wf_params} --snakefile ${wf_url} 1>${stdout} 2>${stderr}"
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
 
   docker run -i --rm -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} \
-    snakemake --snakefile ${wf_url} --summary 2>/dev/null | tail -n +2 | cut -f 1 |
+    snakemake --configfile ${wf_params} --snakefile ${wf_url} --summary 2>/dev/null | tail -n +2 | cut -f 1 |
     while read file_path; do
       dir_path=$(dirname ${file_path})
       mkdir -p "${outputs_dir}/${dir_path}"
