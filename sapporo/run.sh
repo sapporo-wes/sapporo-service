@@ -77,28 +77,35 @@ function run_cromwell() {
 }
 
 function run_snakemake() {
-  local wf_basedir="$(dirname ${wf_url})"
+  if [[ "${wf_url}" == http://* ]] || [[ "${wf_url}" == https://* ]]; then
+    # It is a remote file.
+    local wf_url_local="${exe_dir}/$(basename ${wf_url})"
+    curl -fsSL -o ${wf_url_local} ${wf_url} || executor_error
+  else
+    # It is a local file.
+    if [[ "${wf_url}" == /* ]]; then
+      local wf_url_local="${wf_url}"
+    else
+      local wf_url_local="${exe_dir}/${wf_url}"
+    fi
+  fi
+  local wf_basedir="$(dirname ${wf_url_local})"
   # NOTE this are common conventions but not hard requirements for Sankemake Standardized Usage.
   local wf_schemas_dir="${wf_basedir}/schemas"
   local wf_scripts_dir="${wf_basedir}/scripts"
   local wf_results_dir="${wf_basedir}/results"
-  (
-    # scripts need to be executable
-
-    [[ -d "${exe_dir}" ]] && cd "${exe_dir}"
-    if [[ -d "${wf_scripts_dir}" ]]; then
-      # directory is local (not an URL) and it exists
-      chmod a+x "${wf_scripts_dir}/"*
-    fi
-  )
+  if [[ -d "${wf_scripts_dir}" ]]; then
+    # directory is local (not an URL) and it exists
+    chmod a+x "${wf_scripts_dir}/"*
+  fi
 
   local container="snakemake/snakemake:v6.9.1"
-  local cmd_txt="docker run -i --rm -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} snakemake ${wf_engine_params} --configfile ${wf_params} --snakefile ${wf_url} 1>${stdout} 2>${stderr}"
+  local cmd_txt="docker run -i --rm -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} snakemake ${wf_engine_params} --configfile ${wf_params} --snakefile ${wf_url_local} 1>${stdout} 2>${stderr}"
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
 
   docker run -i --rm -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} \
-    snakemake --configfile ${wf_params} --snakefile ${wf_url} --summary 2>/dev/null | tail -n +2 | cut -f 1 |
+    snakemake --configfile ${wf_params} --snakefile ${wf_url_local} --summary 2>/dev/null | tail -n +2 | cut -f 1 |
     while read file_path; do
       dir_path=$(dirname ${file_path})
       mkdir -p "${outputs_dir}/${dir_path}"
