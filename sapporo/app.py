@@ -10,6 +10,7 @@ from traceback import format_exc
 from typing import Dict, List, Optional, Union
 
 from flask import Flask, Response, current_app, jsonify
+from flask_cors import CORS
 from jsonschema import validate
 
 from sapporo.const import (DEFAULT_ACCESS_CONTROL_ALLOW_ORIGIN,
@@ -253,24 +254,12 @@ def fix_errorhandler(app: Flask) -> Flask:
     return app
 
 
-def add_after_request(app: Flask) -> Flask:
-    @app.after_request
-    def after_request_func(response: Response) -> Response:
-        response.headers["Access-Control-Allow-Origin"] = \
-            os.environ.get("SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN",
-                           DEFAULT_ACCESS_CONTROL_ALLOW_ORIGIN)
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
-
-        return response
-
-    return app
-
-
 def create_app(params: Dict[str, Union[str, int, Path]]) -> Flask:
     app = Flask(__name__)
     app.register_blueprint(app_bp, url_prefix=params["url_prefix"])
     fix_errorhandler(app)
-    add_after_request(app)
+    CORS(app, resources={r"/*": {"origins": os.environ.get("SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN",  # noqa: E501
+                                                           DEFAULT_ACCESS_CONTROL_ALLOW_ORIGIN)}})  # noqa: E501
     app.config["RUN_DIR"] = params["run_dir"]
     app.config["GET_RUNS"] = params["get_runs"]
     app.config["WORKFLOW_ATTACHMENT"] = params["workflow_attachment"]
