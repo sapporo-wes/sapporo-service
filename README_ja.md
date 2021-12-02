@@ -103,7 +103,7 @@ sapporo-service には 2 つのモードがあります。
 
 #### 登録された workflow のみを実行するモード
 
-登録された workflow のみを実行するモードの API 仕様は、[SwaggerUI - sapporo WES](https://suecharo.github.io/sapporo-swagger-ui/dist/) を確認してください。
+登録された workflow のみを実行するモードの API 仕様は、[SwaggerHub - sapporo-wes](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.0) を確認してください。
 
 基本的には、標準 WES API を準拠しています。具体的な変更点としては、以下の通りです。
 

@@ -105,7 +105,7 @@ I personally think this part is standard WES API specification's mistake, so I a
 
 #### Execute only registered workflows mode
 
-As API specifications for the execute only registered workflows mode, please check [SwaggerUI - sapporo WES](https://suecharo.github.io/sapporo-swagger-ui/dist/).
+As API specifications for the execute only registered workflows mode, please check [SwaggerHub - sapporo-wes](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.0).
 
 Basically, it conforms to the standard WES API.
 The changes are as follows.

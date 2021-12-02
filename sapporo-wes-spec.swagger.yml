@@ -352,7 +352,7 @@ paths:
           type: string
       tags:
         - WorkflowExecutionService
-  /runs/{run_id}/data/path-to-file-or-dir:
+  /runs/{run_id}/data/{path-to-file-or-dir}:
     get:
       summary: Download the files and directories under the run directory of sapporo-service.
       description: >
@@ -397,6 +397,10 @@ paths:
             $ref: "#/definitions/ErrorResponse"
       parameters:
         - name: run_id
+          in: path
+          required: true
+          type: string
+        - name: path-to-file-or-dir
           in: path
           required: true
           type: string
