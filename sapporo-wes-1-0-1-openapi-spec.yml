@@ -755,9 +755,10 @@ components:
       required:
         - workflow_params
         - workflow_engine_name
+        - workflow_engine_parameters
       properties:
         workflow_params:
-          anyOf:
+          oneOf:
             - type: object
             - type: string
               format: application/json
@@ -786,7 +787,7 @@ components:
           description: >-
             Specify the name of the workflow engine to run a workflow.
         workflow_engine_parameters:
-          anyOf:
+          oneOf:
             - type: object
               additionalProperties:
                 type: string
@@ -808,7 +809,7 @@ components:
             Please request to `GetServiceInfo` to check registered workflows.
             If `workflow_name` is specified, `workflow_url`, `workflow_type` and `workflow_type_version` will be ignored.
         workflow_attachment:
-          anyOf:
+          oneOf:
             - type: array
               items:
                 type: string
