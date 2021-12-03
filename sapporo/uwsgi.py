@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 # coding: utf-8
-from pathlib import Path
-from typing import Dict, Union
-
 from flask import Flask
 
-from sapporo.app import create_app, handle_default_params, parse_args
+from sapporo.app import create_app, get_config
+from sapporo.config import Config
 
-params: Dict[str, Union[str, int, Path]] = \
-    handle_default_params(parse_args([]))
-app: Flask = create_app(params)
+config: Config = get_config()
+app: Flask = create_app(config)

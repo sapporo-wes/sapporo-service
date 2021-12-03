@@ -37,7 +37,7 @@ RUN_DIR_STRUCTURE: Dict[str, str] = {
     "stdout": "stdout.log",
     "stderr": "stderr.log",
     "pid": "run.pid",
-    "wf_engine_params": "workflow_engine_params.txt",
+    "wf_engine_params": "workflow_engine_params.json",
     "cmd": "cmd.txt",
     "task_logs": "task.log"
 }
