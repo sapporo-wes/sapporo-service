@@ -1,7 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Schema for sapporo service-info",
+  "title": "The schema for the sapporo-service's service-info",
   "type": "object",
+  "additionalProperties": false,
   "properties": {
     "workflow_type_versions": {
       "type": "object",

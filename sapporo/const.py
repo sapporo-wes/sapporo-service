@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # coding: utf-8
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Literal
 
 SRC_DIR: Path = Path(__file__).parent.resolve()
 
@@ -37,7 +37,26 @@ RUN_DIR_STRUCTURE: Dict[str, str] = {
     "stdout": "stdout.log",
     "stderr": "stderr.log",
     "pid": "run.pid",
-    "wf_engine_params": "workflow_engine_params.json",
+    "wf_engine_params": "workflow_engine_params.txt",
     "cmd": "cmd.txt",
     "task_logs": "task.log"
 }
+
+RUN_DIR_STRUCTURE_KEYS = Literal[
+    "sapporo_config",
+    "run_request",
+    "state",
+    "exe_dir",
+    "outputs_dir",
+    "outputs",
+    "wf_params",
+    "start_time",
+    "end_time",
+    "exit_code",
+    "stdout",
+    "stderr",
+    "pid",
+    "wf_engine_params",
+    "cmd",
+    "task_logs",
+]

@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 # coding: utf-8
 from sys import version_info
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 
 if version_info.minor < 8:
     from typing_extensions import TypedDict
 else:
     from typing import TypedDict
+
+
+WorkflowTypes = Optional[Literal["CWL", "WDL", "SMK", "NfL"]]
 
 
 class DefaultWorkflowEngineParameter(TypedDict):
@@ -29,16 +32,28 @@ class WorkflowTypeVersion(TypedDict):
     workflow_type_version: List[str]
 
 
+State = Literal[
+    "UNKNOWN",
+    "QUEUED",
+    "INITIALIZING",
+    "RUNNING",
+    "PAUSED",
+    "COMPLETE",
+    "EXECUTOR_ERROR",
+    "SYSTEM_ERROR",
+    "CANCELED",
+    "CANCELING"
+]
+
+
 class ServiceInfo(TypedDict):
-    workflow_type_versions: Dict[str, WorkflowTypeVersion]
+    workflow_type_versions: Dict[WorkflowTypes, WorkflowTypeVersion]
     supported_wes_versions: List[str]
-    default_wes_version: str
-    default_wes_parameters: List[DefaultWorkflowEngineParameter]
     supported_filesystem_protocols: List[str]
-    workflow_engine_versions: List[str]
-    default_workflow_engine_parameters: Union[List[DefaultWorkflowEngineParameter],
-                                              Dict[str, List[DefaultWorkflowEngineParameter]]]
-    system_state_count: Dict[str, int]
+    workflow_engine_versions: Dict[str, str]
+    default_workflow_engine_parameters: Dict[str,
+                                             List[DefaultWorkflowEngineParameter]]
+    system_state_count: Dict[State, int]
     auth_instructions_url: str
     contact_info_url: str
     tags: Dict[str, str]
@@ -60,24 +75,16 @@ class WorkflowInput(TypedDict):
     secondary_files: Optional[List[SecondaryFile]]
 
 
+class ParseRequest(TypedDict):
+    workflow_content: Optional[str]
+    workflow_location: Optional[str]
+    types_of_parsing: Optional[List[str]]
+
+
 class ParseResult(TypedDict):
-    workflow_type: str
-    workflow_type_version: str
-    inputs: List[WorkflowInput]
-
-
-State = Literal[
-    "UNKNOWN",
-    "QUEUED",
-    "INITIALIZING",
-    "RUNNING",
-    "PAUSED",
-    "COMPLETE",
-    "EXECUTOR_ERROR",
-    "SYSTEM_ERROR",
-    "CANCELED",
-    "CANCELING"
-]
+    workflow_type: Optional[WorkflowTypes]
+    workflow_type_version: Optional[str]
+    inputs: Optional[Union[List[WorkflowInput], str]]
 
 
 class RunStatus(TypedDict):
@@ -96,15 +103,15 @@ class AttachedFile(TypedDict):
 
 
 class RunRequest(TypedDict):
-    workflow_parames: Union[Dict[str, Any], str]
-    workflow_type: Optional[str]
+    workflow_params: Optional[str]
+    workflow_type: Optional[WorkflowTypes]
     workflow_type_version: Optional[str]
-    tags: Optional[Dict[str, str]]
+    tags: Optional[str]
     workflow_engine_name: str
-    workflow_engine_parameters: Union[Dict[str, Any], List[str]]
+    workflow_engine_parameters: Optional[str]
     workflow_url: Optional[str]
     workflow_name: Optional[str]
-    workflow_attachment: Optional[Union[List[str], List[AttachedFile]]]
+    workflow_attachment: Optional[str]
 
 
 class RunLog(TypedDict):

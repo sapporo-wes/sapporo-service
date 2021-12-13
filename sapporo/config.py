@@ -150,7 +150,7 @@ def get_config(args: Optional[TypedNamespace] = None) -> Config:
     }
 
 
-def validate_config(config: Config):
+def validate_config(config: Config) -> None:
     if not config["service_info"].exists():
         raise ValueError(f"{config['service_info']} does not exist.")
     with config["service_info"].open(mode="r", encoding="utf-8") as f_data, \

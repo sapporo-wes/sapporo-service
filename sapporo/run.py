@@ -1,179 +1,235 @@
 #!/usr/bin/env python3
 # coding: utf-8
+import collections
 import json
 import os
 import shlex
 import signal
-from pathlib import Path
+from pathlib import Path, PurePath
 from subprocess import Popen
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
+from unicodedata import normalize
 from urllib import parse
 
 import requests
-from flask import abort, current_app, request
-from requests import Response
-from werkzeug.datastructures import FileStorage
+from flask import current_app, request
+from werkzeug.utils import _filename_ascii_strip_re
 
-from sapporo.type import (DefaultWorkflowEngineParameter, Log, RunLog,
-                          RunRequest, State, Workflow)
-from sapporo.util import (dump_sapporo_config, generate_service_info,
-                          get_all_run_ids, get_path, get_run_dir, get_state,
-                          get_workflow, read_file, secure_filepath,
-                          validate_meta_charactors, validate_wf_type,
-                          write_file)
+from sapporo.const import RUN_DIR_STRUCTURE, RUN_DIR_STRUCTURE_KEYS
+from sapporo.model import RunRequest, State
+from sapporo.model.factory import generate_service_info
+from sapporo.model.sapporo_wes_1_0_1 import AttachedFile
 
 
-def validate_and_update_run_request(run_id: str,
-                                    run_request: RunRequest,
-                                    files: Dict[str, FileStorage]) \
-        -> RunRequest:
-    if current_app.config["REGISTERED_ONLY_MODE"] and \
-            "workflow_url" in run_request:
-        abort(400,
-              "Currently, sapporo-service is running with "
-              "registered_only_mode. "
-              "Therefore, you need to specify a workflow using "
-              "`workflow_name` field. A list of executable workflows can "
-              "be retrieved requesting `GET /service-info`")
+def resolve_run_dir_path(run_id: str) -> Path:
+    run_base_dir: Path = current_app.config["RUN_DIR"]
 
-    if "workflow_name" in run_request:
-        wf: Workflow = get_workflow(run_request["workflow_name"])
-        run_request["workflow_url"] = wf["workflow_url"]
-        run_request["workflow_type"] = wf["workflow_type"]
-        run_request["workflow_type_version"] = wf["workflow_type_version"]
-        if "workflow_attachment" not in run_request:
-            run_request["workflow_attachment"] = wf["workflow_attachment"]
-
-    for field in ["workflow_params", "workflow_type", "workflow_type_version",
-                  "workflow_url", "workflow_engine_name"]:
-        if field not in run_request:
-            abort(400,
-                  f"{field} not included in the form data of the request.")
-
-    if "workflow_attachment" in run_request:
-        if type(run_request["workflow_attachment"]) is str:  # type: ignore
-            run_request["workflow_attachment"] = \
-                json.loads(run_request["workflow_attachment"])  # type: ignore
-    else:
-        run_request["workflow_attachment"] = []
-    if "workflow_engine_parameters" not in run_request:
-        run_request["workflow_engine_parameters"] = "{}"
-    if "tags" not in run_request:
-        run_request["tags"] = "{}"
-
-    if "workflow_name" not in run_request:
-        tags = json.loads(run_request["tags"])
-        if "workflow_name" in tags:
-            run_request["workflow_name"] = tags["workflow_name"]
-        else:
-            run_request["workflow_name"] = \
-                parse.urlparse(run_request["workflow_url"]).path.split("/")[-1]
-
-    if current_app.config["WORKFLOW_ATTACHMENT"]:
-        workflow_attachment = \
-            files.getlist("workflow_attachment[]")  # type: ignore
-        exe_dir: Path = get_path(run_id, "exe_dir")
-        host = request.host_url.strip("/")
-        url_prefix = current_app.config['URL_PREFIX'].strip("/")
-        endpoint = f"{host}/{url_prefix}".strip("/")
-        base_remote_url = f"{endpoint}/runs/{run_id}/data/"
-        for f in workflow_attachment:
-            file_name: Path = secure_filepath(f.filename)
-            file_path: Path = exe_dir.joinpath(file_name).resolve()
-            run_request["workflow_attachment"].append({
-                "file_name": str(file_name),
-                "file_url": base_remote_url +
-                str(file_path.relative_to(exe_dir.parent))
-            })
-
-    validate_wf_type(run_request["workflow_type"],
-                     run_request["workflow_type_version"])
-
-    validate_meta_charactors("workflow_url", run_request["workflow_url"])
-    validate_meta_charactors("workflow_engine_name",
-                             run_request["workflow_engine_name"])
-
-    return run_request
+    return run_base_dir.joinpath(run_id[:2]).joinpath(run_id).resolve()
 
 
-def prepare_run_dir(run_id: str, run_request: RunRequest,  # type: ignore
-                    files: Dict[str, FileStorage]) -> RunRequest:
-    run_dir: Path = get_run_dir(run_id)
-    run_dir.mkdir(parents=True, exist_ok=True)
-    exe_dir: Path = get_path(run_id, "exe_dir")
-    exe_dir.mkdir(parents=True, exist_ok=True)
-    exe_dir.chmod(0o777)
-    outputs_dir: Path = get_path(run_id, "outputs_dir")
-    outputs_dir.mkdir(parents=True, exist_ok=True)
-    outputs_dir.chmod(0o777)
+def resolve_content_path(run_id: str, key: RUN_DIR_STRUCTURE_KEYS) -> Path:
+    run_dir: Path = resolve_run_dir_path(run_id)
 
-    write_file(run_id, "sapporo_config", dump_sapporo_config(run_id))
-    write_file(run_id, "run_request", json.dumps(run_request, indent=2))
-    write_file(run_id, "wf_params", run_request["workflow_params"])
-    write_file(run_id, "wf_engine_params",
-               generate_wf_engine_params_str(run_request))
-
-    write_workflow_attachment(run_id, run_request, files)
+    return run_dir.joinpath(RUN_DIR_STRUCTURE[key])
 
 
-def generate_wf_engine_params_str(run_request: RunRequest) -> str:
-    params: List[str] = []
-    default_wf_engine_params: List[DefaultWorkflowEngineParameter] = \
-        generate_service_info()["default_workflow_engine_parameters"]
-    for param in default_wf_engine_params:
-        params.append(str(param.get("name", "")))
-        params.append(str(param.get("default_value", "")))
-    wf_engine_params = json.loads(run_request["workflow_engine_parameters"])
-    for key, val in wf_engine_params.items():
-        params.append(str(key))
-        params.append(str(val))
-    joined_params: str = " ".join(params)
-
-    validate_meta_charactors("workflow_engine_params", joined_params)
-
-    return joined_params
+def read_state(run_id: str) -> State:
+    try:
+        with resolve_content_path(run_id, "state").open(mode="r") as f:
+            state: State = f.readline().strip()  # type: ignore
+            return state
+    except Exception:
+        return "UNKNOWN"
 
 
-def write_workflow_attachment(run_id: str, run_request: RunRequest,
-                              files: Dict[str, FileStorage]) -> None:
-    exe_dir: Path = get_path(run_id, "exe_dir")
+def count_system_state() -> Dict[State, int]:
+    run_ids: List[str] = glob_all_run_ids()
+    count: Dict[State, int] = dict(collections.Counter(
+        [read_state(run_id) for run_id in run_ids]))
 
+    return count
+
+
+def glob_all_run_ids() -> List[str]:
+    run_base_dir: Path = current_app.config["RUN_DIR"]
+    run_requests: List[Path] = \
+        list(run_base_dir.glob(f"**/{RUN_DIR_STRUCTURE['run_request']}"))
+    run_ids: List[str] = \
+        [run_request.parent.name for run_request in run_requests]
+
+    return run_ids
+
+
+def read_file(run_id: str, file_type: RUN_DIR_STRUCTURE_KEYS) -> Any:
+    if "dir" in file_type:
+        return None
+    file_path = resolve_content_path(run_id, file_type)
+    if file_path.exists() is False:
+        return None
+    with file_path.open(mode="r", encoding="utf-8") as f:
+        content = f.read().strip()
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            return content
+
+
+def secure_filepath(filepath: str) -> Path:
+    """
+    We know `werkzeug.secure_filename()`.
+    However, this function cannot represent the dir structure,
+
+    >>> secure_filename("../../../etc/passwd")
+    'etc_passwd'
+
+    Thus, it is incompatible with workflow engines such as snakemake.
+    Therefore, We implemented this by referring to `werkzeug.secure_filename()`
+
+    Please check `tests/unit_test/test_secure_filepath.py`
+
+    Reference of `PurePath.parts`:
+    >> > PurePath("/").parts
+    ('/',)
+    >> > PurePath("//").parts
+    ('//',)
+    >> > PurePath("/foo/bar").parts
+    ('/', 'foo', 'bar')
+    >> > PurePath("foo/bar").parts
+    ('foo', 'bar')
+    >> > PurePath("/foo/bar/").parts
+    ('/', 'foo', 'bar')
+    >> > PurePath("./foo/bar/").parts
+    ('foo', 'bar')
+    >> > PurePath("/../../foo/bar//").parts
+    ('/', '..', '..', 'foo', 'bar')
+    >> > PurePath("/../.../foo/bar//").parts
+    ('/', '..', '...', 'foo', 'bar')
+    """
+    ascii_filepath = normalize("NFKD", filepath).encode(
+        "ascii", "ignore").decode("ascii")
+    pure_path = PurePath(ascii_filepath)
+    nodes = []
+    for node in pure_path.parts:
+        # Change space to underbar
+        node = "_".join(node.split())
+        # Change [^A-Za-z0-9_.-] to empty.
+        node = str(_filename_ascii_strip_re.sub("", node))
+        node = node.strip("._")
+        if node not in ["", ".", ".."]:
+            nodes.append(node)
+
+    path = Path("/".join([str(node) for node in nodes]))
+
+    return path
+
+
+def write_file(run_id: str, key: RUN_DIR_STRUCTURE_KEYS, content: Any) -> None:
+    file = resolve_content_path(run_id, key)
+    file.parent.mkdir(parents=True, exist_ok=True)
+    if file.suffix == ".json" and isinstance(content, (dict, list)):
+        content = json.dumps(content, indent=2)
+    with file.open(mode="w", encoding="utf-8") as f:
+        f.write(str(content))
+
+
+def sapporo_endpoint() -> str:
     host = request.host_url.strip("/")
     url_prefix = current_app.config['URL_PREFIX'].strip("/")
     endpoint = f"{host}/{url_prefix}".strip("/")
-    for file in run_request["workflow_attachment"]:
-        if "file_name" in file and "file_url" in file:
-            file_name: str = file["file_name"]
-            file_url: str = file["file_url"]
-            parsed_url = parse.urlparse(file_url)
-            if parsed_url.scheme in ["http", "https"] and \
-                    not file_url.startswith(endpoint):
-                file_path = \
-                    exe_dir.joinpath(secure_filepath(file_name)).resolve()
-                file_path.parent.mkdir(parents=True, exist_ok=True)
-                response: Response = requests.get(file["file_url"])
-                with file_path.open(mode="wb") as f:
-                    f.write(response.content)
+
+    return endpoint
+
+
+def prepare_run_dir(run_id: str, run_request: RunRequest) -> None:
+    run_dir = resolve_run_dir_path(run_id)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    exe_dir = resolve_content_path(run_id, "exe_dir")
+    exe_dir.mkdir(parents=True, exist_ok=True)
+    exe_dir.chmod(0o777)
+    outputs_dir: Path = resolve_content_path(run_id, "outputs_dir")
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+    outputs_dir.chmod(0o777)
+
+    write_file(run_id, "sapporo_config", dump_sapporo_config())
+    write_file(run_id, "run_request", run_request)
+    write_file(run_id, "wf_params", run_request["workflow_params"])
+    write_file(run_id, "wf_engine_params",
+               convert_wf_engine_params_str(run_request))
+
+    write_workflow_attachment(run_id, run_request)
+
+
+def dump_sapporo_config() -> Dict[str, Any]:
+    return {
+        "get_runs": current_app.config["GET_RUNS"],
+        "workflow_attachment": current_app.config["WORKFLOW_ATTACHMENT"],
+        "registered_only_mode": current_app.config["REGISTERED_ONLY_MODE"],
+        "service_info": str(current_app.config["SERVICE_INFO"]),
+        "executable_workflows": str(current_app.config["EXECUTABLE_WORKFLOWS"]),
+        "run_sh": str(current_app.config["RUN_SH"]),
+        "url_prefix": current_app.config["URL_PREFIX"],
+        "sapporo_endpoint": sapporo_endpoint(),
+    }
+
+
+def convert_wf_engine_params_str(run_request: RunRequest) -> str:
+    wf_engine_params: Optional[str] = run_request["workflow_engine_parameters"]
+    params: List[str] = []
+    if wf_engine_params is None:
+        service_info = generate_service_info()
+        default_wf_engine_dict = service_info["default_workflow_engine_parameters"]
+        default_wf_engine_params = default_wf_engine_dict.get(
+            run_request["workflow_engine_name"], [])
+        for default_wf_engine_param in default_wf_engine_params:
+            params.append(default_wf_engine_param.get("name", ""))
+            params.append(default_wf_engine_param.get("default_value", ""))
+    else:
+        wf_engine_params_obj = json.loads(wf_engine_params)
+        if isinstance(wf_engine_params_obj, list):
+            params.extend(map(str, wf_engine_params_obj))
+        elif isinstance(wf_engine_params_obj, dict):
+            for key, value in wf_engine_params_obj.items():
+                params.append(str(key))
+                params.append(str(value))
+
+    return " ".join(params)
+
+
+def write_workflow_attachment(run_id: str, run_request: RunRequest) -> None:
+    exe_dir = resolve_content_path(run_id, "exe_dir")
+    endpoint = sapporo_endpoint()
+    wf_attachment_obj: List[AttachedFile] = json.loads(
+        run_request["workflow_attachment"] or "[]")
+    for file in wf_attachment_obj:
+        name = file["file_name"]
+        url = file["file_url"]
+        parsed_url = parse.urlparse(url)
+        if parsed_url.scheme in ["http", "https"] and not url.startswith(endpoint):
+            file_path = exe_dir.joinpath(secure_filepath(name)).resolve()
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            response = requests.get(url)
+            with file_path.open(mode="wb") as f:
+                f.write(response.content)
 
     if current_app.config["WORKFLOW_ATTACHMENT"]:
-        workflow_attachment = \
-            files.getlist("workflow_attachment[]")  # type: ignore
-        for file in workflow_attachment:
-            file_name = secure_filepath(file.filename)   # type: ignore
-            file_path = exe_dir.joinpath(file_name).resolve()
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            file.save(file_path)  # type: ignore
+        workflow_attachment = request.files.getlist("workflow_attachment[]")
+        for file_storage in workflow_attachment:
+            if file_storage.filename:
+                file_name = secure_filepath(file_storage.filename)
+                file_path = exe_dir.joinpath(file_name).resolve()
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                file_storage.save(file_path)
 
 
 def fork_run(run_id: str) -> None:
-    run_dir: Path = get_run_dir(run_id)
-    stdout: Path = get_path(run_id, "stdout")
-    stderr: Path = get_path(run_id, "stderr")
+    run_dir: Path = resolve_run_dir_path(run_id)
+    stdout: Path = resolve_content_path(run_id, "stdout")
+    stderr: Path = resolve_content_path(run_id, "stderr")
     cmd: str = f"/bin/bash {current_app.config['RUN_SH']} {run_dir}"
-    write_file(run_id, "state", State.QUEUED.name)
+    write_file(run_id, "state", "QUEUED")
     with stdout.open(mode="w", encoding="utf-8") as f_stdout, \
             stderr.open(mode="w", encoding="utf-8") as f_stderr:
-        process = Popen(shlex.split(cmd),
+        process = Popen(shlex.split(cmd),  # pylint: disable=consider-using-with
                         cwd=str(run_dir),
                         env=os.environ.copy(),
                         encoding="utf-8",
@@ -183,50 +239,38 @@ def fork_run(run_id: str) -> None:
         write_file(run_id, "pid", str(pid))
 
 
-def validate_run_id(run_id: str) -> None:
-    all_run_ids: List[str] = get_all_run_ids()
-    if run_id not in all_run_ids:
-        abort(400,
-              f"The run_id {run_id} you requested does not exist, "
-              "please check with GET /runs.")
-
-
-def get_run_log(run_id: str) -> RunLog:
-    run_log: RunLog = {
-        "run_id": run_id,
-        "request": read_file(run_id, "run_request"),
-        "state": get_state(run_id).name,  # type: ignore
-        "run_log": get_log(run_id),
-        "task_logs": read_file(run_id, "task_logs"),
-        "outputs": read_file(run_id, "outputs")
-    }
-
-    return run_log
-
-
-def get_log(run_id: str) -> Log:
-    exit_code: Optional[Union[str, int]] = read_file(run_id, "exit_code")
-    if exit_code is not None:
-        try:
-            exit_code = int(exit_code)
-        except Exception:
-            pass
-    log: Log = {
-        "name": read_file(run_id, "run_request")["workflow_name"],
-        "cmd": read_file(run_id, "cmd"),
-        "start_time": read_file(run_id, "start_time"),
-        "end_time": read_file(run_id, "end_time"),
-        "stdout": read_file(run_id, "stdout"),
-        "stderr": read_file(run_id, "stderr"),
-        "exit_code": exit_code  # type: ignore
-    }
-
-    return log
-
-
 def cancel_run(run_id: str) -> None:
-    state: State = get_state(run_id)
-    if state == State.RUNNING:
-        write_file(run_id, "state", State.CANCELING.name)
+    state: State = read_state(run_id)
+    if state == "RUNNING":
+        write_file(run_id, "state", "CANCELING")
         pid: int = int(read_file(run_id, "pid"))
         os.kill(pid, signal.SIGUSR1)
+
+
+def resolve_requested_file_path(run_id: str, subpath: str) -> Path:
+    if Path(subpath).name[0] == ".":
+        requested_path = secure_filepath(
+            str(Path(subpath).parent)).joinpath(Path(subpath).name)
+    else:
+        requested_path = secure_filepath(subpath)
+    run_dir_path = resolve_run_dir_path(run_id)
+
+    return run_dir_path.joinpath(requested_path)
+
+
+def path_hierarchy(original_path: Path, dir_path: Path) -> Any:
+    hierarchy: Dict[str, Any] = {
+        "type": "directory",
+        "name": dir_path.name,
+        "path": str(dir_path.relative_to(original_path)),
+    }
+
+    try:
+        hierarchy["children"] = [
+            path_hierarchy(original_path, dir_path.joinpath(child))
+            for child in dir_path.iterdir()
+        ]
+    except Exception:
+        hierarchy["type"] = "file"
+
+    return hierarchy

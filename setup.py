@@ -13,7 +13,7 @@ setup(
     description="sapporo-service is a standard implementation conforming to "
     "the Global Alliance for Genomics and Health (GA4GH) Workflow Execution "
     "Service (WES) API specification.",
-    long_description=LONG_DESCRIPTION.open(mode="r").read(),
+    long_description=LONG_DESCRIPTION.open(mode="r", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
     author="DDBJ(DNA Data Bank of Japan)",
     author_email="t.ohta@nig.ac.jp",
@@ -33,8 +33,9 @@ setup(
     },
     include_package_data=True,
     install_requires=[
-        "Flask",
+        "cwl-inputs-parser>=1.0.1",
         "flask-cors",
+        "flask",
         "jsonschema",
         "requests",
         "uwsgi",

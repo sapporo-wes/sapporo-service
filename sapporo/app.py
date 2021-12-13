@@ -5,6 +5,7 @@ from traceback import format_exc
 
 from flask import Flask, Response, current_app, jsonify
 from flask_cors import CORS
+from werkzeug.exceptions import HTTPException
 
 from sapporo.config import (Config, TypedNamespace, get_config, parse_args,
                             validate_config)
@@ -13,21 +14,17 @@ from sapporo.model import ErrorResponse
 
 
 def fix_errorhandler(app: Flask) -> Flask:
-    @app.errorhandler(400)
-    @app.errorhandler(401)
-    @app.errorhandler(403)
-    @app.errorhandler(404)
-    @app.errorhandler(500)
-    def error_handler(error: Exception) -> Response:
+    @app.errorhandler(HTTPException)
+    def error_handler(error: HTTPException) -> Response:
         res_body: ErrorResponse = {
-            "msg": error.description,
-            "status_code": error.code,
+            "msg": error.description or "",
+            "status_code": error.code or 500,
         }
         response: Response = jsonify(res_body)
-        response.status_code = error.code
+        response.status_code = error.code or 500
         return response
 
-    @app.errorhandler(Exception)
+    @app.errorhandler(Exception)  # type: ignore
     def error_handler_exception(exception: Exception) -> Response:
         current_app.logger.error(exception.args[0])
         current_app.logger.debug(format_exc())
