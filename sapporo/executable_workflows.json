@@ -45,7 +45,7 @@
   {
     "workflow_name": "nextflow_params_outdir",
     "workflow_url": "./params_outdir.nf",
-    "workflow_type": "Nextflow",
+    "workflow_type": "NFL",
     "workflow_type_version": "v1.0",
     "workflow_attachment": [
       {
@@ -57,7 +57,7 @@
   {
     "workflow_name": "nextflow_str_input",
     "workflow_url": "./str_input.nf",
-    "workflow_type": "Nextflow",
+    "workflow_type": "NFL",
     "workflow_type_version": "v1.0",
     "workflow_attachment": [
       {
@@ -69,7 +69,7 @@
   {
     "workflow_name": "snakemake_tutorial_wf",
     "workflow_url": "./Snakefile",
-    "workflow_type": "Snakemake",
+    "workflow_type": "SMK",
     "workflow_type_version": "v1.0",
     "workflow_attachment": [
       {

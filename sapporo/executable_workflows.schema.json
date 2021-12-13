@@ -1,9 +1,10 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Schema for sapporo executable workflows",
+  "title": "The schema for the sapporo's executable workflows",
   "type": "array",
   "items": {
     "type": "object",
+    "additionalProperties": false,
     "properties": {
       "workflow_name": {
         "type": "string"
@@ -21,6 +22,7 @@
         "type": "array",
         "items": {
           "type": "object",
+          "additionalProperties": false,
           "properties": {
             "file_name": {
               "type": "string"

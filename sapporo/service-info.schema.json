@@ -6,19 +6,17 @@
   "properties": {
     "workflow_type_versions": {
       "type": "object",
-      "properties": {
-        "additionalProperties": {
-          "type": "object",
-          "properties": {
-            "workflow_type_version": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "workflow_type_version": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
-          },
-          "required": ["workflow_type_version"]
-        }
+          }
+        },
+        "required": ["workflow_type_version"]
       }
     },
     "supported_filesystem_protocols": {
@@ -28,21 +26,25 @@
       }
     },
     "default_workflow_engine_parameters": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            },
+            "default_value": {
+              "type": ["number", "string", "boolean", "null"]
+            }
           },
-          "type": {
-            "type": "string"
-          },
-          "default_value": {
-            "type": "string"
-          }
-        },
-        "required": ["name", "type", "default_value"]
+          "required": ["name", "type", "default_value"]
+        }
       }
     },
     "workflow_engine_versions": {
@@ -59,8 +61,7 @@
     "tags": {
       "type": "object",
       "additionalProperties": true
-    },
-    "additionalProperties": true
+    }
   },
   "required": [
     "workflow_type_versions",
