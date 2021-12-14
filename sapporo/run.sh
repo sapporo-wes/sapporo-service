@@ -38,7 +38,7 @@ function run_cwltool() {
 }
 
 function run_nextflow() {
-  local container="nextflow/nextflow:21.04.3"
+  local container="nextflow/nextflow:21.10.5"
   local cmd_txt=""
   if [[ $(jq 'select(.outdir) != null' ${wf_params}) ]]; then
     # It has outdir as params.
@@ -59,7 +59,7 @@ function run_toil() {
 }
 
 function run_cromwell() {
-  local container="broadinstitute/cromwell:71"
+  local container="broadinstitute/cromwell:72"
   local wf_type=$(jq -r ".workflow_type" ${run_request})
   local wf_type_version=$(jq -r ".workflow_type_version" ${run_request})
   local cmd_txt="docker run -i --rm ${D_SOCK} -v ${run_dir}:${run_dir} -v /tmp:/tmp -v /usr/bin/docker:/usr/bin/docker -w=${exe_dir} ${container} run ${wf_engine_params} ${wf_url} -i ${wf_params} -m ${exe_dir}/metadata.json --type ${wf_type} --type-version ${wf_type_version} 1>${stdout} 2>${stderr}"
