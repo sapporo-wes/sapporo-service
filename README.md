@@ -10,9 +10,12 @@
 
 [Japanese Document](https://github.com/sapporo-wes/sapporo-service/blob/main/README_ja.md)
 
-sapporo-service is a standard implementation conforming to the [Global Alliance for Genomics and Health](https://www.ga4gh.org) (GA4GH) [Workflow Execution Service](https://github.com/ga4gh/workflow-execution-service-schemas) (WES) API specification.
+The sapporo-service is a standard implementation conforming to the [Global Alliance for Genomics and Health](https://www.ga4gh.org) (GA4GH) [Workflow Execution Service](https://github.com/ga4gh/workflow-execution-service-schemas) (WES) API specification.
 
-One of sapporo-service's features is the abstraction of workflow engines, which makes it easy to convert various workflow engines into WES.
+Also, we have extended the API specification.
+Please check [SwaggerHub - sapporo-wes](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.1-oas3).
+
+One of sapporo-service's features is the abstraction of workflow engines, making it easy to convert various workflow engines into WES.
 Currently, the following workflow engines have been confirmed to work.
 
 - [cwltool](https://github.com/common-workflow-language/cwltool)
@@ -22,12 +25,12 @@ Currently, the following workflow engines have been confirmed to work.
 - [snakemake](https://snakemake.readthedocs.io/en/stable/)
 - [ep3 (experimental)](https://github.com/tom-tan/ep3)
 
-Another feature of sapporo-service is the mode that can only execute workflows registered by the system administrator.
+Another feature of the sapporo-service is the mode that can only execute workflows registered by the system administrator.
 This feature is useful when building a WES in a shared HPC environment.
 
 ## Install and Run
 
-sapporo-service supports Python 3.6 or newer.
+The sapporo-service supports Python 3.6 or newer.
 
 ```bash
 $ pip3 install sapporo
@@ -36,8 +39,8 @@ $ sapporo
 
 ### Docker
 
-You can also launch sapporo with Docker.
-In order to use Docker-in-Docker (DinD), you have to mount `docker.sock`, `/tmp`, etc.
+You can also launch the sapporo-service with Docker.
+To use Docker-in-Docker (DinD), you must mount `docker.sock`, `/tmp`, etc.
 
 ```bash
 # Launch
@@ -87,98 +90,41 @@ optional arguments:
 
 ### Operating Mode
 
-There are two startup modes in sapporo-service.
+There are two startup modes in the sapporo-service.
 
 - Standard WES mode (Default)
 - Execute only registered workflows mode
 
-These are switched with the startup argument `-run-only-registered-workflows`.
+These are switched with the startup argument `--run-only-registered-workflows`.
 It can also be switched by giving `True` or `False` to the environment variable `SAPPORO_ONLY_REGISTERED_WORKFLOWS`.
 **Startup arguments take priority over environment variables.**
 
 #### Standard WES mode
 
-As API specifications, please check [GitHub - GA4GH WES](https://github.com/ga4gh/workflow-execution-service-schemas).
+As the API specifications, please check [SwaggerHub - sapporo-wes - RunWorkflow](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.1-oas3#/default/RunWorkflow).
 
-**When using sapporo-service, It is different from the standard WES API specification, you must specify `workflow_engine_name` in the request parameter of `POST /runs`.**
-I personally think this part is standard WES API specification's mistake, so I am sending a request to fix it.
+**When using the sapporo-service, It is different from the standard WES API specification; you must specify `workflow_engine_name` in the request parameter of `POST /runs`.**
+We think this part is a standard WES API specification mistake, so we request fixing it.
 
 #### Execute only registered workflows mode
 
-As API specifications for the execute only registered workflows mode, please check [SwaggerHub - sapporo-wes](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.0).
+As the API specifications for executing only registered workflows mode, please check [SwaggerHub - sapporo-wes](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.0).
 
-Basically, it conforms to the standard WES API.
+It conforms to the standard WES API.
 The changes are as follows.
 
-- Executable workflows are returned by `GET /service-info` as `executable_workflows`.
+- Executable workflows are returned by `GET /executable_workflows`.
 - Specify `workflow_name` instead of `workflow_url` in `POST /runs`.
 
-The following is an example of requesting `GET /service-info` in the execute only registered workflows mode.
+The executable workflows are managed at [`executable_workflows.json`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/executable_workflows.json).
+Also, the schema for this definition is [`executable_workflows.schema.json`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/executable_workflows.schema.json). The default location of these files is under the application directory of the sapporo-service. You can override them using the startup argument `--executable-workflows` or the environment variable `SAPPORO_EXECUTABLE_WORKFLOWS`.
 
-```json
-GET /service-info
-{
-  "auth_instructions_url": "https://github.com/sapporo-wes/sapporo-service",
-  "contact_info_url": "https://github.com/sapporo-wes/sapporo-service",
-  "default_workflow_engine_parameters": [],
-  "executable_workflows": [
-    {
-      "workflow_attachment": [],
-      "workflow_name": "CWL_trimming_and_qc_remote",
-      "workflow_type": "CWL",
-      "workflow_type_version": "v1.0",
-      "workflow_url": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/trimming_and_qc_remote.cwl"
-    },
-    {
-      "workflow_attachment": [
-        {
-          "file_name": "fastqc.cwl",
-          "file_url": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/fastqc.cwl"
-        },
-        {
-          "file_name": "trimming_pe.cwl",
-          "file_url": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/trimming_pe.cwl"
-        }
-      ],
-      "workflow_name": "CWL_trimming_and_qc_local",
-      "workflow_type": "CWL",
-      "workflow_type_version": "v1.0",
-      "workflow_url": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/trimming_and_qc.cwl"
-    }
-  ],
-  "supported_filesystem_protocols": ["http", "https", "file", "s3"],
-  "supported_wes_versions": ["sapporo-wes-1.0.0"],
-  "system_state_counts": {},
-  "tags": {
-    "debug": true,
-    "get_runs": true,
-    "registered_only_mode": true,
-    "wes_name": "sapporo",
-    "workflow_attachment": true
-  },
-  "workflow_engine_versions": {
-    "cromwell": "55",
-    "cwltool": "1.0.20191225192155",
-    "ep3": "v1.0.0",
-    "nextflow": "21.01.1-edge",
-    "snakemake": "v5.32.0",
-    "toil": "4.1.0"
-  },
-  "workflow_type_versions": {
-    "CWL": { "workflow_type_version": ["v1.0", "v1.1", "v1.1.0-dev1"] },
-    "Nextflow": { "workflow_type_version": ["v1.0"] },
-    "Snakemake": { "workflow_type_version": ["v1.0"] },
-    "WDL": { "workflow_type_version": ["1.0"] }
-  }
-}
-```
-
-The executable workflows are managed at [`executable_workflows.json`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/executable_workflows.json). Also, the schema for this definition is [`executable_workflows.schema.json`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/executable_workflows.schema.json). The default location of these files is under the application directory of sapporo-service. You can override them by using the startup argument `--executable-workflows` or the environment variable `SAPPORO_EXECUTABLE_WORKFLOWS`.
+For more information, see [SwaggerUI - sapporo-wes - GetExecutableWorkflows](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.1-oas3#/default/GetExecutableWorkflows).
 
 ### Run Dir
 
-sapporo-service manages the submitted workflows, workflow parameters, output files, etc.
-on the file system. You can override the location of run dir by using the startup argument `--run-dir` or the environment variable `SAPPORO_RUN_DIR`.
+The sapporo-service manages the submitted workflows, workflow parameters, output files, etc., on the file system.
+You can override the location of run dir by using the startup argument `--run-dir` or the environment variable `SAPPORO_RUN_DIR`.
 
 The run dir structure is as follows. You can initialize and delete each run by physical deletion with `rm`.
 
@@ -220,21 +166,21 @@ Please use these as references.
 ### `run.sh`
 
 We use [`run.sh`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/run.sh) to abstract the workflow engine.
-When `POST /runs` is called, sapporo-service fork the execution of `run.sh` after dumping the necessary files to run dir. Therefore, you can apply various workflow engines to WES by editing `run.sh`.
+When `POST /runs` is called, the sapporo-service fork the execution of `run.sh` after dumping the necessary files to run dir. Therefore, you can apply various workflow engines to WES by editing `run.sh`.
 
-The default position of `run.sh` is under the application directory of sapporo-service. You can override it by using the startup argument `--run-sh` or the environment variable `SAPPORO_RUN_SH`.
+The default position of `run.sh` is under the application directory of the sapporo-service. You can override it using the startup argument `--run-sh` or the environment variable `SAPPORO_RUN_SH`.
 
 ### Other Startup Arguments
 
 You can change the host and port used by the application by using the startup arguments (`--host` and `--port`) or the environment variables `SAPPORO_HOST` and `SAPPORO_PORT`.
 
-The following three startup arguments and environment variables are provided to limit the WES.
+The following three startup arguments and environment variables limit the WES.
 
 - `--disable-get-runs`
   - `SAPPORO_GET_RUNS`: `True` or `False`.
   - Disable `GET /runs`.
     - When using WES with an unspecified number of people, by knowing the run_id, you can see the run's contents and cancel the run of other people.
-    - Because run_id itself is automatically generated using `uuid4`, it is difficult to know it in brute force.
+      It is difficult to know it in brute force because run_id itself is automatically generated using `uuid4`.
 - `--disable-workflow-attachment`
   - `SAPPORO_WORKFLOW_ATTACHMENT`: `True` or `False`.
   - Disable `workflow_attachment` in `POST /runs`.
@@ -245,13 +191,19 @@ The following three startup arguments and environment variables are provided to 
   - Set the URL PREFIX.
     - If `--url-prefix /foo/bar` is set, `GET /service-info` becomes `GET /foo/bar/service-info`.
 
-The contents of the response of `GET /service-info` are managed in [`service-info.json`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/service-info.json). The default location of `service-info.json` is under the application directory of sapporo-service. You can override by using the startup argument `--service-info` or the environment variable `SAPPORO_SERVICE_INFO`.
+The contents of the response of `GET /service-info` are managed in [`service-info.json`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/service-info.json). The default location of `service-info.json` is under the application directory of the sapporo-service. You can override by using the startup argument `--service-info` or the environment variable `SAPPORO_SERVICE_INFO`.
 
 ## Generate download link
 
-sapporo-service provides the file and directory under run_dir as download link.
+The sapporo-service provides the file and directory under run_dir as a download link.
 
-For details, please check `/runs/{ run_id}/data/path-to-file-or-dir` in [SwaggerUI - sapporo WES](https://suecharo.github.io/sapporo-swagger-ui/dist/) for more information.
+For more information, see [SwaggerUI - sapporo-wes - GetData](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.1-oas3#/default/GetData).
+
+## Parse workflow
+
+The sapporo-service provides the feature to check the workflow document's type, version, and inputs.
+
+For more information, see [SwaggerUI - sapporo-wes - GetData](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.1-oas3#/default/GetData).
 
 ## Development
 
@@ -288,5 +240,4 @@ Please note that this repository is participating in a study into sustainability
 
 Data collected will include number of contributors, number of PRs, time taken to close/merge these PRs, and issues closed.
 
-For more information, please visit
-[our informational page](https://sustainable-open-science-and-software.github.io/) or download our [participant information sheet](https://sustainable-open-science-and-software.github.io/assets/PIS_sustainable_software.pdf).
+For more information, please visit [our informational page](https://sustainable-open-science-and-software.github.io/) or download our [participant information sheet](https://sustainable-open-science-and-software.github.io/assets/PIS_sustainable_software.pdf).

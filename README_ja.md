@@ -10,6 +10,9 @@
 
 sapporo-service は、[Global Alliance for Genomics and Health](https://www.ga4gh.org) (GA4GH) により制定された [Workflow Execution Service](https://github.com/ga4gh/workflow-execution-service-schemas) (WES) API 定義に準拠した標準実装です。
 
+また、API 定義として、sapporo 独自の拡張を行っています。
+API 仕様として、[SwaggerHub - sapporo-wes](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.1-oas3) を確認してください。
+
 sapporo-service の特徴として、workflow engine の抽象化を試みており、様々な workflow engine を容易に WES 化できます。
 現在、稼働が確認されている workflow engine は、下記のとおりです。
 
@@ -103,76 +106,18 @@ sapporo-service には 2 つのモードがあります。
 
 #### 登録された workflow のみを実行するモード
 
-登録された workflow のみを実行するモードの API 仕様は、[SwaggerHub - sapporo-wes](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.0) を確認してください。
+登録された workflow のみを実行するモードの API 仕様は、[SwaggerHub - sapporo-wes - RunWorkflow](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.1-oas3#/default/RunWorkflow) を確認してください。
 
 基本的には、標準 WES API を準拠しています。具体的な変更点としては、以下の通りです。
 
-- `GET /service-info` にて、`executable_workflows` として実行可能な workflow が返される。
+- `GET /executable_workflows` として実行可能な workflow が返される。
 - `POST /runs` にて、`workflow_url` の代わりに `workflow_name` を指定する。
-
-以下は、登録された workflow のみを実行するモードにおいて、`GET /service-info` を実行した例です。
-
-```json
-GET /service-info
-{
-  "auth_instructions_url": "https://github.com/sapporo-wes/sapporo-service",
-  "contact_info_url": "https://github.com/sapporo-wes/sapporo-service",
-  "default_workflow_engine_parameters": [],
-  "executable_workflows": [
-    {
-      "workflow_attachment": [],
-      "workflow_name": "CWL_trimming_and_qc_remote",
-      "workflow_type": "CWL",
-      "workflow_type_version": "v1.0",
-      "workflow_url": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/trimming_and_qc_remote.cwl"
-    },
-    {
-      "workflow_attachment": [
-        {
-          "file_name": "fastqc.cwl",
-          "file_url": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/fastqc.cwl"
-        },
-        {
-          "file_name": "trimming_pe.cwl",
-          "file_url": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/trimming_pe.cwl"
-        }
-      ],
-      "workflow_name": "CWL_trimming_and_qc_local",
-      "workflow_type": "CWL",
-      "workflow_type_version": "v1.0",
-      "workflow_url": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/trimming_and_qc.cwl"
-    }
-  ],
-  "supported_filesystem_protocols": ["http", "https", "file", "s3"],
-  "supported_wes_versions": ["sapporo-wes-1.0.0"],
-  "system_state_counts": {},
-  "tags": {
-    "debug": true,
-    "get_runs": true,
-    "registered_only_mode": true,
-    "wes_name": "sapporo",
-    "workflow_attachment": true
-  },
-  "workflow_engine_versions": {
-    "cromwell": "55",
-    "cwltool": "1.0.20191225192155",
-    "ep3": "v1.0.0",
-    "nextflow": "21.01.1-edge",
-    "snakemake": "v5.32.0",
-    "toil": "4.1.0"
-  },
-  "workflow_type_versions": {
-    "CWL": { "workflow_type_version": ["v1.0", "v1.1", "v1.1.0-dev1"] },
-    "Nextflow": { "workflow_type_version": ["v1.0"] },
-    "Snakemake": { "workflow_type_version": ["v1.0"] },
-    "WDL": { "workflow_type_version": ["1.0"] }
-  }
-}
-```
 
 実行できる workflow は [`executable_workflows.json`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/executable_workflows.json) にて管理されています。
 また、この定義の schema は [`executable_workflows.schema.json`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/executable_workflows.schema.json) です。
 これらの file の default の位置は、sapporo-service のアプリケーション直下ですが、起動時引数の `--executable-workflows` や環境変数の `SAPPORO_EXECUTABLE_WORKFLOWS` で上書きできます。
+
+詳しくは、[SwaggerUI - sapporo-wes - GetExecutableWorkflows](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.1-oas3#/default/GetExecutableWorkflows) を確認してください。
 
 ### Run Dir
 
@@ -252,7 +197,13 @@ WES の機能を制限するための起動時引数・環境変数として、�
 
 sapporo-service は run_dir 以下の file と directory を download link として提供します。
 
-詳しくは、[SwaggerUI - sapporo WES](https://suecharo.github.io/sapporo-swagger-ui/dist/) の `/runs/{run_id}/data/path-to-file-or-dir` を確認してください。
+詳しくは、[SwaggerUI - sapporo-wes - ParseWorkflow](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.1-oas3#/default/ParseWorkflow) を確認してください。
+
+## Parse workflow
+
+sapporo-service は、workflow document をパースして、workflow の type や version、inputs を調べる機能を提供します。
+
+詳しくは、[SwaggerUI - sapporo-wes - GetData](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.1-oas3#/default/GetData) を確認してください。
 
 ## Development
 
@@ -263,7 +214,7 @@ $ docker-compose -f docker-compose.dev.yml up -d --build
 $ docker-compose -f docker-compose.dev.yml exec app bash
 ```
 
-Linter として、[flake8](https://pypi.org/project/flake8/), [isort](https://github.com/timothycrosley/isort), [mypy](http://mypy-lang.org) を用いています。
+Linter として、[flake8](https://pypi.org/project/flake8/), [isort](https://github.com/timothycrosley/isort), [mypy](http://mypy-lang.org) を用いてます。
 
 それぞれの実行方法は以下のとおりです。
 
