@@ -21,7 +21,7 @@ setup(
     license="Apache2.0",
     python_requires=">=3.6",
     platforms="any",
-    packages=["sapporo"],
+    packages=["sapporo", "sapporo.model"],
     package_data={
         "sapporo": [
             "executable_workflows.json",
