@@ -25,7 +25,7 @@ def validate_post_parse_workflows() -> ParseRequest:
     parse_request: ParseRequest = {
         "workflow_content": request.form.get("workflow_content", None),
         "workflow_location": request.form.get("workflow_location", None),
-        "types_of_parsing": request.form.getlist("types_of_parsing[]") or ["workflow_type", "workflow_type_version"],
+        "types_of_parsing": request.form.getlist("types_of_parsing") or ["workflow_type", "workflow_type_version"],
     }
     if parse_request["types_of_parsing"] is not None:
         for _type in parse_request["types_of_parsing"]:

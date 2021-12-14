@@ -44,7 +44,7 @@ def get_executable_workflows() -> Response:
     return response
 
 
-@app_bp.route("/parse-workflows", methods=["POST"])
+@app_bp.route("/parse-workflow", methods=["POST"])
 def post_parse_workflows() -> Response:
     parse_request: ParseRequest = validate_post_parse_workflows()
     res_body = parse_workflows(parse_request)

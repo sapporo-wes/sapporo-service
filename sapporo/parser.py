@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # coding: utf-8
+# pylint: disable=no-else-return
 import re
 import tempfile
 from pathlib import Path
@@ -69,23 +70,25 @@ def inspect_wf_type(wf_content: str, wf_location: str) -> WF_TYPES:
         return wf_type
 
     wf_type = check_by_regexp(wf_content)
+    if wf_type != "unknown":
+        return wf_type
+
     return "unknown"
 
 
 def check_by_shebang(wf_content: str) -> WF_TYPES:
-    wf_type: WF_TYPES = "unknown"
     first_line = wf_content.split("\n")[0]
     if first_line.startswith("#!"):
         if "cwl" in first_line:
-            wf_type = "CWL"
+            return "CWL"
         elif "nextflow" in first_line:
-            wf_type = "NFL"
+            return "NFL"
         elif "snakemake" in first_line:
-            wf_type = "SMK"
+            return "SMK"
         elif "cromwell" in first_line:
-            wf_type = "WDL"
+            return "WDL"
 
-    return wf_type
+    return "unknown"
 
 
 def check_by_cwl_utils(wf_content: str, wf_location: str) -> Literal["CWL", "unknown"]:
@@ -102,16 +105,15 @@ PATTERN_NFL = re.compile(r"^process \w* \{$")
 
 
 def check_by_regexp(wf_content: str) -> WF_TYPES:
-    wf_type: WF_TYPES = "unknown"
     for line in wf_content.split("\n"):
         if PATTERN_WDL.match(line):
-            wf_type = "WDL"
+            return "WDL"
         elif PATTERN_SMK.match(line):
-            wf_type = "SMK"
+            return "SMK"
         elif PATTERN_NFL.match(line):
-            wf_type = "NFL"
+            return"NFL"
 
-    return wf_type
+    return "unknown"
 
 
 def inspect_wf_version(wf_content: str, wf_type: WF_TYPES) -> str:
