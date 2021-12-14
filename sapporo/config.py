@@ -5,7 +5,8 @@ import json
 import os
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import List, Optional, TypedDict, Union, cast
+from sys import version_info
+from typing import List, Optional, Union, cast
 
 from jsonschema import validate
 
@@ -15,6 +16,11 @@ from sapporo.const import (DEFAULT_ACCESS_CONTROL_ALLOW_ORIGIN,
                            DEFAULT_SERVICE_INFO, DEFAULT_URL_PREFIX,
                            EXECUTABLE_WORKFLOWS_SCHEMA, SERVICE_INFO_SCHEMA)
 from sapporo.model import Workflow
+
+if version_info.minor < 8:
+    from typing_extensions import TypedDict
+else:
+    from typing import TypedDict
 
 
 def str2bool(val: Union[str, bool]) -> bool:
