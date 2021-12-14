@@ -5,6 +5,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from py._path.local import LocalPath
+
 from sapporo.app import create_app
 from sapporo.config import get_config, parse_args
 

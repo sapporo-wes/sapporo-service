@@ -5,6 +5,7 @@ import json
 from typing import List
 
 from flask import current_app
+
 from sapporo.model import (Log, RunId, RunListResponse, RunLog, RunStatus,
                            ServiceInfo, Workflow)
 

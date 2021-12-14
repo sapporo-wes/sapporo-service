@@ -4,6 +4,7 @@
 from typing import cast
 
 from py._path.local import LocalPath
+
 from sapporo.app import create_app
 from sapporo.config import get_config, parse_args
 from sapporo.model import ErrorResponse

@@ -8,6 +8,7 @@ from time import sleep
 from typing import cast
 
 from flask.testing import FlaskClient
+
 from sapporo.model import RunId, RunRequest
 
 from . import RESOURCE, SCRIPT_DIR, TEST_HOST, TEST_PORT

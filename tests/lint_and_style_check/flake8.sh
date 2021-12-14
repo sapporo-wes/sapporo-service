@@ -13,5 +13,6 @@ BASE_DIR=$(
 cd ${BASE_DIR}
 
 flake8 ${BASE_DIR} \
+    --extend-ignore=E501 \
     --exclude "${BASE_DIR}/tests/resources" \
     --count --show-source --statistics

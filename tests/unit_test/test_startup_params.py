@@ -3,9 +3,10 @@
 # pylint: disable=unused-argument
 from pathlib import Path
 
-import sapporo
 from _pytest.monkeypatch import MonkeyPatch
 from flask import Flask
+
+import sapporo
 from sapporo.app import create_app
 from sapporo.config import get_config, parse_args
 from sapporo.const import DEFAULT_HOST, DEFAULT_PORT, DEFAULT_URL_PREFIX
