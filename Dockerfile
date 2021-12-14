@@ -12,7 +12,7 @@ FROM python@sha256:687563144f2de27d7820d6b04103ffeab8afb7245df5dfeedce67d2150b63
 LABEL org.opencontainers.image.authors="DDBJ(DNA Data Bank of Japan) <t.ohta@nig.ac.jp>"
 LABEL org.opencontainers.image.url="https://github.com/sapporo-wes/sapporo-service"
 LABEL org.opencontainers.image.source="https://github.com/sapporo-wes/sapporo-service/blob/main/Dockerfile"
-LABEL org.opencontainers.image.version="1.0.20"
+LABEL org.opencontainers.image.version="1.1.0"
 LABEL org.opencontainers.image.description="sapporo-service is a standard implementation conforming to the \
     Global Alliance for Genomics and Health (GA4GH) Workflow Execution Service (WES) API specification."
 LABEL org.opencontainers.image.licenses="Apache2.0"

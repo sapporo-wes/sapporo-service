@@ -1,7 +1,7 @@
 version: "3.5"
 services:
   app:
-    image: ghcr.io/sapporo-wes/sapporo-service:1.0.20
+    image: ghcr.io/sapporo-wes/sapporo-service:1.1.0
     container_name: sapporo-service
     volumes:
       # The ones below are mounted for cwltool and DinD.
@@ -22,15 +22,17 @@ services:
       - 0.0.0.0:1122:1122
     restart: on-failure
     working_dir: /app
-    command: [
+    command:
+      [
         "uwsgi",
         "--yaml",
         "/app/uwsgi.yml",
         "--http",
         "0.0.0.0:1122",
         "--workers",
-        "1", # Number of workers to process http requests
+        "1"
       ]
+      # Number of workers to process http requests
     networks:
       - sapporo
 
