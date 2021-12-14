@@ -5,7 +5,7 @@ import shlex
 import subprocess as sp
 from pathlib import Path
 
-from sapporo.type import RunLog, RunStatus
+from sapporo.model import RunLog, RunStatus
 
 from ..conftest import TEST_HOST, TEST_PORT
 

@@ -7,7 +7,7 @@ import shlex
 import signal
 from pathlib import Path, PurePath
 from subprocess import Popen
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 from unicodedata import normalize
 from urllib import parse
 
@@ -274,3 +274,31 @@ def path_hierarchy(original_path: Path, dir_path: Path) -> Any:
         hierarchy["type"] = "file"
 
     return hierarchy
+
+
+def dump_outputs_list(inputted_run_dir: str) -> None:
+    run_dir: Path = Path(inputted_run_dir).resolve()
+    run_id = run_dir.name
+    config_path = run_dir.joinpath(RUN_DIR_STRUCTURE["sapporo_config"])
+    with config_path.open(mode="r", encoding="utf-8") as f:
+        sapporo_config = json.load(f)
+    base_remote_url = \
+        f"{sapporo_config['sapporo_endpoint']}/runs/{run_id}/data/"
+    outdir_path: Path = run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"])
+    output_files: List[Path] = sorted(list(walk_all_files(outdir_path)))
+    outputs = []
+    for output_file in output_files:
+        outputs.append({
+            "file_name": output_file.name,
+            "file_url":
+                f"{base_remote_url}{str(output_file.relative_to(run_dir))}"
+        })
+    output_path = run_dir.joinpath(RUN_DIR_STRUCTURE["outputs"])
+    with output_path.open(mode="w", encoding="utf-8") as f:
+        f.write(json.dumps(outputs, indent=2))
+
+
+def walk_all_files(dir_path: Path) -> Iterable[Path]:
+    for root, _, files in os.walk(dir_path):
+        for file in files:
+            yield Path(root).joinpath(file)

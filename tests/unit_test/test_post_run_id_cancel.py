@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
 # coding: utf-8
+# pylint: disable=unused-argument, too-many-locals, import-outside-toplevel
 from time import sleep
+from typing import Any, cast
 
 from flask.testing import FlaskClient
 from py._path.local import LocalPath
-from werkzeug.test import TestResponse
+from sapporo.app import create_app
+from sapporo.config import get_config, parse_args
+from sapporo.model import RunId, RunLog, RunStatus
 
-from sapporo.app import create_app, handle_default_params, parse_args
-from sapporo.type import RunId, RunLog, RunStatus
 
-
-def post_run_id_cancel(client: FlaskClient,  # type: ignore
-                       run_id: str) -> TestResponse:
-    res: TestResponse = client.post(f"/runs/{run_id}/cancel")
+def post_run_id_cancel(client: FlaskClient, run_id: str) -> Any:
+    res = client.post(f"/runs/{run_id}/cancel")
 
     return res
 
 
 def test_post_run_id_cancel(delete_env_vars: None, tmpdir: LocalPath) -> None:
     args = parse_args(["--run-dir", str(tmpdir)])
-    params = handle_default_params(args)
-    app = create_app(params)
-    app.debug = params["debug"]  # type: ignore
+    config = get_config(args)
+    app = create_app(config)
+    app.debug = config["debug"]
     app.testing = True
     client = app.test_client()
 
@@ -31,8 +31,8 @@ def test_post_run_id_cancel(delete_env_vars: None, tmpdir: LocalPath) -> None:
     run_id: str = posts_res_data["run_id"]
     sleep(3)
 
-    posts_cancel_res: TestResponse = post_run_id_cancel(client, run_id)
-    posts_cancel_res_data: RunId = posts_cancel_res.get_json()  # type: ignore
+    posts_cancel_res = post_run_id_cancel(client, run_id)
+    posts_cancel_res_data = cast(RunId, posts_cancel_res.get_json())
 
     assert posts_cancel_res.status_code == 200
     assert "run_id" in posts_cancel_res_data
@@ -42,8 +42,8 @@ def test_post_run_id_cancel(delete_env_vars: None, tmpdir: LocalPath) -> None:
     count: int = 0
     while count <= 120:
         sleep(3)
-        get_status_res: TestResponse = get_run_id_status(client, run_id)
-        get_status_data: RunStatus = get_status_res.get_json()  # type: ignore
+        get_status_res = get_run_id_status(client, run_id)
+        get_status_data = cast(RunStatus, get_status_res.get_json())
         if str(get_status_data["state"]) in \
                 ["COMPLETE", "EXECUTOR_ERROR", "SYSTEM_ERROR", "CANCELED"]:
             break
@@ -51,8 +51,8 @@ def test_post_run_id_cancel(delete_env_vars: None, tmpdir: LocalPath) -> None:
     assert str(get_status_data["state"]) == "CANCELED"
 
     from .test_get_run_id import get_run_id
-    detail_res: TestResponse = get_run_id(client, run_id)
-    detail_res_data: RunLog = detail_res.get_json()  # type: ignore
+    detail_res = get_run_id(client, run_id)
+    detail_res_data = cast(RunLog, detail_res.get_json())
 
     assert detail_res.status_code == 200
     assert detail_res_data["run_log"]["exit_code"] == 138

@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 # coding: utf-8
+# pylint: disable=subprocess-run-check, unused-argument, import-outside-toplevel
 import json
 import shlex
 import subprocess
 from time import sleep
 
-from sapporo.type import RunId
+from sapporo.model import RunId
 
-from . import SCRIPT_DIR, TEST_HOST, TEST_PORT  # type: ignore
+from . import SCRIPT_DIR, TEST_HOST, TEST_PORT
 
 
 def post_runs_tutorial_wf() -> RunId:
@@ -46,18 +47,19 @@ def test_tutorial_wf(setup_test_server: None) -> None:
     data = get_run_id(run_id)
 
     assert len(data["outputs"]) == 3
-    assert "{}" == data["request"]["tags"]
-    assert len(data["request"]["workflow_attachment"]) == 15
-    assert "snakemake" == data["request"]["workflow_engine_name"]
-    assert "{\n  \"--cores\": \"1\",\n  \"--use-conda\": \"\"\n}\n" == \
-        data["request"]["workflow_engine_parameters"]
-    assert "Snakefile" == data["request"]["workflow_name"]
-    assert "Snakemake" == data["request"]["workflow_type"]
-    assert "v1.0" == data["request"]["workflow_type_version"]
-    assert "./Snakefile" == data["request"]["workflow_url"]
-    assert run_id == data["run_id"]
+    assert data["request"]["tags"] is None
+    wf_attachment = \
+        json.loads(data["request"]["workflow_attachment"])  # type: ignore
+    assert len(wf_attachment) == 15
+    assert data["request"]["workflow_engine_name"] == "snakemake"
+    assert data["request"]["workflow_engine_parameters"] == "{\n  \"--cores\": \"1\",\n  \"--use-conda\": \"\"\n}\n"
+    assert data["request"]["workflow_name"] is None
+    assert data["request"]["workflow_type"] == "SMK"
+    assert data["request"]["workflow_type_version"] == "1.0"
+    assert data["request"]["workflow_url"] == "./Snakefile"
+    assert data["run_id"] == run_id
     assert data["run_log"]["exit_code"] == 0
-    assert data["run_log"]["name"] == "Snakefile"
+    assert data["run_log"]["name"] is None
     assert "Finished job 0." in data["run_log"]["stderr"]
     assert str(data["state"]) == "COMPLETE"
     assert data["task_logs"] is None

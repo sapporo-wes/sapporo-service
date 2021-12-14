@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 # coding: utf-8
+# pylint: disable=subprocess-run-check, unused-argument, import-outside-toplevel
 import json
 import shlex
 import subprocess
 from time import sleep
+from typing import cast
 
-from sapporo.type import RunId
+from sapporo.model import RunId
 
-from . import SCRIPT_DIR, TEST_HOST, TEST_PORT  # type: ignore
+from . import SCRIPT_DIR, TEST_HOST, TEST_PORT
 
 
 def post_runs_bamstats_wdl() -> RunId:
@@ -45,18 +47,20 @@ def test_bamstats_wdl(setup_test_server: None) -> None:
     data = get_run_id(run_id)
 
     assert len(data["outputs"]) == 1
-    assert "{\n  \"workflow_name\": \"dockstore-tool-bamstats-wdl\"\n}\n" == \
-        data["request"]["tags"]
-    assert len(data["request"]["workflow_attachment"]) == 2
-    assert "cromwell" == data["request"]["workflow_engine_name"]
-    assert "{}" == data["request"]["workflow_engine_parameters"]
-    assert "dockstore-tool-bamstats-wdl" == data["request"]["workflow_name"]
-    assert "WDL" == data["request"]["workflow_type"]
-    assert "1.0" == data["request"]["workflow_type_version"]
-    assert "./Dockstore.wdl" == data["request"]["workflow_url"]
-    assert run_id == data["run_id"]
+    assert data["request"]["tags"] == "{\n  \"workflow_name\": \"dockstore-tool-bamstats-wdl\"\n}\n"
+    wf_attachment = \
+        json.loads(data["request"]["workflow_attachment"])  # type: ignore
+    assert len(wf_attachment) == 2
+    assert data["request"]["workflow_engine_name"] == "cromwell"
+    assert data["request"]["workflow_engine_parameters"] is None
+    assert data["request"]["workflow_name"] is None
+    assert data["request"]["workflow_type"] == "WDL"
+    assert data["request"]["workflow_type_version"] == "1.0"
+    assert data["request"]["workflow_url"] == "./Dockstore.wdl"
+    assert data["run_id"] == run_id
     assert data["run_log"]["exit_code"] == 0
-    assert data["run_log"]["name"] == "dockstore-tool-bamstats-wdl"
-    assert "Workflow bamstatsWorkflow complete." in data["run_log"]["stdout"]
+    assert data["run_log"]["name"] is None
+    stdout = cast(str, data["run_log"]["stdout"])
+    assert "Workflow bamstatsWorkflow complete." in stdout
     assert str(data["state"]) == "COMPLETE"
     assert data["task_logs"] is None

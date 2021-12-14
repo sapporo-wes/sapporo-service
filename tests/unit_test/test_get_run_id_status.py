@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
 # coding: utf-8
+# pylint: disable=unused-argument, import-outside-toplevel
 from time import sleep
+from typing import Any
 
 from flask.testing import FlaskClient
 from py._path.local import LocalPath
-from werkzeug.test import TestResponse
+from sapporo.app import create_app
+from sapporo.config import get_config, parse_args
+from sapporo.model import RunStatus
 
-from sapporo.app import create_app, handle_default_params, parse_args
-from sapporo.type import RunStatus
 
-
-def get_run_id_status(client: FlaskClient,  # type: ignore
-                      run_id: str) -> TestResponse:
-    res: TestResponse = client.get(f"/runs/{run_id}/status")
+def get_run_id_status(client: FlaskClient, run_id: str) -> Any:
+    res = client.get(f"/runs/{run_id}/status")
 
     return res
 
 
 def test_get_runs(delete_env_vars: None, tmpdir: LocalPath) -> None:
     args = parse_args(["--run-dir", str(tmpdir)])
-    params = handle_default_params(args)
-    app = create_app(params)
-    app.debug = params["debug"]  # type: ignore
+    config = get_config(args)
+    app = create_app(config)
+    app.debug = config["debug"]
     app.testing = True
     client = app.test_client()
 
@@ -32,7 +32,7 @@ def test_get_runs(delete_env_vars: None, tmpdir: LocalPath) -> None:
     sleep(3)
 
     res = get_run_id_status(client, run_id)
-    res_data: RunStatus = res.get_json()  # type: ignore
+    res_data: RunStatus = res.get_json()
 
     assert res.status_code == 200
     assert "run_id" in res_data

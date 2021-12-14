@@ -25,8 +25,8 @@ sample_10="${RESOURCE_DIR}/data/genome.fa.bwt"
 curl -fsSL -X POST \
   -H "Content-Type: multipart/form-data" \
   -F "workflow_params={}" \
-  -F "workflow_type=Snakemake" \
-  -F "workflow_type_version=v1.0" \
+  -F "workflow_type=SMK" \
+  -F "workflow_type_version=1.0" \
   -F "workflow_url=./Snakefile" \
   -F "workflow_engine_name=snakemake" \
   -F "workflow_engine_parameters=<${workflow_engine_parameters}" \

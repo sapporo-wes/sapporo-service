@@ -188,7 +188,7 @@ def validate_wf_docs_with_no_registered_wf(wf_url: Optional[str], wf_type: Optio
         except Exception:
             abort(400, "The `workflow_type` and `workflow_type_version` are required.")
 
-    return wf_type, wf_type_version
+    return wf_type, wf_type_version  # type: ignore
 
 
 def validate_wf_type(wf_type: str, wf_type_version: str) -> None:

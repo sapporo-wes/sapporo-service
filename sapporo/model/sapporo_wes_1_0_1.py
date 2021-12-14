@@ -9,7 +9,7 @@ else:
     from typing import TypedDict
 
 
-WorkflowTypes = Optional[Literal["CWL", "WDL", "SMK", "NfL"]]
+WorkflowTypes = Optional[Literal["CWL", "WDL", "SMK", "NFL"]]
 
 
 class DefaultWorkflowEngineParameter(TypedDict):
@@ -53,7 +53,7 @@ class ServiceInfo(TypedDict):
     workflow_engine_versions: Dict[str, str]
     default_workflow_engine_parameters: Dict[str,
                                              List[DefaultWorkflowEngineParameter]]
-    system_state_count: Dict[State, int]
+    system_state_counts: Dict[State, int]
     auth_instructions_url: str
     contact_info_url: str
     tags: Dict[str, str]

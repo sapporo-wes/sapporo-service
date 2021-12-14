@@ -15,7 +15,7 @@ def generate_service_info() -> ServiceInfo:
         service_info: ServiceInfo = json.load(f)
 
     service_info["supported_wes_versions"] = ["sapporo-wes-1.0.1"]
-    service_info["system_state_count"] = count_system_state()
+    service_info["system_state_counts"] = count_system_state()
     service_info["tags"]["get_runs"] = current_app.config["GET_RUNS"]
     service_info["tags"]["workflow_attachment"] = current_app.config["WORKFLOW_ATTACHMENT"]
     service_info["tags"]["registered_only_mode"] = current_app.config["REGISTERED_ONLY_MODE"]

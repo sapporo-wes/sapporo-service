@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # coding: utf-8
+# pylint: disable=redundant-u-string-prefix
 from pathlib import Path
 
-from sapporo.util import secure_filepath
+from sapporo.run import secure_filepath
 
 
 def test_contain_space() -> None:

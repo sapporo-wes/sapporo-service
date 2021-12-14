@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # coding: utf-8
+# pylint: disable=consider-using-with
 import os
 import shlex
 import shutil
@@ -23,7 +24,7 @@ TEST_PORT = "8888"
 
 @pytest.fixture()
 def delete_env_vars(monkeypatch: MonkeyPatch) -> None:
-    for key in os.environ.keys():
+    for key in os.environ:
         if key.startswith("SAPPORO"):
             monkeypatch.delenv(key)
 

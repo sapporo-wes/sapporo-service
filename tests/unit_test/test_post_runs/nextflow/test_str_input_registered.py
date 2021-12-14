@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 # coding: utf-8
+# pylint: disable=subprocess-run-check, unused-argument, import-outside-toplevel
 import json
 import shlex
 import subprocess
 from time import sleep
 
-from sapporo.type import RunId
+from sapporo.model import RunId
 
-from . import SCRIPT_DIR, TEST_HOST, TEST_PORT  # type: ignore
+from . import SCRIPT_DIR, TEST_HOST, TEST_PORT
 
 
 def post_runs_str_input_registered() -> RunId:
@@ -43,18 +44,18 @@ def test_str_input_registered(setup_test_server: None) -> None:
     from .. import get_run_id
     data = get_run_id(run_id)
 
-    assert data["request"]["tags"] == "{}"
+    assert data["request"]["tags"] is None
     assert data["request"]["workflow_engine_name"] == "nextflow"
-    assert data["request"]["workflow_engine_parameters"] == "{}"
+    assert data["request"]["workflow_engine_parameters"] is None
     assert data["request"]["workflow_name"] == "nextflow_str_input"
     assert data["request"]["workflow_params"] == \
         "{\n  \"str\": \"sapporo-nextflow-str-input\"\n}\n"
-    assert data["request"]["workflow_type"] == "Nextflow"
-    assert data["request"]["workflow_type_version"] == "v1.0"
+    assert data["request"]["workflow_type"] == "NFL"
+    assert data["request"]["workflow_type_version"] == "1.0"
     assert data["request"]["workflow_url"] == "./str_input.nf"
     assert data["run_id"] == run_id
     assert data["run_log"]["exit_code"] == 0
     assert data["run_log"]["name"] == "nextflow_str_input"
-    assert "[100%] 1 of 1" in data["run_log"]["stdout"]
+    assert "[100%] 1 of 1" in data["run_log"]["stdout"]  # type: ignore
     assert str(data["state"]) == "COMPLETE"
     assert data["task_logs"] is None

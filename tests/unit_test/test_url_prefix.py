@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 # coding: utf-8
-from sapporo.app import create_app, handle_default_params, parse_args
+# pylint: disable=unused-argument
+from sapporo.app import create_app
+from sapporo.config import get_config, parse_args
 
 
 def test_url_prefix(delete_env_vars: None) -> None:
     args = parse_args(["--url-prefix", "/test"])
-    params = handle_default_params(args)
-    app = create_app(params)
-    app.debug = params["debug"]  # type: ignore
+    config = get_config(args)
+    app = create_app(config)
+    app.debug = config["debug"]
     app.testing = True
     client = app.test_client()
     res = client.get("/test/service-info")

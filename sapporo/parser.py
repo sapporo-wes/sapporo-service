@@ -25,7 +25,8 @@ def parse_workflows(parse_request: ParseRequest) -> ParseResult:
     else:
         wf_content = parse_request["workflow_content"]
     wf_location = parse_request["workflow_location"] or "."
-    types_of_parsing = parse_request["types_of_parsing"] or ["workflow_type", "workflow_type_version"]
+    types_of_parsing = parse_request["types_of_parsing"] or [
+        "workflow_type", "workflow_type_version"]
 
     wf_type = inspect_wf_type(wf_content, wf_location)
     wf_version = inspect_wf_version(wf_content, wf_type)
@@ -37,17 +38,19 @@ def parse_workflows(parse_request: ParseRequest) -> ParseResult:
         else:
             if "inputs" in types_of_parsing:
                 try:
-                    inputs = parse_cwl_inputs(wf_content, wf_location)  # type: ignore
+                    inputs = parse_cwl_inputs(
+                        wf_content, wf_location)  # type: ignore
                 except Exception:
                     inputs = cwl_make_template(wf_content, wf_location)
     else:
         if "inputs" in types_of_parsing or "make_template" in types_of_parsing:
-            abort(400, f"Workflow type: `{wf_type}` is not supported parsing inputs or make template")
+            abort(
+                400, f"Workflow type: `{wf_type}` is not supported parsing inputs or make template")
 
     parse_result: ParseResult = {
-        "workflow_type": wf_type,
+        "workflow_type": wf_type,  # type: ignore
         "workflow_type_version": wf_version,
-        "inputs": inputs,  # type: ignore
+        "inputs": inputs,
     }
 
     return parse_result
@@ -170,7 +173,7 @@ def parse_cwl_inputs(wf_content: str, wf_location: str) -> List[Dict[str, Any]]:
     if is_remote_url(wf_location):
         inputs = wf_location_to_inputs(wf_location)
     else:
-        wf_obj = load_document_by_string(wf_content, uri=Path.cwd().as_uri())  # noqa: E501
+        wf_obj = load_document_by_string(wf_content, uri=Path.cwd().as_uri())
         inputs = Inputs(wf_obj)
 
     return inputs.as_dict()  # type: ignore
