@@ -47,4 +47,8 @@ git merge main
 git push origin develop
 
 echo "Done."
+
+echo "Summary of changes."
+git log --oneline --pretty=tformat:"%h %s" 1.1.0..1.1.1
+
 exit 0
