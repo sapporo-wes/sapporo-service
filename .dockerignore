@@ -6,8 +6,6 @@
 !README_ja.md
 !README.md
 !sapporo
-!sapporo-wes-spec.swagger.yml
+!sapporo-wes-*
 !setup.py
 !uwsgi.yml
-
-**/__pycache__
