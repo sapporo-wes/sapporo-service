@@ -1,20 +1,44 @@
 name: mypy
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "sapporo/**"
+      - "tests/**"
+      - "setup.py"
+  workflow_dispatch: {}
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 jobs:
   mypy:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+
       - uses: actions/setup-python@v2
         with:
           python-version: 3.8
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
+
       - name: Install dependencies
         run: |
           python3 -m pip install --no-cache-dir --progress-bar off -U pip setuptools wheel
           python3 -m pip install --no-cache-dir --progress-bar off -U .[tests]
+
       - name: Check with mypy
         run: |
           bash ./tests/lint_and_style_check/mypy.sh
