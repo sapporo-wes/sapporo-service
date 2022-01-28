@@ -17,9 +17,9 @@ curl -fsSL -X POST \
   -F "workflow_type_version=v1.0" \
   -F "workflow_url=./trimming_and_qc.cwl" \
   -F "workflow_engine_name=cwltool" \
-  -F "workflow_attachment[]=@${fastq_1}" \
-  -F "workflow_attachment[]=@${fastq_2}" \
-  -F "workflow_attachment[]=@${workflow}" \
-  -F "workflow_attachment[]=@${tool_1}" \
-  -F "workflow_attachment[]=@${tool_2}" \
+  -F "workflow_attachment=@${fastq_1}" \
+  -F "workflow_attachment=@${fastq_2}" \
+  -F "workflow_attachment=@${workflow}" \
+  -F "workflow_attachment=@${tool_1}" \
+  -F "workflow_attachment=@${tool_2}" \
   http://${SAPPORO_HOST}:${SAPPORO_PORT}/runs

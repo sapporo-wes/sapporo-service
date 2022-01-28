@@ -15,5 +15,5 @@ curl -fsSL -X POST \
   -F "workflow_url=./str_input.nf" \
   -F "workflow_engine_name=nextflow" \
   -F "workflow_engine_parameters=<${workflow_engine_parameters}" \
-  -F "workflow_attachment[]=@${workflow}" \
+  -F "workflow_attachment=@${workflow}" \
   http://${SAPPORO_HOST}:${SAPPORO_PORT}/runs

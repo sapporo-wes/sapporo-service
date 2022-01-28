@@ -25,7 +25,7 @@ def post_runs_attach_all_files_with_flask(client: FlaskClient) -> RunId:
         "workflow_url": RESOURCE["WF"].name,
         "workflow_engine_name": "cwltool",
     }
-    data["workflow_attachment[]"] = [  # type: ignore
+    data["workflow_attachment"] = [  # type: ignore
         (RESOURCE["FQ_1"].open(mode="rb"), RESOURCE["FQ_1"].name),
         (RESOURCE["FQ_2"].open(mode="rb"), RESOURCE["FQ_2"].name),
         (RESOURCE["WF"].open(mode="rb"), RESOURCE["WF"].name),

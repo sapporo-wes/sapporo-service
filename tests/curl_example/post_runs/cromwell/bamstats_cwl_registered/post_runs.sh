@@ -14,5 +14,5 @@ curl -fsSL -X POST \
   -F "workflow_params=<${workflow_params}" \
   -F "workflow_engine_name=cromwell" \
   -F "tags=<${tags}" \
-  -F "workflow_attachment[]=@${data}" \
+  -F "workflow_attachment=@${data}" \
   http://${SAPPORO_HOST}:${SAPPORO_PORT}/runs

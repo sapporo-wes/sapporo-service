@@ -54,7 +54,7 @@ def validate_run_request(run_id: str) -> RunRequest:
     wf_url = request.form.get("workflow_url", None)
     wf_name = request.form.get("workflow_name", None)
     wf_attachment_str = request.form.get("workflow_attachment", None)
-    wf_attachment_files = request.files.getlist("workflow_attachment[]")
+    wf_attachment_files = request.files.getlist("workflow_attachment")
 
     wf_engine_name = validate_wf_engine_name(wf_engine_name)
     validate_registered_only_mode(wf_url)

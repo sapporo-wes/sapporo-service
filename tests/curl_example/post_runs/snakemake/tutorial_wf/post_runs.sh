@@ -30,19 +30,19 @@ curl -fsSL -X POST \
   -F "workflow_url=./Snakefile" \
   -F "workflow_engine_name=snakemake" \
   -F "workflow_engine_parameters=<${workflow_engine_parameters}" \
-  -F "workflow_attachment[]=@${workflow};filename=Snakefile" \
-  -F "workflow_attachment[]=@${script_1};filename=scripts/plot-quals.py" \
-  -F "workflow_attachment[]=@${env_1};filename=envs/stats.yaml" \
-  -F "workflow_attachment[]=@${env_2};filename=envs/calling.yaml" \
-  -F "workflow_attachment[]=@${env_3};filename=envs/mapping.yaml" \
-  -F "workflow_attachment[]=@${sample_1};filename=data/samples/A.fastq" \
-  -F "workflow_attachment[]=@${sample_2};filename=data/samples/B.fastq" \
-  -F "workflow_attachment[]=@${sample_3};filename=data/samples/C.fastq" \
-  -F "workflow_attachment[]=@${sample_4};filename=data/genome.fa" \
-  -F "workflow_attachment[]=@${sample_5};filename=data/genome.fa.amb" \
-  -F "workflow_attachment[]=@${sample_6};filename=data/genome.fa.fai" \
-  -F "workflow_attachment[]=@${sample_7};filename=data/genome.fa.sa" \
-  -F "workflow_attachment[]=@${sample_8};filename=data/genome.fa.pac" \
-  -F "workflow_attachment[]=@${sample_9};filename=data/genome.fa.ann" \
-  -F "workflow_attachment[]=@${sample_10};filename=data/genome.fa.bwt" \
+  -F "workflow_attachment=@${workflow};filename=Snakefile" \
+  -F "workflow_attachment=@${script_1};filename=scripts/plot-quals.py" \
+  -F "workflow_attachment=@${env_1};filename=envs/stats.yaml" \
+  -F "workflow_attachment=@${env_2};filename=envs/calling.yaml" \
+  -F "workflow_attachment=@${env_3};filename=envs/mapping.yaml" \
+  -F "workflow_attachment=@${sample_1};filename=data/samples/A.fastq" \
+  -F "workflow_attachment=@${sample_2};filename=data/samples/B.fastq" \
+  -F "workflow_attachment=@${sample_3};filename=data/samples/C.fastq" \
+  -F "workflow_attachment=@${sample_4};filename=data/genome.fa" \
+  -F "workflow_attachment=@${sample_5};filename=data/genome.fa.amb" \
+  -F "workflow_attachment=@${sample_6};filename=data/genome.fa.fai" \
+  -F "workflow_attachment=@${sample_7};filename=data/genome.fa.sa" \
+  -F "workflow_attachment=@${sample_8};filename=data/genome.fa.pac" \
+  -F "workflow_attachment=@${sample_9};filename=data/genome.fa.ann" \
+  -F "workflow_attachment=@${sample_10};filename=data/genome.fa.bwt" \
   http://${SAPPORO_HOST}:${SAPPORO_PORT}/runs

@@ -13,5 +13,5 @@ curl -fsSL -X POST \
   -F "workflow_type_version=1.0" \
   -F "workflow_url=./params_outdir.nf" \
   -F "workflow_engine_name=nextflow" \
-  -F "workflow_attachment[]=@${workflow}" \
+  -F "workflow_attachment=@${workflow}" \
   http://${SAPPORO_HOST}:${SAPPORO_PORT}/runs

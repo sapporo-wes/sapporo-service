@@ -212,7 +212,7 @@ def write_workflow_attachment(run_id: str, run_request: RunRequest) -> None:
                 f.write(response.content)
 
     if current_app.config["WORKFLOW_ATTACHMENT"]:
-        workflow_attachment = request.files.getlist("workflow_attachment[]")
+        workflow_attachment = request.files.getlist("workflow_attachment")
         for file_storage in workflow_attachment:
             if file_storage.filename:
                 file_name = secure_filepath(file_storage.filename)
