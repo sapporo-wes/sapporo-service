@@ -60,6 +60,7 @@ def create_app(config: Config) -> Flask:
         app.config["FLASK_ENV"] = "development"
         app.config["DEBUG"] = True
         app.config["TESTING"] = True
+        app.logger.debug(f"config: {config}")
 
     return app
 

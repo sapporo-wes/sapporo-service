@@ -6,7 +6,7 @@ import os
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from sys import version_info
-from typing import List, Optional, Union, cast
+from typing import List, Optional, Tuple, Union, cast
 
 from jsonschema import validate
 
@@ -136,21 +136,34 @@ class Config(TypedDict):
     access_control_allow_origin: str
 
 
+def resolve_path_from_cwd(path: Union[Path, Tuple[Path]]) -> Path:
+    if isinstance(path, tuple):
+        path = path[0]
+    if path.is_absolute():
+        return path
+    return path.resolve(strict=True)
+
+
 def get_config(args: Optional[TypedNamespace] = None) -> Config:
     if args is None:
         args = parse_args()
+
+    run_dir = args.run_dir or Path(os.environ.get("SAPPORO_RUN_DIR", DEFAULT_RUN_DIR))
+    service_info = args.service_info or Path(os.environ.get("SAPPORO_SERVICE_INFO", DEFAULT_SERVICE_INFO))
+    executable_workflows = args.executable_workflows or Path(os.environ.get("SAPPORO_EXECUTABLE_WORKFLOWS", DEFAULT_EXECUTABLE_WORKFLOWS))
+    run_sh = args.run_sh or Path(os.environ.get("SAPPORO_RUN_SH", DEFAULT_RUN_SH))
 
     return {
         "host": args.host or str(os.environ.get("SAPPORO_HOST", DEFAULT_HOST)),
         "port": args.port or int(os.environ.get("SAPPORO_PORT", DEFAULT_PORT)),
         "debug": args.debug or str2bool(os.environ.get("SAPPORO_DEBUG", False)),
-        "run_dir": args.run_dir or Path(os.environ.get("SAPPORO_RUN_DIR", DEFAULT_RUN_DIR)),
+        "run_dir": resolve_path_from_cwd(run_dir),
         "get_runs": False if args.disable_get_runs else str2bool(os.environ.get("SAPPORO_GET_RUNS", True)),
         "workflow_attachment": False if args.disable_workflow_attachment else str2bool(os.environ.get("SAPPORO_WORKFLOW_ATTACHMENT", True)),
         "registered_only_mode": args.run_only_registered_workflows or str2bool(os.environ.get("SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS", False)),
-        "service_info": args.service_info or Path(os.environ.get("SAPPORO_SERVICE_INFO", DEFAULT_SERVICE_INFO)),
-        "executable_workflows": args.executable_workflows or Path(os.environ.get("SAPPORO_EXECUTABLE_WORKFLOWS", DEFAULT_EXECUTABLE_WORKFLOWS)),
-        "run_sh": args.run_sh or Path(os.environ.get("SAPPORO_RUN_SH", DEFAULT_RUN_SH)),
+        "service_info": resolve_path_from_cwd(service_info),
+        "executable_workflows": resolve_path_from_cwd(executable_workflows),
+        "run_sh": resolve_path_from_cwd(run_sh),
         "url_prefix": args.url_prefix or str(os.environ.get("SAPPORO_URL_PREFIX", DEFAULT_URL_PREFIX)),
         "access_control_allow_origin": os.environ.get("SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN", DEFAULT_ACCESS_CONTROL_ALLOW_ORIGIN)
     }
