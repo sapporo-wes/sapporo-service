@@ -110,7 +110,7 @@ def secure_filepath(filepath: str) -> Path:
     pure_path = PurePath(ascii_filepath)
     nodes = []
     for node in pure_path.parts:
-        # Change space to underbar
+        # Change space to underscore
         node = "_".join(node.split())
         # Change [^A-Za-z0-9_.-] to empty.
         node = str(_filename_ascii_strip_re.sub("", node))
