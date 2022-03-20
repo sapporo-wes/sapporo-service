@@ -90,7 +90,7 @@ function run_snakemake() {
     fi
   fi
   local wf_basedir="$(dirname ${wf_url_local})"
-  # NOTE this are common conventions but not hard requirements for Sankemake Standardized Usage.
+  # NOTE this are common conventions but not hard requirements for Snakemake Standardized Usage.
   local wf_schemas_dir="${wf_basedir}/schemas"
   local wf_scripts_dir="${wf_basedir}/scripts"
   local wf_results_dir="${wf_basedir}/results"
