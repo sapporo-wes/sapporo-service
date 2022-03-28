@@ -4,24 +4,13 @@ set -eu
 function run_wf() {
   echo "RUNNING" >${state}
   date +"%Y-%m-%dT%H:%M:%S" >${start_time}
-  if [[ ${wf_engine_name} == "cwltool" ]]; then
-    run_cwltool
+  # e.g. when wf_engine_name=cwltool, call function run_cwltool
+  local function_name="run_${wf_engine_name}"
+  if [[ "$(type -t ${function_name})" == "function" ]]; then
+    ${function_name}
     generate_outputs_list
-  elif [[ ${wf_engine_name} == "nextflow" ]]; then
-    run_nextflow
-    generate_outputs_list
-  elif [[ ${wf_engine_name} == "toil" ]]; then
-    run_toil
-    generate_outputs_list
-  elif [[ ${wf_engine_name} == "cromwell" ]]; then
-    run_cromwell
-    generate_outputs_list
-  elif [[ ${wf_engine_name} == "snakemake" ]]; then
-    run_snakemake
-    generate_outputs_list
-  elif [[ ${wf_engine_name} == "ep3" ]]; then
-    run_ep3
-    generate_outputs_list
+  else
+    executor_error
   fi
   upload
   date +"%Y-%m-%dT%H:%M:%S" >${end_time}
