@@ -72,17 +72,17 @@ def validate_run_request(run_id: str) -> RunRequest:
     validate_wf_type(wf_type, wf_type_version)
     wf_type = cast(WorkflowTypes, wf_type)
 
-    validate_meta_charactors("workflow_url", wf_url)
+    validate_meta_characters("workflow_url", wf_url)
     if wf_engine_params is not None:
         try:
             wf_engine_params_obj = json.loads(wf_engine_params)
             if isinstance(wf_engine_params_obj, list):
                 for val in wf_engine_params_obj:
-                    validate_meta_charactors("workflow_engine_parameters", val)
+                    validate_meta_characters("workflow_engine_parameters", val)
             elif isinstance(wf_engine_params_obj, dict):
                 for key, val in wf_engine_params_obj.items():
-                    validate_meta_charactors("workflow_engine_parameters", key)
-                    validate_meta_charactors("workflow_engine_parameters", val)
+                    validate_meta_characters("workflow_engine_parameters", key)
+                    validate_meta_characters("workflow_engine_parameters", val)
             else:
                 abort(400, "The `workflow_engine_parameters` must be a list or a dict.")
         except json.JSONDecodeError:
@@ -209,7 +209,7 @@ def validate_run_id(run_id: str) -> None:
         abort(404, f"The run ID `{run_id}` does not exist.")
 
 
-def validate_meta_charactors(_type: str, content: str) -> None:
+def validate_meta_characters(_type: str, content: str) -> None:
     """
     This function validates the string that will actually be evaluated in eval
     in run.sh. The possible types of strings are 'workflow_url',

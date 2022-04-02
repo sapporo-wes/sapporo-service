@@ -11,6 +11,9 @@
     },
     "SMK": {
       "workflow_type_version": ["1.0"]
+    },
+    "StreamFlow": {
+      "workflow_type_version": ["v1.0"]
     }
   },
   "supported_filesystem_protocols": ["http", "https", "file", "s3"],
@@ -34,7 +37,8 @@
     "toil (experimental)": "4.1.0",
     "cromwell": "72",
     "snakemake": "v6.9.1",
-    "ep3 (experimental)": "v1.7.0"
+    "ep3 (experimental)": "v1.7.0",
+    "streamflow": "0.1.3"
   },
   "auth_instructions_url": "https://github.com/sapporo-wes/sapporo-service",
   "contact_info_url": "https://github.com/sapporo-wes/sapporo-service",

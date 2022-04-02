@@ -63,7 +63,7 @@ def parse_workflows(parse_request: ParseRequest) -> ParseResult:
     return parse_result
 
 
-WF_TYPES = Literal["CWL", "WDL", "NFL", "SMK", "unknown"]
+WF_TYPES = Literal["CWL", "WDL", "NFL", "SMK", "StreamFlow", "unknown"]
 
 
 def inspect_wf_type(wf_content: str, wf_location: str) -> WF_TYPES:
@@ -93,6 +93,8 @@ def check_by_shebang(wf_content: str) -> WF_TYPES:
             return "SMK"
         elif "cromwell" in first_line:
             return "WDL"
+        elif "streamflow" in first_line:
+            return "StreamFlow"
 
     return "unknown"
 
@@ -132,6 +134,8 @@ def inspect_wf_version(wf_content: str, wf_type: WF_TYPES) -> str:
         wf_version = inspect_nfl_version(wf_content)
     elif wf_type == "SMK":
         wf_version = inspect_smk_version()
+    elif wf_type == "StreamFlow":
+        wf_version = inspect_streamflow_version(wf_content)
 
     return wf_version
 
@@ -175,6 +179,16 @@ def inspect_smk_version() -> str:
     default_smk_version = "1.0"
 
     return default_smk_version
+
+
+def inspect_streamflow_version(wf_content: str) -> str:
+    default_streamflow_version = "v1.0"
+
+    yaml = yaml_no_ts()
+    yaml_obj = yaml.load(wf_content)
+
+    return yaml_obj['version'] or default_streamflow_version
+
 
 
 def parse_cwl_inputs(wf_content: str, wf_location: str) -> List[Dict[str, Any]]:
