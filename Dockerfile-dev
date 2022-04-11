@@ -1,11 +1,4 @@
-# FROM python:3.8.12-buster
-FROM python@sha256:48ad1f497c43eb06c95f4177c705631c7dd600791987b421f9fed464757687e2
-
-ADD https://download.docker.com/linux/static/stable/x86_64/docker-20.10.8.tgz /tmp/
-RUN tar xf /tmp/docker-20.10.8.tgz -C /tmp && \
-    mv /tmp/docker/* /usr/bin/ && \
-    rmdir /tmp/docker && \
-    rm -f /tmp/docker-20.10.8.tgz
+FROM python:3.8.13-buster
 
 RUN apt update && \
     apt install -y --no-install-recommends \
@@ -14,6 +7,12 @@ RUN apt update && \
     tini && \
     apt clean && \
     rm -rf /var/lib/apt/lists/*
+
+WORKDIR /tmp
+RUN curl -O https://download.docker.com/linux/static/stable/$(uname -m)/docker-20.10.9.tgz && \
+    tar -xzf docker-20.10.9.tgz && \
+    mv docker/* /usr/bin/ && \
+    rm -rf docker docker-20.10.9.tgz
 
 WORKDIR /app
 COPY . .
