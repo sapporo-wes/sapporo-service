@@ -22,6 +22,7 @@ sapporo-service の特徴として、workflow engine の抽象化を試みてお
 - [cromwell](https://github.com/broadinstitute/cromwell)
 - [snakemake](https://snakemake.readthedocs.io/en/stable/)
 - [ep3 (experimental)](https://github.com/tom-tan/ep3)
+- [StreamFlow (experimental)](https://github.com/alpha-unito/streamflow)
 
 もう 1 つの特徴として、管理者により登録された workflow のみ実行できるモードへと切り替えられます。
 この機能は、共有の HPC 環境で WES を構築する時に有用です。
@@ -233,6 +234,16 @@ Tester として、[pytest](https://docs.pytest.org/en/latest/) を用いてま�
 ```bash
 $ pytest .
 ```
+
+## Add new Workflow Engines to Sapporo Service
+
+Pythonが実行する`run.sh`スクリプトを参照してください。このshellスクリプトは
+ワークフローエンジンのリクエストを受け取って、例え`cwltool`のリクエスト、と
+`run_cwltool`のbash関数を呼び出します。
+
+その関数は、ワークフローエンジンを起動するのために、Dockerコマンドを実行し、
+Dockerプロセス終了を監視します。完全な例については、このプルリクエストを
+参照してください <https://github.com/sapporo-wes/sapporo-service/pull/29>
 
 ## License
 

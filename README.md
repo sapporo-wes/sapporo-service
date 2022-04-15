@@ -25,6 +25,7 @@ Currently, the following workflow engines have been confirmed to work.
 - [cromwell](https://github.com/broadinstitute/cromwell)
 - [snakemake](https://snakemake.readthedocs.io/en/stable/)
 - [ep3 (experimental)](https://github.com/tom-tan/ep3)
+- [StreamFlow (experimental)](https://github.com/alpha-unito/streamflow)
 
 Another feature of the sapporo-service is the mode that can only execute workflows registered by the system administrator.
 This feature is useful when building a WES in a shared HPC environment.
@@ -230,6 +231,15 @@ We use [pytest](https://docs.pytest.org/en/latest/) as a tester.
 ```bash
 $ pytest .
 ```
+
+## Add new Workflow Engines to Sapporo Service
+
+Have a look at the [`run.sh`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/run.sh) script
+called from Python. This shell script will receive a request with Workflow Engine such as `cwltool` and
+will invoke the `run_cwltool` bash function.
+
+That function will execute a Bash Shell command to start a Docker container for the Workflow Engine, and monitor
+its exit status. For a complete example, please refer to this pull request: <https://github.com/sapporo-wes/sapporo-service/pull/29>
 
 ## License
 
