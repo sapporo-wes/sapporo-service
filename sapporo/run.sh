@@ -79,7 +79,7 @@ function run_snakemake() {
     fi
   fi
   local wf_basedir="$(dirname ${wf_url_local})"
-  # NOTE this are common conventions but not hard requirements for Snakemake Standardized Usage.
+  # NOTE these are common conventions but not hard requirements for Snakemake Standardized Usage.
   local wf_schemas_dir="${wf_basedir}/schemas"
   local wf_scripts_dir="${wf_basedir}/scripts"
   local wf_results_dir="${wf_basedir}/results"
@@ -105,6 +105,25 @@ function run_snakemake() {
 function run_ep3() {
   local container="ghcr.io/tom-tan/ep3:v1.7.0"
   local cmd_txt="${DOCKER_CMD} ${container} ep3-runner --verbose --outdir ${outputs_dir} ${wf_engine_params} ${wf_url} ${wf_params} 1>${stdout} 2>${stderr}"
+  echo ${cmd_txt} >${cmd}
+  eval ${cmd_txt} || executor_error
+}
+
+function run_streamflow() {
+  if [[ "${wf_url}" == http://* ]] || [[ "${wf_url}" == https://* ]]; then
+    # It is a remote file.
+    local wf_url_local="${exe_dir}/$(basename ${wf_url})"
+    curl -fsSL -o ${wf_url_local} ${wf_url} || executor_error
+  else
+    # It is a local file.
+    if [[ "${wf_url}" == /* ]]; then
+      local wf_url_local="${wf_url}"
+    else
+      local wf_url_local="${exe_dir}/${wf_url}"
+    fi
+  fi
+  local container="alphaunito/streamflow:0.1.3-base"
+  local cmd_txt="docker run --mount type=bind,source=${run_dir},target=/streamflow/project --mount type=bind,source=${outputs_dir},target=/streamflow/results ${container} run /streamflow/project/exe/$(basename ${wf_url_local}) 1>${stdout} 2>${stderr}"
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
 }
