@@ -190,7 +190,6 @@ def inspect_streamflow_version(wf_content: str) -> str:
     return yaml_obj['version'] or default_streamflow_version
 
 
-
 def parse_cwl_inputs(wf_content: str, wf_location: str) -> List[Dict[str, Any]]:
     if is_remote_url(wf_location):
         inputs = wf_location_to_inputs(wf_location)

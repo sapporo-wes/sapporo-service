@@ -56,5 +56,5 @@ def test_hidden_file() -> None:
     assert secure_filepath(".foo") == Path("foo")
 
 
-def test_DS_STORE() -> None:
+def test_ds_store() -> None:
     assert secure_filepath("._.DS_STORE") == Path("DS_STORE")
