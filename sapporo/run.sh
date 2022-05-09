@@ -36,6 +36,7 @@ function run_nextflow() {
     # It has NOT outdir as params.
     cmd_txt="docker run -i --rm ${D_SOCK} -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} nextflow -dockerize run ${wf_url} ${wf_engine_params} -params-file ${wf_params} -work-dir ${outputs_dir} 1>${stdout} 2>${stderr}"
   fi
+  find ${exe_dir} -type f -exec chmod 777 {} \;
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
 }
