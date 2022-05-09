@@ -237,13 +237,11 @@ $ pytest .
 
 ## Add new Workflow Engines to Sapporo Service
 
-Pythonが実行する`run.sh`スクリプトを参照してください。このshellスクリプトは
-ワークフローエンジンのリクエストを受け取って、例え`cwltool`のリクエスト、と
-`run_cwltool`のbash関数を呼び出します。
+Python により実行される [`run.sh`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/run.sh) スクリプトを参照してください。
+この shell スクリプトは、例えば `cwltool` をワークフローエンジンとしてリクエストされた場合、`run_cwltool` の bash 関数を呼び出します。
 
-その関数は、ワークフローエンジンを起動するのために、Dockerコマンドを実行し、
-Dockerプロセス終了を監視します。完全な例については、このプルリクエストを
-参照してください <https://github.com/sapporo-wes/sapporo-service/pull/29>
+この関数では、ワークフローエンジンを起動するのために、Docker コマンドを実行し、Docker プロセス終了を監視します。
+完全な例については、このプルリクエストを参照してください <https://github.com/sapporo-wes/sapporo-service/pull/29>
 
 ## License
 

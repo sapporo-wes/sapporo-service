@@ -234,12 +234,11 @@ $ pytest .
 
 ## Add new Workflow Engines to Sapporo Service
 
-Have a look at the [`run.sh`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/run.sh) script
-called from Python. This shell script will receive a request with Workflow Engine such as `cwltool` and
-will invoke the `run_cwltool` bash function.
+Have a look at the [`run.sh`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/run.sh) script called from Python.
+This shell script will receive a request with Workflow Engine such as `cwltool` and will invoke the `run_cwltool` bash function.
 
-That function will execute a Bash Shell command to start a Docker container for the Workflow Engine, and monitor
-its exit status. For a complete example, please refer to this pull request: <https://github.com/sapporo-wes/sapporo-service/pull/29>
+That function will execute a Bash Shell command to start a Docker container for the Workflow Engine, and monitor its exit status.
+For a complete example, please refer to this pull request: <https://github.com/sapporo-wes/sapporo-service/pull/29>
 
 ## License
 
