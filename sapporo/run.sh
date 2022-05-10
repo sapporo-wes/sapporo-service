@@ -59,11 +59,11 @@ function run_cromwell() {
   eval ${cmd_txt} || executor_error
   if [[ ${wf_type} == "CWL" ]]; then
     jq -r ".outputs[].location" "${exe_dir}/metadata.json" | while read output_file; do
-      cp ${output_file} ${outputs_dir}/
+      cp ${output_file} ${outputs_dir}/ || true
     done
   elif [[ ${wf_type} == "WDL" ]]; then
     jq -r ".outputs | to_entries[] | .value" "${exe_dir}/metadata.json" | while read output_file; do
-      cp ${output_file} ${outputs_dir}/
+      cp ${output_file} ${outputs_dir}/ || true
     done
   fi
 }
