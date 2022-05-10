@@ -197,9 +197,28 @@ def convert_wf_engine_params_str(run_request: RunRequest) -> str:
 
 def write_workflow_attachment(run_id: str, run_request: RunRequest) -> None:
     exe_dir = resolve_content_path(run_id, "exe_dir")
-    endpoint = sapporo_endpoint()
-    wf_attachment_obj: List[AttachedFile] = json.loads(
-        run_request["workflow_attachment"] or "[]")
+    if current_app.config["WORKFLOW_ATTACHMENT"]:
+        workflow_attachment = request.files.getlist("workflow_attachment")
+        for file_storage in workflow_attachment:
+            if file_storage.filename:
+                file_name = secure_filepath(file_storage.filename)
+                file_path = exe_dir.joinpath(file_name).resolve()
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                file_storage.save(file_path)
+
+
+# Called in run.sh
+def download_workflow_attachment(inputted_run_dir: str) -> None:
+    run_dir: Path = Path(inputted_run_dir).resolve()
+    config_path = run_dir.joinpath(RUN_DIR_STRUCTURE["sapporo_config"])
+    with config_path.open(mode="r", encoding="utf-8") as f:
+        sapporo_config = json.load(f)
+    endpoint = sapporo_config["sapporo_endpoint"]
+    exe_dir = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"])
+    run_request_path = run_dir.joinpath(RUN_DIR_STRUCTURE["run_request"])
+    with run_request_path.open(mode="r", encoding="utf-8") as f:
+        run_request = json.load(f)
+    wf_attachment_obj: List[AttachedFile] = json.loads(run_request["workflow_attachment"] or "[]")
     for file in wf_attachment_obj:
         name = file["file_name"]
         url = file["file_url"]
@@ -210,15 +229,6 @@ def write_workflow_attachment(run_id: str, run_request: RunRequest) -> None:
             response = requests.get(url)
             with file_path.open(mode="wb") as f:
                 f.write(response.content)
-
-    if current_app.config["WORKFLOW_ATTACHMENT"]:
-        workflow_attachment = request.files.getlist("workflow_attachment")
-        for file_storage in workflow_attachment:
-            if file_storage.filename:
-                file_name = secure_filepath(file_storage.filename)
-                file_path = exe_dir.joinpath(file_name).resolve()
-                file_path.parent.mkdir(parents=True, exist_ok=True)
-                file_storage.save(file_path)
 
 
 def fork_run(run_id: str) -> None:
@@ -276,6 +286,7 @@ def path_hierarchy(original_path: Path, dir_path: Path) -> Any:
     return hierarchy
 
 
+# Called in run.sh
 def dump_outputs_list(inputted_run_dir: str) -> None:
     run_dir: Path = Path(inputted_run_dir).resolve()
     run_id = run_dir.name

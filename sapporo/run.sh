@@ -2,6 +2,8 @@
 set -eu
 
 function run_wf() {
+  echo "INITIALIZING" >${state}
+  download_workflow_attachment
   echo "RUNNING" >${state}
   date +"%Y-%m-%dT%H:%M:%S" >${start_time}
   # e.g. when wf_engine_name=cwltool, call function run_cwltool
@@ -139,6 +141,10 @@ function cancel() {
 
 function cancel_cwltool() {
   :
+}
+
+function download_workflow_attachment() {
+  python3 -c "from sapporo.run import download_workflow_attachment; download_workflow_attachment('${run_dir}')" || executor_error
 }
 
 function generate_outputs_list() {
