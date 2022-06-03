@@ -229,9 +229,9 @@ def download_workflow_attachment(inputted_run_dir: str) -> None:
             file_path.parent.mkdir(parents=True, exist_ok=True)
             with requests.get(url, stream=True) as res:
                 if res.status_code == 200:
-                    with file_path.open(mode="wb") as file:
+                    with file_path.open(mode="wb") as f:
                         res.raw.decode_content = True
-                        shutil.copyfileobj(res.raw, file, 1024 * 1024)
+                        shutil.copyfileobj(res.raw, f, 1024 * 1024)
 
 
 def fork_run(run_id: str) -> None:
