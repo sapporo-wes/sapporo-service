@@ -66,16 +66,16 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
-          password: ${{ secrets.CR_PAT }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: "Build and push"
         uses: docker/build-push-action@v2
         with:
           context: .
           push: true
-          platform: linux/amd64,linux/arm64,linux/arm/v7
           tags: |
             ghcr.io/${{ github.repository_owner }}/sapporo-service:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/sapporo-service:latest
 
   create_release:
     if: github.repository == 'sapporo-wes/sapporo-service'
