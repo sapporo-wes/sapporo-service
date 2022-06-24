@@ -1,14 +1,7 @@
 #!/usr/bin/env python3
 # coding: utf-8
 from pathlib import Path
-from sys import version_info
-from typing import Dict
-
-if version_info.minor < 8:
-    from typing_extensions import Literal
-else:
-    from typing import Literal  # type: ignore
-
+from typing import Dict, Literal
 
 SRC_DIR: Path = Path(__file__).parent.resolve()
 

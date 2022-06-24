@@ -24,7 +24,7 @@ def fix_errorhandler(app: Flask) -> Flask:
         response.status_code = error.code or 500
         return response
 
-    @app.errorhandler(Exception)  # type: ignore
+    @app.errorhandler(Exception)
     def error_handler_exception(exception: Exception) -> Response:
         current_app.logger.error(exception.args[0])
         current_app.logger.debug(format_exc())

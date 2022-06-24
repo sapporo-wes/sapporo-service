@@ -11,12 +11,10 @@ info:
     Key features of the API:
 
     - can request that a workflow be run
-
     - can pass parameters to that workflow (e.g. input files, cmd-line arguments)
-
     - can get information about running workflows (e.g. status, errors, output file locations)
-
     - can cancel a running workflow
+
   license:
     url: https://github.com/sapporo-wes/sapporo-service/blob/main/LICENSE
     name: Apache-2.0

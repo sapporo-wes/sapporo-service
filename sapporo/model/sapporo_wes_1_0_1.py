@@ -1,13 +1,6 @@
 #!/usr/bin/env python3
 # coding: utf-8
-from sys import version_info
-from typing import Dict, List, Optional, Union
-
-if version_info.minor < 8:
-    from typing_extensions import Literal, TypedDict
-else:
-    from typing import Literal, TypedDict  # type: ignore
-
+from typing import Dict, List, Literal, Optional, TypedDict, Union
 
 WorkflowTypes = Optional[Literal["CWL", "WDL", "SMK", "NFL"]]
 

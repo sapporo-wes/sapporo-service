@@ -4,8 +4,7 @@
 import re
 import tempfile
 from pathlib import Path
-from sys import version_info
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from cwl_inputs_parser.utils import Inputs, as_uri
 from cwl_inputs_parser.utils import \
@@ -17,11 +16,6 @@ from flask import abort
 from schema_salad.utils import yaml_no_ts
 
 from sapporo.model import ParseRequest, ParseResult
-
-if version_info.minor < 8:
-    from typing_extensions import Literal
-else:
-    from typing import Literal  # type: ignore
 
 
 def parse_workflows(parse_request: ParseRequest) -> ParseResult:

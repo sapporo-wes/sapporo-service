@@ -32,7 +32,7 @@ This feature is useful when building a WES in a shared HPC environment.
 
 ## Install and Run
 
-The sapporo-service supports Python 3.6 or newer.
+The sapporo-service supports Python 3.8 or newer.
 
 ```bash
 $ pip3 install sapporo
