@@ -19,7 +19,7 @@ setup(
     author_email="t.ohta@nig.ac.jp",
     url="https://github.com/sapporo-wes/sapporo-service",
     license="Apache2.0",
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     platforms="any",
     packages=["sapporo", "sapporo.model"],
     package_data={

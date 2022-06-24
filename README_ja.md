@@ -29,7 +29,7 @@ sapporo-service の特徴として、workflow engine の抽象化を試みてお
 
 ## Install and Run
 
-Python 3.8 以上を想定しています。
+Python 3.7 以上を想定しています。
 
 ```bash
 $ pip3 install sapporo
