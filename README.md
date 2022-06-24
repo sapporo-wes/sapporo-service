@@ -46,10 +46,10 @@ To use Docker-in-Docker (DinD), you must mount `docker.sock`, `/tmp`, etc.
 
 ```bash
 # Launch
-$ docker-compose up -d
+$ docker compose up -d
 
 # Launch confirmation
-$ docker-compose logs
+$ docker compose logs
 ```
 
 ## Usage
@@ -212,8 +212,8 @@ For more information, see [SwaggerUI - sapporo-wes - GetData](https://app.swagge
 You can start the development environment as follows.
 
 ```bash
-$ docker-compose -f docker-compose.dev.yml up -d --build
-$ docker-compose -f docker-compose.dev.yml exec app bash
+$ docker compose -f docker-compose.dev.yml up -d --build
+$ docker compose -f docker-compose.dev.yml exec app bash
 ```
 
 We use [flake8](https://pypi.org/project/flake8/), [isort](https://github.com/timothycrosley/isort), and [mypy](http://mypy-lang.org) as a linter.

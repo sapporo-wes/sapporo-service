@@ -43,10 +43,10 @@ Docker-in-Docker (DinD) を使用するため、`docker.sock` や `/tmp` など�
 
 ```bash
 # 起動
-$ docker-compose up -d
+$ docker compose up -d
 
 # 起動確認
-$ docker-compose logs
+$ docker compose logs
 ```
 
 ## Usage
@@ -211,8 +211,8 @@ sapporo-service は、workflow document をパースして、workflow の type �
 開発環境は以下で起動します。
 
 ```bash
-$ docker-compose -f docker-compose.dev.yml up -d --build
-$ docker-compose -f docker-compose.dev.yml exec app bash
+$ docker compose -f docker-compose.dev.yml up -d --build
+$ docker compose -f docker-compose.dev.yml exec app bash
 ```
 
 Linter として、[flake8](https://pypi.org/project/flake8/), [isort](https://github.com/timothycrosley/isort), [mypy](http://mypy-lang.org) を用いてます。
