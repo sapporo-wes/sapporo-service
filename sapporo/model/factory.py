@@ -8,6 +8,7 @@ from flask import current_app
 
 from sapporo.model import (Log, RunId, RunListResponse, RunLog, RunStatus,
                            ServiceInfo, Workflow)
+from sapporo.trs import get_wfs
 
 
 def generate_service_info() -> ServiceInfo:
@@ -26,7 +27,12 @@ def generate_service_info() -> ServiceInfo:
 
 def generate_executable_workflows() -> List[Workflow]:
     with current_app.config["EXECUTABLE_WORKFLOWS"].open(mode="r", encoding="utf-8") as f:
-        executable_workflows: List[Workflow] = json.load(f)
+        data = json.load(f)
+        executable_workflows: List[Workflow] = data["workflow"]
+        trs_endpoints = data["trs_endpoint"]
+    for endpoint in trs_endpoints:
+        trs_wfs = get_wfs(endpoint)
+        executable_workflows.extend(trs_wfs)
 
     return executable_workflows
 

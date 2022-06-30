@@ -184,7 +184,7 @@ def validate_config(config: Config) -> None:
 
     # Check uniqueness of workflow_name
     with config["executable_workflows"].open(mode="r", encoding="utf-8") as f_data:
-        executable_wfs: List[Workflow] = json.load(f_data)
+        executable_wfs: List[Workflow] = json.load(f_data)["workflow"]
     wf_names: List[str] = [wf["workflow_name"] for wf in executable_wfs]
     if len(wf_names) != len(set(wf_names)):
         raise Exception(

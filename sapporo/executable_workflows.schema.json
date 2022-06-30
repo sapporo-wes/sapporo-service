@@ -1,46 +1,66 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "The schema for the sapporo's executable workflows",
-  "type": "array",
-  "items": {
-    "type": "object",
-    "additionalProperties": false,
-    "properties": {
-      "workflow_name": {
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["trs_endpoint", "workflow"],
+  "properties": {
+    "trs_endpoint": {
+      "type": "array",
+      "additionalItems": false,
+      "description": "The endpoint of the TRS (e.g. https://ddbj.github.io/workflow-registry/)",
+      "items": {
         "type": "string"
-      },
-      "workflow_url": {
-        "type": "string"
-      },
-      "workflow_type": {
-        "type": "string"
-      },
-      "workflow_type_version": {
-        "type": "string"
-      },
-      "workflow_attachment": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "file_name": {
-              "type": "string"
-            },
-            "file_url": {
-              "type": "string"
-            }
-          },
-          "required": ["file_name", "file_url"]
-        }
       }
     },
-    "required": [
-      "workflow_name",
-      "workflow_url",
-      "workflow_type",
-      "workflow_type_version",
-      "workflow_attachment"
-    ]
+    "workflow": {
+      "type": "array",
+      "additionalItems": false,
+      "description": "Executable workflows (Merged with TRS endpoint)",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "workflow_name",
+          "workflow_url",
+          "workflow_type",
+          "workflow_type_version",
+          "workflow_attachment"
+        ],
+        "properties": {
+          "workflow_name": {
+            "type": "string"
+          },
+          "workflow_url": {
+            "type": "string"
+          },
+          "workflow_type": {
+            "type": "string",
+            "description": "e.g., CWL, WDL, SMK, NFL, etc. (see service.info.json)"
+          },
+          "workflow_type_version": {
+            "type": "string",
+            "description": "e.g., 1.0, 1.1, etc. (see service.info.json)"
+          },
+          "workflow_attachment": {
+            "type": "array",
+            "additionalItems": false,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["file_name", "file_url"],
+              "properties": {
+                "file_name": {
+                  "type": "string"
+                },
+                "file_url": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }
