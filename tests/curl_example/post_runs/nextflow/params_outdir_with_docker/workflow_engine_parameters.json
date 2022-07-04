@@ -1,3 +1,4 @@
 {
-  "-with-docker": "ubuntu:20.04"
+  "-with-docker": "ubuntu:20.04",
+  "-dsl1": ""
 }
