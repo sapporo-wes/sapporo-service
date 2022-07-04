@@ -22,14 +22,14 @@ function run_wf() {
 }
 
 function run_cwltool() {
-  local container="quay.io/commonwl/cwltool:3.1.20211107152837"
+  local container="quay.io/commonwl/cwltool:3.1.20220628170238"
   local cmd_txt="${DOCKER_CMD} ${container} --outdir ${outputs_dir} ${wf_engine_params} ${wf_url} ${wf_params} 1>${stdout} 2>${stderr}"
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
 }
 
 function run_nextflow() {
-  local container="nextflow/nextflow:21.10.5"
+  local container="nextflow/nextflow:22.04.4"
   local cmd_txt=""
   if [[ $(jq 'select(.outdir) != null' ${wf_params}) ]]; then
     # It has outdir as params.
@@ -51,7 +51,7 @@ function run_toil() {
 }
 
 function run_cromwell() {
-  local container="broadinstitute/cromwell:72"
+  local container="broadinstitute/cromwell:80"
   local wf_type=$(jq -r ".workflow_type" ${run_request})
   local wf_type_version=$(jq -r ".workflow_type_version" ${run_request})
   local cmd_txt="docker run -i --rm ${D_SOCK} -v ${run_dir}:${run_dir} -v /tmp:/tmp -v /usr/bin/docker:/usr/bin/docker -w=${exe_dir} ${container} run ${wf_engine_params} ${wf_url} -i ${wf_params} -m ${exe_dir}/metadata.json --type ${wf_type} --type-version ${wf_type_version} 1>${stdout} 2>${stderr}"
@@ -91,7 +91,7 @@ function run_snakemake() {
     chmod a+x "${wf_scripts_dir}/"*
   fi
 
-  local container="snakemake/snakemake:v6.9.1"
+  local container="snakemake/snakemake:v7.8.3"
   local cmd_txt="docker run -i --rm -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} snakemake ${wf_engine_params} --configfile ${wf_params} --snakefile ${wf_url_local} 1>${stdout} 2>${stderr}"
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
