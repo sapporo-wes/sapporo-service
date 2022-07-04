@@ -18,6 +18,13 @@
   },
   "supported_filesystem_protocols": ["http", "https", "file", "s3"],
   "default_workflow_engine_parameters": {
+    "nextflow": [
+      {
+        "name": "-dsl1",
+        "type": "str",
+        "default_value": ""
+      }
+    ],
     "snakemake": [
       {
         "name": "--cores",

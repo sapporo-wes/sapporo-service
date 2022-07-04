@@ -49,13 +49,13 @@ def test_registered_workflow(setup_test_server: None) -> None:
     assert data["request"]["tags"] is None
     wf_attachment = \
         json.loads(data["request"]["workflow_attachment"])  # type: ignore
-    assert len(wf_attachment) == 0
+    assert len(wf_attachment) == 2
     assert data["request"]["workflow_engine_name"] == "cwltool"
     assert data["request"]["workflow_engine_parameters"] is None
     assert data["request"]["workflow_name"] == "Example workflow - CWL - Trimming and QC"
     assert data["request"]["workflow_type"] == "CWL"
     assert data["request"]["workflow_type_version"] == "v1.0"
-    assert data["request"]["workflow_url"] == RESOURCE_REMOTE["WF_REMOTE"]
+    assert data["request"]["workflow_url"] == RESOURCE_REMOTE["WF"]
     assert data["run_id"] == run_id
     assert data["run_log"]["exit_code"] == 0
     assert data["run_log"]["name"] == "Example workflow - CWL - Trimming and QC"
