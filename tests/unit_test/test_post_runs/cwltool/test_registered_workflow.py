@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # coding: utf-8
-# pylint: disable=subprocess-run-check, unused-argument, import-outside-toplevel
+# pylint: disable=unused-argument, import-outside-toplevel, subprocess-run-check
 import json
 import shlex
 import subprocess
@@ -8,11 +8,12 @@ from time import sleep
 
 from sapporo.model import RunId
 
-from . import SCRIPT_DIR, TEST_HOST, TEST_PORT
+from . import RESOURCE_REMOTE, SCRIPT_DIR, TEST_HOST, TEST_PORT
 
 
-def post_runs_params_outdir_registered() -> RunId:
-    script_path = SCRIPT_DIR.joinpath("params_outdir_registered/post_runs.sh")
+def post_runs_registered_workflow() -> RunId:
+    script_path = \
+        SCRIPT_DIR.joinpath("registered_workflow/post_runs.sh")
     proc = subprocess.run(shlex.split(f"/bin/bash {str(script_path)}"),
                           stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE,
@@ -25,8 +26,8 @@ def post_runs_params_outdir_registered() -> RunId:
     return res_data
 
 
-def test_params_outdir_registered(setup_test_server: None) -> None:
-    res_data = post_runs_params_outdir_registered()
+def test_registered_workflow(setup_test_server: None) -> None:
+    res_data = post_runs_registered_workflow()
     assert "run_id" in res_data
     run_id = res_data["run_id"]
 
@@ -44,21 +45,20 @@ def test_params_outdir_registered(setup_test_server: None) -> None:
     from .. import get_run_id
     data = get_run_id(run_id)
 
+    assert len(data["outputs"]) == 6
     assert data["request"]["tags"] is None
     wf_attachment = \
         json.loads(data["request"]["workflow_attachment"])  # type: ignore
-    assert any("params_outdir.nf" in obj["file_name"] for obj in wf_attachment)
-    assert data["request"]["workflow_engine_name"] == "nextflow"
+    assert len(wf_attachment) == 0
+    assert data["request"]["workflow_engine_name"] == "cwltool"
     assert data["request"]["workflow_engine_parameters"] is None
-    assert data["request"]["workflow_name"] == "nextflow_params_outdir"
-    assert data["request"]["workflow_params"] == \
-        "{\n  \"str\": \"sapporo-nextflow-params_outdir\",\n  \"outdir\": \"\"\n}\n"
-    assert data["request"]["workflow_type"] == "NFL"
-    assert data["request"]["workflow_type_version"] == "1.0"
-    assert data["request"]["workflow_url"] == "./params_outdir.nf"
+    assert data["request"]["workflow_name"] == "Example workflow - CWL - Trimming and QC"
+    assert data["request"]["workflow_type"] == "CWL"
+    assert data["request"]["workflow_type_version"] == "v1.0"
+    assert data["request"]["workflow_url"] == RESOURCE_REMOTE["WF_REMOTE"]
     assert data["run_id"] == run_id
     assert data["run_log"]["exit_code"] == 0
-    assert data["run_log"]["name"] == "nextflow_params_outdir"
-    assert "[100%] 1 of 1" in data["run_log"]["stdout"]  # type: ignore
+    assert data["run_log"]["name"] == "Example workflow - CWL - Trimming and QC"
+    assert "status is success" in data["run_log"]["stderr"]  # type: ignore
     assert str(data["state"]) == "COMPLETE"
     assert data["task_logs"] is None
