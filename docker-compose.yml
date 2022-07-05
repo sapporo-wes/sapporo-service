@@ -1,7 +1,7 @@
 version: "3.5"
 services:
   app:
-    image: ghcr.io/sapporo-wes/sapporo-service:1.3.0
+    image: ghcr.io/sapporo-wes/sapporo-service:1.3.1
     container_name: sapporo-service
     volumes:
       # The ones below are mounted for cwltool and DinD.
