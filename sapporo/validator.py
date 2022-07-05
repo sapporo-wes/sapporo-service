@@ -45,33 +45,37 @@ def validate_get_runs() -> None:
 
 
 def validate_run_request(run_id: str) -> RunRequest:
+    # Fields: do not validation
     wf_params = request.form.get("workflow_params", None)
-    wf_type = request.form.get("workflow_type", None)
-    wf_type_version = request.form.get("workflow_type_version", None)
     tags = request.form.get("tags", None)
-    wf_engine_name = request.form.get("workflow_engine_name", None)
     wf_engine_params = request.form.get("workflow_engine_parameters", None)
-    wf_url = request.form.get("workflow_url", None)
-    wf_name = request.form.get("workflow_name", None)
+
+    # Fields: do validation, but not related to the registered mode
+    wf_engine_name = request.form.get("workflow_engine_name", None)
     wf_attachment_str = request.form.get("workflow_attachment", None)
     wf_attachment_files = request.files.getlist("workflow_attachment")
-
     wf_engine_name = validate_wf_engine_name(wf_engine_name)
-    validate_registered_only_mode(wf_url)
-    wf_attachment = validate_wf_attachment(
-        run_id, wf_attachment_str, wf_attachment_files)
+    wf_attachment = validate_wf_attachment(run_id, wf_attachment_str, wf_attachment_files)
 
-    if wf_name is not None:
+    # Fields: do validation, related to the registered mode
+    wf_url = request.form.get("workflow_url", None)
+    wf_name = request.form.get("workflow_name", None)
+    wf_type = request.form.get("workflow_type", None)
+    wf_type_version = request.form.get("workflow_type_version", None)
+
+    if wf_name is not None:  # registered mode request
         wf_url, wf_type, wf_type_version, wf_attachment = \
             validate_wf_docs_with_registered_wf(wf_name, wf_attachment)
-    else:
-        wf_type, wf_type_version = validate_wf_docs_with_no_registered_wf(
-            wf_url, wf_type, wf_type_version)
+    else:  # normal mode request
+        validate_registered_only_mode()
+        wf_type, wf_type_version = \
+            validate_wf_docs_with_no_registered_wf(wf_url, wf_type, wf_type_version)
         wf_url = cast(str, wf_url)
 
     validate_wf_type(wf_type, wf_type_version)
     wf_type = cast(WorkflowTypes, wf_type)
 
+    # Meta characters validation
     validate_meta_characters("workflow_url", wf_url)
     if wf_engine_params is not None:
         try:
@@ -113,8 +117,8 @@ def validate_wf_engine_name(wf_engine_name: Optional[str]) -> str:
     return wf_engine_name
 
 
-def validate_registered_only_mode(wf_url: Optional[str]) -> None:
-    if current_app.config["REGISTERED_ONLY_MODE"] and wf_url is not None:
+def validate_registered_only_mode() -> None:
+    if current_app.config["REGISTERED_ONLY_MODE"]:
         abort(403, "Currently, the sapporo-service is running in `registered-only-mode`. "
                    "Therefore, the endpoint `POST /runs` is unavailable to specify `workflow_url`.")
 
@@ -219,14 +223,14 @@ def validate_meta_characters(_type: str, content: str) -> None:
 
     In POST /runs, this is called as shown below:
 
-    validate_meta_charactors("workflow_engine_params", joined_params)
-    validate_meta_charactors("workflow_url", run_request["workflow_url"])
-    validate_meta_charactors("workflow_engine_name",
+    validate_meta_characters("workflow_engine_params", joined_params)
+    validate_meta_characters("workflow_url", run_request["workflow_url"])
+    validate_meta_characters("workflow_engine_name",
                              run_request["workflow_engine_name"])
     """
-    prohibited_caracters = [";", "!", "?", "(", ")", "[", "]", "{", "}", "*",
-                            "\\", "&", r"`", "^", "<", ">", "|", "$"]
+    prohibited_characters = [";", "!", "?", "(", ")", "[", "]", "{", "}", "*",
+                             "\\", "&", r"`", "^", "<", ">", "|", "$"]
     for char in content:
-        if char in prohibited_caracters:
+        if char in prohibited_characters:
             abort(
                 400, f"The `{_type}` contains a prohibited character `{char}`.")
