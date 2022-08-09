@@ -33,7 +33,7 @@ setup(
     },
     include_package_data=True,
     install_requires=[
-        "cwl-inputs-parser>=1.0.1",
+        "cwl-inputs-parser>=1.0.2",
         "flask-cors",
         "flask",
         "jsonschema",

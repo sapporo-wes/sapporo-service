@@ -19,6 +19,7 @@ services:
       - SAPPORO_PORT=1122
       - SAPPORO_DEBUG=True
       - SAPPORO_RUN_DIR=${PWD}/run
+      # - SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS=30
       # - SAPPORO_GET_RUNS=True
       # - SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS=False
       # - SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN=*
@@ -27,7 +28,7 @@ services:
       - 0.0.0.0:1122:1122
     restart: on-failure
     working_dir: /app
-    command: ["sleep", "infinity"]
+    command: [ "sleep", "infinity" ]
     networks:
       - sapporo
 
