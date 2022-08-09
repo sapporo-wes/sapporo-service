@@ -14,7 +14,7 @@ services:
       # - SAPPORO_PORT=1122 # Not available when using the uwsgi server.
       - SAPPORO_DEBUG=False
       - SAPPORO_RUN_DIR=${PWD}/run
-      - SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS=30
+      # - SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS=30
       # - SAPPORO_GET_RUNS=False
       # - SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS=False
       # - SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN=*
