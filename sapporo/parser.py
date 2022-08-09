@@ -113,7 +113,7 @@ def check_by_regexp(wf_content: str) -> WF_TYPES:
         elif PATTERN_SMK.match(line):
             return "SMK"
         elif PATTERN_NFL.match(line):
-            return"NFL"
+            return "NFL"
 
     return "unknown"
 
