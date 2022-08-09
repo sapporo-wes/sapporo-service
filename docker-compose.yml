@@ -31,9 +31,8 @@ services:
         "--http",
         "0.0.0.0:1122",
         "--workers",
-        "1"
+        "1" # Number of workers to process http requests
       ]
-      # Number of workers to process http requests
     networks:
       - sapporo
 
