@@ -192,7 +192,7 @@ aws --endpoint-url ${endpoint} s3 cp ${outputs_dir} s3://${bucket_name}/${dirnam
 function clean_rundir() {
   # Find files under run_dir older than env integer SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS and delete them in a background process
   if [[ ! -z ${SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS} ]] && [[ ${SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS} =~ /^[0-9]+$/ ]]; then
-    find "${run_dir}" -mindepth 1 -mtime "+${SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS}" -delete > /dev/null 2>&1 &
+    find "${run_dir}" -mindepth 2 -maxdepth 2 -mtime "+${SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS}" -type d -exec rm -r {} \; >/dev/null 2>&1 &
   fi
 }
 
