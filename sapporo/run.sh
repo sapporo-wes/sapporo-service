@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eu
+set -e
 
 function run_wf() {
   echo "INITIALIZING" >${state}
@@ -191,8 +191,10 @@ aws --endpoint-url ${endpoint} s3 cp ${outputs_dir} s3://${bucket_name}/${dirnam
 
 function clean_rundir() {
   # Find files under run_dir older than env integer SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS and delete them in a background process
-  if [[ ! -z ${SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS} ]] && [[ ${SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS} =~ /^[0-9]+$/ ]]; then
-    find "${run_dir}" -mindepth 2 -maxdepth 2 -mtime "+${SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS}" -type d -exec rm -r {} \; >/dev/null 2>&1 &
+  local re_pattern="^[0-9]+$"
+  local base_run_dir=$(realpath ${run_dir}/../..)
+  if [[ ! -z ${SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS} ]] && [[ ${SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS} =~ ${re_pattern} ]]; then
+    find ${base_run_dir} -mindepth 2 -maxdepth 2 -mtime "+${SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS}" -type d -exec rm -r {} \; >/dev/null 2>&1 &
   fi
 }
 
