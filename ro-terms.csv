@@ -1,0 +1,2 @@
+term,type,label,description,domain,range
+SapporoRunDir,Class,sapporo run dir,Files that compose Sapporo's run directory,,
