@@ -18,7 +18,8 @@ from werkzeug.utils import _filename_ascii_strip_re
 
 from sapporo.const import RUN_DIR_STRUCTURE, RUN_DIR_STRUCTURE_KEYS
 from sapporo.model import RunRequest, State
-from sapporo.model.factory import generate_service_info
+from sapporo.model.factory import (generate_executable_workflows,
+                                   generate_service_info)
 from sapporo.model.sapporo_wes_1_0_1 import AttachedFile
 
 
@@ -156,12 +157,18 @@ def prepare_run_dir(run_id: str, run_request: RunRequest) -> None:
     write_file(run_id, "wf_params", run_request["workflow_params"])
     write_file(run_id, "wf_engine_params",
                convert_wf_engine_params_str(run_request))
+    write_file(run_id, "service_info", generate_service_info())
+    write_file(run_id, "executable_workflows", generate_executable_workflows())
+    with current_app.config["RUN_SH"].open(mode="r", encoding="utf-8") as f:
+        run_sh_content = f.read()
+    write_file(run_id, "run_sh", run_sh_content)
 
     write_workflow_attachment(run_id, run_request)
 
 
 def dump_sapporo_config() -> Dict[str, Any]:
     return {
+        "sapporo_version": current_app.config["SAPPORO_VERSION"],
         "get_runs": current_app.config["GET_RUNS"],
         "workflow_attachment": current_app.config["WORKFLOW_ATTACHMENT"],
         "registered_only_mode": current_app.config["REGISTERED_ONLY_MODE"],
@@ -303,7 +310,7 @@ def dump_outputs_list(inputted_run_dir: str) -> None:
     outputs = []
     for output_file in output_files:
         outputs.append({
-            "file_name": output_file.name,
+            "file_name": str(output_file.relative_to(outdir_path)),
             "file_url":
                 f"{base_remote_url}{str(output_file.relative_to(run_dir))}"
         })

@@ -11,6 +11,7 @@ function run_wf() {
   if [[ "$(type -t ${function_name})" == "function" ]]; then
     ${function_name}
     generate_outputs_list
+    generate_ro_crate
   else
     executor_error
   fi
@@ -150,6 +151,10 @@ function download_workflow_attachment() {
 
 function generate_outputs_list() {
   python3 -c "from sapporo.run import dump_outputs_list; dump_outputs_list('${run_dir}')" || executor_error
+}
+
+function generate_ro_crate() {
+  python3 -c "from sapporo.run import generate_ro_crate; generate_ro_crate('${run_dir}')" || executor_error
 }
 
 function upload() {

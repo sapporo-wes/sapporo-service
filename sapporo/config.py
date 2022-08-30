@@ -8,6 +8,7 @@ from pathlib import Path
 from sys import version_info
 from typing import List, Optional, Tuple, Union, cast
 
+import pkg_resources
 from jsonschema import validate
 
 from sapporo.const import (DEFAULT_ACCESS_CONTROL_ALLOW_ORIGIN,
@@ -126,6 +127,7 @@ class Config(TypedDict):
     port: int
     debug: bool
     run_dir: Path
+    sapporo_version: str
     get_runs: bool
     workflow_attachment: bool
     registered_only_mode: bool
@@ -158,6 +160,7 @@ def get_config(args: Optional[TypedNamespace] = None) -> Config:
         "port": args.port or int(os.environ.get("SAPPORO_PORT", DEFAULT_PORT)),
         "debug": args.debug or str2bool(os.environ.get("SAPPORO_DEBUG", False)),
         "run_dir": resolve_path_from_cwd(run_dir),
+        "sapporo_version": pkg_resources.get_distribution("sapporo").version,
         "get_runs": False if args.disable_get_runs else str2bool(os.environ.get("SAPPORO_GET_RUNS", True)),
         "workflow_attachment": False if args.disable_workflow_attachment else str2bool(os.environ.get("SAPPORO_WORKFLOW_ATTACHMENT", True)),
         "registered_only_mode": args.run_only_registered_workflows or str2bool(os.environ.get("SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS", False)),

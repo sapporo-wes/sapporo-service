@@ -49,6 +49,7 @@ def create_app(config: Config) -> Flask:
     CORS(app, resources={
          r"/*": {"origins": config["access_control_allow_origin"]}})
     app.config["RUN_DIR"] = config["run_dir"]
+    app.config["SAPPORO_VERSION"] = config["sapporo_version"]
     app.config["GET_RUNS"] = config["get_runs"]
     app.config["WORKFLOW_ATTACHMENT"] = config["workflow_attachment"]
     app.config["REGISTERED_ONLY_MODE"] = config["registered_only_mode"]

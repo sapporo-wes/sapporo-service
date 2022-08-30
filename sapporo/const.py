@@ -39,7 +39,11 @@ RUN_DIR_STRUCTURE: Dict[str, str] = {
     "pid": "run.pid",
     "wf_engine_params": "workflow_engine_params.txt",
     "cmd": "cmd.txt",
-    "task_logs": "task.log"
+    "task_logs": "task.log",
+    "service_info": "service_info.json",
+    "executable_workflows": "executable_workflows.json",
+    "run_sh": "run.sh",
+    "yevis_metadata": "yevis-metadata.yml",
 }
 
 RUN_DIR_STRUCTURE_KEYS = Literal[
@@ -59,4 +63,8 @@ RUN_DIR_STRUCTURE_KEYS = Literal[
     "wf_engine_params",
     "cmd",
     "task_logs",
+    "service_info",
+    "executable_workflows",
+    "run_sh",
+    "yevis_metadata",
 ]
