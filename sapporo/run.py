@@ -157,11 +157,16 @@ def prepare_run_dir(run_id: str, run_request: RunRequest) -> None:
     write_file(run_id, "wf_params", run_request["workflow_params"])
     write_file(run_id, "wf_engine_params",
                convert_wf_engine_params_str(run_request))
+
     write_file(run_id, "service_info", generate_service_info())
     write_file(run_id, "executable_workflows", generate_executable_workflows())
     with current_app.config["RUN_SH"].open(mode="r", encoding="utf-8") as f:
         run_sh_content = f.read()
     write_file(run_id, "run_sh", run_sh_content)
+
+    yevis_metadata = request.form.get("yevis_metadata", None)
+    if yevis_metadata is not None:
+        write_file(run_id, "yevis_metadata", yevis_metadata)
 
     write_workflow_attachment(run_id, run_request)
 

@@ -47,8 +47,8 @@ def validate_get_runs() -> None:
 def validate_run_request(run_id: str) -> RunRequest:
     # Fields: do not validation
     wf_params = request.form.get("workflow_params", None)
-    tags = request.form.get("tags", None)
     wf_engine_params = request.form.get("workflow_engine_parameters", None)
+    tags = request.form.get("tags", None)
 
     # Fields: do validation, but not related to the registered mode
     wf_engine_name = request.form.get("workflow_engine_name", None)
