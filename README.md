@@ -195,17 +195,23 @@ The following three startup arguments and environment variables limit the WES.
 
 The contents of the response of `GET /service-info` are managed in [`service-info.json`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/service-info.json). The default location of `service-info.json` is under the application directory of the sapporo-service. You can override by using the startup argument `--service-info` or the environment variable `SAPPORO_SERVICE_INFO`.
 
-## Generate download link
+### Generate download link
 
 The sapporo-service provides the file and directory under run_dir as a download link.
 
 For more information, see [SwaggerUI - sapporo-wes - GetData](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.1-oas3#/default/GetData).
 
-## Parse workflow
+### Parse workflow
 
 The sapporo-service provides the feature to check the workflow document's type, version, and inputs.
 
 For more information, see [SwaggerUI - sapporo-wes - GetData](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.1-oas3#/default/GetData).
+
+### Generate RO-Crate
+
+The sapporo-service generates RO-Crate from the run_dir after the workflow execution is completed as `ro-crate-metadata.json` in the run_dir.
+
+Please see, [ro-crate-metadata-example.json](./tests/ro-crate-metadata-example.json) as an example.
 
 ## Development
 

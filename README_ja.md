@@ -194,17 +194,23 @@ WES の機能を制限するための起動時引数・環境変数として、�
 `GET /service-info` の response の中身として、[`service-info.json`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/service-info.json) で管理しています。
 `service-info.json` の default の位置は、sapporo-service のアプリケーション直下ですが、起動時引数の `--service-info` や環境変数の `SAPPORO_SERVICE_INFO` で上書きできます。
 
-## Generate download link
+### Generate download link
 
 sapporo-service は run_dir 以下の file と directory を download link として提供します。
 
 詳しくは、[SwaggerUI - sapporo-wes - ParseWorkflow](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.1-oas3#/default/ParseWorkflow) を確認してください。
 
-## Parse workflow
+### Parse workflow
 
 sapporo-service は、workflow document をパースして、workflow の type や version、inputs を調べる機能を提供します。
 
 詳しくは、[SwaggerUI - sapporo-wes - GetData](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.1-oas3#/default/GetData) を確認してください。
+
+### Generate RO-Crate
+
+The sapporo-service generates RO-Crate from the run_dir after the workflow execution is completed as `ro-crate-metadata.json` in the run_dir.
+
+Please see, [ro-crate-metadata-example.json](./tests/ro-crate-metadata-example.json) as an example.
 
 ## Development
 
