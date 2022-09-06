@@ -4,7 +4,10 @@ import hashlib
 import json
 import os
 import platform
+import shlex
+import shutil
 import stat
+import subprocess
 import urllib
 import urllib.request
 from datetime import datetime
@@ -22,7 +25,6 @@ from rocrate.model.contextentity import ContextEntity
 from rocrate.model.data_entity import DataEntity
 from rocrate.model.dataset import Dataset
 from rocrate.model.file import File
-from rocrate.model.file_or_dir import FileOrDir
 from rocrate.model.metadata import WORKFLOW_PROFILE, Metadata
 from rocrate.model.root_dataset import RootDataset
 from rocrate.model.softwareapplication import SoftwareApplication
@@ -307,37 +309,43 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_m
         wf_ins["description"] = description_ins
 
 
-def update_local_file_stat(crate: ROCrate, file: FileOrDir, file_path: Path) -> None:
+def update_local_file_stat(crate: ROCrate, file_ins: File, file_path: Path) -> None:
     # From file stat
     stat_result = file_path.stat()
 
     # https://schema.org/MediaObject
-    file["contentSize"] = stat_result.st_size
-    file["dateModified"] = datetime.fromtimestamp(stat_result.st_mtime).isoformat()
+    file_ins["contentSize"] = stat_result.st_size
+    file_ins["dateModified"] = datetime.fromtimestamp(stat_result.st_mtime).isoformat()
 
     # additional properties (not defined)
-    file["uid"] = stat_result.st_uid
-    file["gid"] = stat_result.st_gid
-    file["mode"] = stat.filemode(stat_result.st_mode)
+    file_ins["uid"] = stat_result.st_uid
+    file_ins["gid"] = stat_result.st_gid
+    file_ins["mode"] = stat.filemode(stat_result.st_mode)
+
+    # add file line count
+    if "ASCII text" in magic.from_file(file_path):
+        file_ins["lineCount"] = len(file_path.read_text().splitlines())
 
     # checksum using sha512 (https://www.researchobject.org/ro-crate/1.1/appendix/implementation-notes.html#combining-with-other-packaging-schemes)
-    file["sha512"] = hashlib.sha512(file_path.read_bytes()).hexdigest()
+    file_ins["sha512"] = hashlib.sha512(file_path.read_bytes()).hexdigest()
 
     # https://pypi.org/project/python-magic/
-    file["encodingFormat"] = magic.from_file(file_path, mime=True)
+    file_ins["encodingFormat"] = magic.from_file(file_path, mime=True)
 
     # under 10kb, attach as text
     if stat_result.st_size < 10 * 1024:
-        file["text"] = file_path.read_text()
+        file_ins["text"] = file_path.read_text()
+
+    #
 
     edam = inspect_edam_format(file_path)
     if edam is not None:
         edam_ins = ContextEntity(crate, edam["url"], properties={
-            "@type": ["Thing"],
+            "@type": ["Format"],
             "name": edam["name"],
         })
         crate.add(edam_ins)
-        file.append_to("format", edam_ins, compact=True)
+        file_ins.append_to("format", edam_ins, compact=True)
 
 
 class EDAM(TypedDict):
@@ -808,7 +816,8 @@ def generate_test_result(crate: ROCrate, run_dir: Path, run_id: str) -> ContextE
             if str(output["file_name"]) == str(output_dir_dest):
                 file_ins["url"] = output["file_url"]
 
-        # TODO add semantics
+        add_file_summary(crate, file_ins)
+
         append_outputs_dir_dataset(crate, file_ins)
         test_result_ins.append_to("outputs", file_ins, compact=True)
         crate.add(file_ins)
@@ -842,6 +851,130 @@ def extract_exe_dir_file_ids(crate: ROCrate) -> List[str]:
     return []
 
 
-if __name__ == "__main__":
-    inputted_run_dir = "/home/ubuntu/git/github.com/sapporo-wes/sapporo-service/run/d0/d07aea55-f9bd-4f7f-b6bf-74abf69bc4dd"
-    generate_ro_crate(inputted_run_dir)
+def add_file_summary(crate: ROCrate, file_ins: File) -> None:
+    """\
+    see "format" field of file_ins
+
+    ".bam": "http://edamontology.org/format_2572"
+    ".sam": "http://edamontology.org/format_2573",
+      -> quay.io/biocontainers/samtools:1.15.1--h1170115_0
+    ".vcf": "http://edamontology.org/format_3016",
+      -> quay.io/biocontainers/vcftools:0.1.16--pl5321h9a82719_6
+    """
+    # TODO: use docker or local command?
+    if shutil.which("docker") is None:
+        return
+
+    formats = get_norm_value(file_ins, "format")
+    for format_ in formats:
+        if format_ == "http://edamontology.org/format_2572" or format_ == "http://edamontology.org/format_2573":
+            # bam or sam
+            add_samtools_stats(crate, file_ins)
+        elif format_ == "http://edamontology.org/format_3016":
+            # vcf
+            add_vcftools_stats(crate, file_ins)
+
+
+def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
+    """\
+    $ samtools flagstats --output-fmt json <file_path>
+
+    Using: quay.io/biocontainers/samtools:1.15.1--h1170115_0
+    """
+    source = file_ins.source
+    cmd = shlex.split(" ".join([
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        f"{source}:/work/{source.name}",
+        "-w",
+        "/work",
+        "quay.io/biocontainers/samtools:1.15.1--h1170115_0",
+        "samtools",
+        "flagstats",
+        "--output-fmt",
+        "json",
+        source.name,
+    ]))
+    proc = subprocess.run(cmd, capture_output=True)
+    if proc.returncode != 0:
+        return
+    try:
+        stats = json.loads(proc.stdout)
+        total = stats["QC-passed reads"]["total"]
+        mapped = stats["QC-passed reads"]["mapped"]
+        unmapped = total - mapped
+        duplicate = stats["QC-passed reads"]["duplicates"]
+        stats_ins = ContextEntity(crate, properties={
+            "@type": ["FileStats"],
+            "totalReads": total,
+            "mappedReads": mapped,
+            "unmappedReads": unmapped,
+            "duplicateReads": duplicate,
+            "mappedRate": mapped / total,
+            "unmappedRate": unmapped / total,
+            "duplicateRate": duplicate / total,
+        })
+        stats_ins.append_to("generatedBy", find_or_generate_software_ins(crate, "samtools", "1.15.1--h1170115_0"), compact=True)
+        file_ins.append_to("stats", stats_ins, compact=True)
+        crate.add(stats_ins)
+    except json.JSONDecodeError:
+        return
+
+
+def add_vcftools_stats(crate: ROCrate, file_ins: File) -> None:
+    """\
+    $ vcf-stats <file_path>
+
+    Using: quay.io/biocontainers/vcftools:0.1.16--pl5321h9a82719_6
+    """
+    source = file_ins.source
+    cmd = shlex.split(" ".join([
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        f"{source}:/work/{source.name}",
+        "-w",
+        "/work",
+        "quay.io/biocontainers/vcftools:0.1.16--pl5321h9a82719_6",
+        "vcf-stats",
+        source.name,
+    ]))
+    proc = subprocess.run(cmd, capture_output=True)
+    if proc.returncode != 0:
+        return
+    try:
+        stdout = proc.stdout.decode()
+        stdout = stdout.strip()
+        stdout = stdout.lstrip("$VAR1 = ")
+        stdout = stdout.rstrip(";")
+        stdout = stdout.replace("=>", ":")
+        stdout = stdout.replace("\'", "\"")
+        stats = json.loads(stdout)
+        stats_ins = ContextEntity(crate, properties={
+            "@type": ["FileStats"],
+            "variantCount": stats["all"]["count"],
+            "snpsCount": stats["all"]["snp_count"],
+            "indelsCount": stats["all"]["indel_count"],
+        })
+        stats_ins.append_to("generatedBy", find_or_generate_software_ins(crate, "vcftools", "0.1.16--pl5321h9a82719_6"), compact=True)
+        file_ins.append_to("stats", stats_ins, compact=True)
+        crate.add(stats_ins)
+    except json.JSONDecodeError:
+        return
+
+
+def find_or_generate_software_ins(crate: ROCrate, name: str, version: str) -> SoftwareApplication:
+    for entity in crate.get_entities():
+        if isinstance(entity, SoftwareApplication):
+            if entity["name"] == name:
+                return entity
+    software_ins = SoftwareApplication(crate, identifier=name, properties={
+        "name": name,
+        "version": version
+    })
+    crate.add(software_ins)
+
+    return software_ins
