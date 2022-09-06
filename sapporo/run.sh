@@ -32,14 +32,7 @@ function run_cwltool() {
 
 function run_nextflow() {
   local container="nextflow/nextflow:22.04.4"
-  local cmd_txt=""
-  if [[ $(jq 'select(.outdir) != null' ${wf_params}) ]]; then
-    # It has outdir as params.
-    cmd_txt="docker run -i --rm ${D_SOCK} -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} nextflow -dockerize run ${wf_url} ${wf_engine_params} -params-file ${wf_params} --outdir ${outputs_dir} 1>${stdout} 2>${stderr}"
-  else
-    # It has NOT outdir as params.
-    cmd_txt="docker run -i --rm ${D_SOCK} -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} nextflow -dockerize run ${wf_url} ${wf_engine_params} -params-file ${wf_params} -work-dir ${outputs_dir} 1>${stdout} 2>${stderr}"
-  fi
+  local cmd_txt="docker run --rm ${D_SOCK} -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} nextflow -dockerize run ${wf_url} ${wf_engine_params} -params-file ${wf_params} --outdir ${outputs_dir} -work-dir ${exe_dir} 1>${stdout} 2>${stderr}"
   find ${exe_dir} -type f -exec chmod 777 {} \;
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
@@ -56,7 +49,7 @@ function run_cromwell() {
   local container="broadinstitute/cromwell:80"
   local wf_type=$(jq -r ".workflow_type" ${run_request})
   local wf_type_version=$(jq -r ".workflow_type_version" ${run_request})
-  local cmd_txt="docker run -i --rm ${D_SOCK} -v ${run_dir}:${run_dir} -v /tmp:/tmp -v /usr/bin/docker:/usr/bin/docker -w=${exe_dir} ${container} run ${wf_engine_params} ${wf_url} -i ${wf_params} -m ${exe_dir}/metadata.json --type ${wf_type} --type-version ${wf_type_version} 1>${stdout} 2>${stderr}"
+  local cmd_txt="docker run --rm ${D_SOCK} -v ${run_dir}:${run_dir} -v /tmp:/tmp -v /usr/bin/docker:/usr/bin/docker -w=${exe_dir} ${container} run ${wf_engine_params} ${wf_url} -i ${wf_params} -m ${exe_dir}/metadata.json --type ${wf_type} --type-version ${wf_type_version} 1>${stdout} 2>${stderr}"
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
   if [[ ${wf_type} == "CWL" ]]; then
@@ -94,11 +87,11 @@ function run_snakemake() {
   fi
 
   local container="snakemake/snakemake:v7.8.3"
-  local cmd_txt="docker run -i --rm -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} snakemake ${wf_engine_params} --configfile ${wf_params} --snakefile ${wf_url_local} 1>${stdout} 2>${stderr}"
+  local cmd_txt="docker run --rm -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} snakemake ${wf_engine_params} --configfile ${wf_params} --snakefile ${wf_url_local} 1>${stdout} 2>${stderr}"
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
 
-  docker run -i --rm -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} \
+  docker run --rm -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} \
     snakemake --configfile ${wf_params} --snakefile ${wf_url_local} --summary 2>/dev/null | tail -n +2 | cut -f 1 |
     while read file_path; do
       dir_path=$(dirname ${file_path})
@@ -232,7 +225,7 @@ wf_engine_params=$(head -n 1 ${wf_engine_params_file})
 # Sibling docker command
 D_SOCK="-v /var/run/docker.sock:/var/run/docker.sock"
 D_TMP="-v /tmp:/tmp"
-DOCKER_CMD="docker run -i --rm ${D_SOCK} -e DOCKER_HOST=unix:///var/run/docker.sock ${D_TMP} -v ${run_dir}:${run_dir} -w=${exe_dir}"
+DOCKER_CMD="docker run --rm ${D_SOCK} -e DOCKER_HOST=unix:///var/run/docker.sock ${D_TMP} -v ${run_dir}:${run_dir} -w=${exe_dir}"
 
 # 4 Exit cases
 # 1. The description of run.sh was wrong.
