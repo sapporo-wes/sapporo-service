@@ -277,8 +277,11 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_m
         tmp_file_path, _ = urllib.request.urlretrieve(wf_url)
         wf_file_path = Path(tmp_file_path)
         wf_ins = ComputationalWorkflow(crate, wf_url)
-        wf_ins["contentSize"] = wf_file_path.stat().st_size
-        wf_ins["sha512"] = hashlib.sha512(wf_file_path.read_bytes()).hexdigest()
+        update_local_file_stat(crate, wf_ins, wf_file_path)
+        del wf_ins["dateModified"]
+        del wf_ins["uid"]
+        del wf_ins["gid"]
+        del wf_ins["mode"]
     else:
         wf_file_path = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], wf_url).resolve(strict=True)
         wf_ins = ComputationalWorkflow(crate, wf_file_path, wf_file_path.relative_to(run_dir))
@@ -309,7 +312,7 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_m
         wf_ins["description"] = description_ins
 
 
-def update_local_file_stat(crate: ROCrate, file_ins: File, file_path: Path) -> None:
+def update_local_file_stat(crate: ROCrate, file_ins: File, file_path: Path, include_content: bool = True) -> None:
     # From file stat
     stat_result = file_path.stat()
 
@@ -323,8 +326,10 @@ def update_local_file_stat(crate: ROCrate, file_ins: File, file_path: Path) -> N
     file_ins["mode"] = stat.filemode(stat_result.st_mode)
 
     # add file line count
-    if "ASCII text" in magic.from_file(file_path):
-        file_ins["lineCount"] = len(file_path.read_text().splitlines())
+    try:
+        file_ins["lineCount"] = len(file_path.read_text(encoding="utf-8").splitlines())
+    except UnicodeDecodeError:
+        pass
 
     # checksum using sha512 (https://www.researchobject.org/ro-crate/1.1/appendix/implementation-notes.html#combining-with-other-packaging-schemes)
     file_ins["sha512"] = hashlib.sha512(file_path.read_bytes()).hexdigest()
@@ -332,11 +337,13 @@ def update_local_file_stat(crate: ROCrate, file_ins: File, file_path: Path) -> N
     # https://pypi.org/project/python-magic/
     file_ins["encodingFormat"] = magic.from_file(file_path, mime=True)
 
-    # under 10kb, attach as text
-    if stat_result.st_size < 10 * 1024:
-        file_ins["text"] = file_path.read_text()
-
-    #
+    if include_content:
+        # under 10kb, attach as text
+        if file_ins["contentSize"] < 10 * 1024:
+            try:
+                file_ins["text"] = file_path.read_text()
+            except UnicodeDecodeError:
+                pass
 
     edam = inspect_edam_format(file_path)
     if edam is not None:
@@ -521,7 +528,7 @@ def add_workflow_attachment(crate: ROCrate, run_dir: Path, run_request: RunReque
             "@type": type_list,
             "url": url,
         })
-        update_local_file_stat(crate, file_ins, source)
+        update_local_file_stat(crate, file_ins, source, include_content=False)
         append_exe_dir_dataset(crate, file_ins)
         crate.mainEntity.append_to("attachment", file_ins, compact=True)
         crate.add(file_ins)
@@ -835,7 +842,7 @@ def generate_test_result(crate: ROCrate, run_dir: Path, run_id: str) -> ContextE
         file_ins = File(crate, source, dest, properties={
             "@type": ["File", "FormalParameter", "IntermediateFile"],
         })
-        update_local_file_stat(crate, file_ins, source)
+        update_local_file_stat(crate, file_ins, source, include_content=False)
         append_exe_dir_dataset(crate, file_ins)
         test_result_ins.append_to("intermediateFiles", file_ins, compact=True)
         crate.add(file_ins)
@@ -978,3 +985,9 @@ def find_or_generate_software_ins(crate: ROCrate, name: str, version: str) -> So
     crate.add(software_ins)
 
     return software_ins
+
+
+if __name__ == "__main__":
+    import sys
+    inputted_dir = Path(sys.argv[1]).resolve(strict=True)
+    generate_ro_crate(str(inputted_dir))
