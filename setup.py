@@ -29,6 +29,7 @@ setup(
             "run.sh",
             "service-info.json",
             "service-info.schema.json",
+            "ro-terms.csv",
         ]
     },
     include_package_data=True,

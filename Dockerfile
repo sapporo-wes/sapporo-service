@@ -19,6 +19,7 @@ RUN apt update && \
     apt install -y --no-install-recommends \
     curl \
     jq \
+    libmagic-dev \
     libxml2 \
     tini && \
     apt clean &&\
