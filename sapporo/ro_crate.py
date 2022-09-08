@@ -160,6 +160,8 @@ def read_file(run_dir: Path, file_type: RUN_DIR_STRUCTURE_KEYS, one_line: bool =
     file_path = run_dir.joinpath(RUN_DIR_STRUCTURE[file_type])
     if file_path.exists() is False:
         return None
+    if file_path.is_file() is False:
+        return None
     with file_path.open(mode="r", encoding="utf-8") as f:
         if one_line:
             return f.readline().strip()
@@ -313,6 +315,11 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_m
 
 
 def update_local_file_stat(crate: ROCrate, file_ins: File, file_path: Path, include_content: bool = True) -> None:
+    if file_path.is_file() is False:
+        return
+    if file_path.exists() is False:
+        return
+
     # From file stat
     stat_result = file_path.stat()
 
@@ -539,7 +546,7 @@ def add_test(crate: ROCrate, run_dir: Path, run_request: RunRequest,
     suite_ins = generate_test_suite(crate)
     crate.root_dataset.append_to("about", suite_ins, compact=True)
 
-    test_ins = generate_test_instance(crate, run_dir, sapporo_config)
+    test_ins = generate_test_instance(crate, sapporo_config)
     suite_ins.append_to("instance", test_ins, compact=True)
 
     test_service_ins = generate_sapporo_service(crate, run_dir, sapporo_config)
@@ -574,7 +581,7 @@ def generate_test_suite(crate: ROCrate) -> TestInstance:
     return suite_ins
 
 
-def generate_test_instance(crate: ROCrate, run_dir: Path, sapporo_config: SapporoConfig) -> TestInstance:
+def generate_test_instance(crate: ROCrate, sapporo_config: SapporoConfig) -> TestInstance:
     """\
     Modified from crate.add_test_instance()
 
@@ -632,6 +639,8 @@ def generate_sapporo_service(crate: ROCrate, run_dir: Path, sapporo_config: Sapp
     ]
     for key, field_key, name in files:
         source = run_dir.joinpath(RUN_DIR_STRUCTURE[key])
+        if source.exists() is False:
+            continue
         dest = source.relative_to(run_dir)
         file_ins = File(crate, source, dest, properties={
             "name": name,
@@ -724,6 +733,8 @@ def generate_test_definition(crate: ROCrate, run_dir: Path, run_request: RunRequ
         test_files = [f for f in yevis_meta["workflow"]["testing"][0]["files"] if f["type"] == "other"]
         for test_file in test_files:
             source = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], test_file["target"])
+            if source.exists() is False:
+                continue
             dest = source.relative_to(run_dir)
             file_ins = File(crate, source, dest, properties={
                 "@type": ["File", "FormalParameter"],
@@ -782,6 +793,8 @@ def generate_test_result(crate: ROCrate, run_dir: Path, run_id: str) -> ContextE
     ]
     for key, field_key in one_line_files:
         content = read_file(run_dir, key, one_line=True)
+        if content is None:
+            continue
         if key == "pid" or key == "exit_code":
             test_result_ins[field_key] = int(content)
         else:
@@ -806,7 +819,7 @@ def generate_test_result(crate: ROCrate, run_dir: Path, run_id: str) -> ContextE
         crate.add(file_ins)
 
     # Add output files
-    outputs: List[AttachedFile] = read_file(run_dir, "outputs")
+    outputs: Optional[List[AttachedFile]] = read_file(run_dir, "outputs")
     for source in run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"]).glob("**/*"):
         if source.is_dir():
             continue
@@ -817,13 +830,14 @@ def generate_test_result(crate: ROCrate, run_dir: Path, run_id: str) -> ContextE
         })
         update_local_file_stat(crate, file_ins, source)
 
-        # Include the URL of Sapporo's download feature
-        output_dir_dest = source.relative_to(run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"]))
-        for output in outputs:
-            if str(output["file_name"]) == str(output_dir_dest):
-                file_ins["url"] = output["file_url"]
+        if outputs is not None:
+            # Include the URL of Sapporo's download feature
+            output_dir_dest = source.relative_to(run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"]))
+            for output in outputs:
+                if str(output["file_name"]) == str(output_dir_dest):
+                    file_ins["url"] = output["file_url"]
 
-        add_file_summary(crate, file_ins)
+        add_file_stats(crate, file_ins)
 
         append_outputs_dir_dataset(crate, file_ins)
         test_result_ins.append_to("outputs", file_ins, compact=True)
@@ -858,7 +872,7 @@ def extract_exe_dir_file_ids(crate: ROCrate) -> List[str]:
     return []
 
 
-def add_file_summary(crate: ROCrate, file_ins: File) -> None:
+def add_file_stats(crate: ROCrate, file_ins: File) -> None:
     """\
     see "format" field of file_ins
 
