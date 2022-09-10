@@ -18,8 +18,8 @@ function run_wf() {
   date +"%Y-%m-%dT%H:%M:%S" >${end_time}
   echo 0 >${exit_code}
   echo "COMPLETE" >${state}
-  generate_ro_crate
-  clean_rundir
+  generate_ro_crate &
+  clean_rundir &
   exit 0
 }
 
@@ -147,7 +147,7 @@ function generate_outputs_list() {
 }
 
 function generate_ro_crate() {
-  python3 -c "from sapporo.ro_crate import generate_ro_crate; generate_ro_crate('${run_dir}')" || true
+  python3 -c "from sapporo.ro_crate import generate_ro_crate; generate_ro_crate('${run_dir}')" || "{}" >"${run_dir}/ro-crate-metadata.json" || true
 }
 
 function upload() {
@@ -239,7 +239,8 @@ function desc_error() {
   echo ${original_exit_code} >${exit_code}
   date +"%Y-%m-%dT%H:%M:%S" >${end_time}
   echo "SYSTEM_ERROR" >${state}
-  generate_ro_crate
+  generate_ro_crate &
+  clean_rundir &
   exit ${original_exit_code}
 }
 
@@ -249,7 +250,8 @@ function executor_error() {
   echo ${original_exit_code} >${exit_code}
   date +"%Y-%m-%dT%H:%M:%S" >${end_time}
   echo "EXECUTOR_ERROR" >${state}
-  generate_ro_crate
+  generate_ro_crate &
+  clean_rundir &
   exit ${original_exit_code}
 }
 
@@ -259,7 +261,8 @@ function uploader_error() {
   echo ${original_exit_code} >${exit_code}
   date +"%Y-%m-%dT%H:%M:%S" >${end_time}
   echo "UPLOADER_ERROR" >${state}
-  generate_ro_crate
+  generate_ro_crate &
+  clean_rundir &
   exit ${original_exit_code}
 }
 
@@ -278,7 +281,8 @@ function kill_by_system() {
   echo ${original_exit_code} >${exit_code}
   date +"%Y-%m-%dT%H:%M:%S" >${end_time}
   echo "SYSTEM_ERROR" >${state}
-  generate_ro_crate
+  generate_ro_crate &
+  clean_rundir &
   exit ${original_exit_code}
 }
 
@@ -288,7 +292,8 @@ function cancel_by_request() {
   echo ${original_exit_code} >${exit_code}
   date +"%Y-%m-%dT%H:%M:%S" >${end_time}
   echo "CANCELED" >${state}
-  generate_ro_crate
+  generate_ro_crate &
+  clean_rundir &
   exit ${original_exit_code}
 }
 
