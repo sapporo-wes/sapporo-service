@@ -334,12 +334,12 @@ def update_local_file_stat(crate: ROCrate, file_ins: File, file_path: Path, incl
 
     # add file line count
     try:
-        file_ins["lineCount"] = len(file_path.read_text(encoding="utf-8").splitlines())
+        file_ins["lineCount"] = count_lines(file_path)
     except UnicodeDecodeError:
         pass
 
     # checksum using sha512 (https://www.researchobject.org/ro-crate/1.1/appendix/implementation-notes.html#combining-with-other-packaging-schemes)
-    file_ins["sha512"] = hashlib.sha512(file_path.read_bytes()).hexdigest()
+    file_ins["sha512"] = generate_sha512(file_path)
 
     # https://pypi.org/project/python-magic/
     file_ins["encodingFormat"] = magic.from_file(file_path, mime=True)
@@ -360,6 +360,32 @@ def update_local_file_stat(crate: ROCrate, file_ins: File, file_path: Path, incl
         })
         crate.add(edam_ins)
         file_ins.append_to("format", edam_ins, compact=True)
+
+
+def count_lines(file_path: Path) -> int:
+    block_size = 65536
+    count = 0
+    with file_path.open("r") as f:
+        while True:
+            buffer = f.read(block_size)
+            if not buffer:
+                break
+            count += buffer.count("\n")
+
+    return count
+
+
+def generate_sha512(file_path: Path) -> str:
+    block_size = 65536
+    sha512 = hashlib.sha512()
+    with file_path.open("rb") as f:
+        while True:
+            buffer = f.read(block_size)
+            if not buffer:
+                break
+            sha512.update(buffer)
+
+    return sha512.hexdigest()
 
 
 class EDAM(TypedDict):
@@ -976,9 +1002,9 @@ def add_vcftools_stats(crate: ROCrate, file_ins: File) -> None:
         stats = json.loads(stdout)
         stats_ins = ContextEntity(crate, properties={
             "@type": ["FileStats"],
-            "variantCount": stats["all"]["count"],
-            "snpsCount": stats["all"]["snp_count"],
-            "indelsCount": stats["all"]["indel_count"],
+            "variantCount": stats["all"].get("count", 0),
+            "snpsCount": stats["all"].get("snp_count", 0),
+            "indelsCount": stats["all"].get("indel_count", 0),
         })
         stats_ins.append_to("generatedBy", find_or_generate_software_ins(crate, "vcftools", "0.1.16--pl5321h9a82719_6"), compact=True)
         file_ins.append_to("stats", stats_ins, compact=True)
