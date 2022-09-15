@@ -116,7 +116,6 @@ def secure_filepath(filepath: str) -> Path:
         node = "_".join(node.split())
         # Change [^A-Za-z0-9_.-] to empty.
         node = str(_filename_ascii_strip_re.sub("", node))
-        node = node.strip("._")
         if node not in ["", ".", ".."]:
             nodes.append(node)
 
