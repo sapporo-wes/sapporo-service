@@ -10,7 +10,7 @@ FROM python:3.8.13-slim-buster
 LABEL org.opencontainers.image.authors="Bioinformatics and DDBJ Center <t.ohta@nig.ac.jp>"
 LABEL org.opencontainers.image.url="https://github.com/sapporo-wes/sapporo-service"
 LABEL org.opencontainers.image.source="https://github.com/sapporo-wes/sapporo-service/blob/main/Dockerfile"
-LABEL org.opencontainers.image.version="1.4.6"
+LABEL org.opencontainers.image.version="1.4.7"
 LABEL org.opencontainers.image.description="sapporo-service is a standard implementation conforming to the \
     Global Alliance for Genomics and Health (GA4GH) Workflow Execution Service (WES) API specification."
 LABEL org.opencontainers.image.licenses="Apache2.0"
