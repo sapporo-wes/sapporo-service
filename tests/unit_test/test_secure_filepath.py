@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # coding: utf-8
 # pylint: disable=redundant-u-string-prefix
-from pathlib import Path
+from pathlib import Path, PosixPath
 
 from sapporo.run import secure_filepath
 
@@ -53,8 +53,8 @@ def test_only_root() -> None:
 
 
 def test_hidden_file() -> None:
-    assert secure_filepath(".foo") == Path("foo")
+    assert secure_filepath(".foo") == PosixPath(".foo")
 
 
 def test_ds_store() -> None:
-    assert secure_filepath("._.DS_STORE") == Path("DS_STORE")
+    assert secure_filepath("._.DS_STORE") == PosixPath("._.DS_STORE")
