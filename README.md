@@ -54,7 +54,7 @@ $ docker compose logs
 
 ## Usage
 
-The help for the sapporo-service startup command is as follows.
+The help for the sapporo-service startup command is as follows:
 
 ```bash
 $ sapporo --help
@@ -110,10 +110,10 @@ We think this part is a standard WES API specification mistake, so we request fi
 
 #### Execute only registered workflows mode
 
-As the API specifications for executing only registered workflows mode, please check [SwaggerHub - sapporo-wes](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.0).
+As the API specifications for executing only registered workflows mode, please check [SwaggerHub - sapporo-wes](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.0):
 
 It conforms to the standard WES API.
-The changes are as follows.
+The changes are as follows:
 
 - Executable workflows are returned by `GET /executable_workflows`.
 - Specify `workflow_name` instead of `workflow_url` in `POST /runs`.
@@ -128,7 +128,7 @@ For more information, see [SwaggerUI - sapporo-wes - GetExecutableWorkflows](htt
 The sapporo-service manages the submitted workflows, workflow parameters, output files, etc., on the file system.
 You can override the location of run dir by using the startup argument `--run-dir` or the environment variable `SAPPORO_RUN_DIR`.
 
-The run dir structure is as follows. You can initialize and delete each run by physical deletion with `rm`.
+The run dir structure is as follows:
 
 ```bash
 $ tree run
@@ -160,6 +160,8 @@ $ tree run
 └── 6b
     └── ...
 ```
+
+So, you can initialize and delete each run by physical deletion with `rm`.
 
 The execution of `POST /runs` is very complex.
 Examples using `curl` are provided in [GitHub - sapporo/tests/curl](https://github.com/sapporo-wes/sapporo-service/tree/main/tests/curl_example/post_runs).
@@ -210,12 +212,28 @@ For more information, see [SwaggerUI - sapporo-wes - GetData](https://app.swagge
 ### Generate RO-Crate
 
 The sapporo-service generates RO-Crate from the run_dir after the workflow execution is completed as `ro-crate-metadata.json` in the run_dir.
+You can download the RO-Crate by using `GET /runs/{run_id}/ro-crate/data/ro-crate-metadata.json`.
+
+And, you can generate RO-Crate from the run_dir as follows:
+
+```bash
+# At Sapporo run_dir
+$ ls
+cmd.txt                     run.sh                      state.txt
+exe/                        run_request.json            stderr.log
+executable_workflows.json   sapporo_config.json         stdout.log
+outputs/                    service_info.json           workflow_engine_params.txt
+run.pid                     start_time.txt              yevis-metadata.yml
+
+# Execute sapporo/ro_crate.py script
+$ docker run --rm -v $PWD:$PWD -w $PWD ghcr.io/sapporo-wes/sapporo-service:latest python3 /app/sapporo/ro_crate.py $PWD
+```
 
 Please see, [ro-crate-metadata-example.json](./tests/ro-crate-metadata-example.json) as an example.
 
 ## Development
 
-You can start the development environment as follows.
+You can start the development environment as follows:
 
 ```bash
 $ docker compose -f docker-compose.dev.yml up -d --build
