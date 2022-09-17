@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # coding: utf-8
+import gc
 import hashlib
 import json
 import os
@@ -372,6 +373,9 @@ def count_lines(file_path: Path) -> int:
                 break
             count += buffer.count("\n")
 
+    del buffer
+    gc.collect()
+
     return count
 
 
@@ -385,7 +389,11 @@ def generate_sha512(file_path: Path) -> str:
                 break
             sha512.update(buffer)
 
-    return sha512.hexdigest()
+    hash_ = str(sha512.hexdigest())
+    del sha512
+    gc.collect()
+
+    return hash_
 
 
 class EDAM(TypedDict):
