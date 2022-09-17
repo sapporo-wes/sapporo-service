@@ -39,7 +39,7 @@ from sapporo.const import RUN_DIR_STRUCTURE, RUN_DIR_STRUCTURE_KEYS
 from sapporo.model import AttachedFile, RunRequest, ServiceInfo
 
 TERM_PATH = Path(__file__).parent.joinpath("ro-terms.csv")
-TERM_URL_BASE = "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/ro-terms.csv"
+TERM_URL_BASE = "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/ro-terms.csv"
 SAPPORO_EXTRA_TERMS: Dict[str, str] = {}
 with TERM_PATH.open(mode="r", encoding="utf-8") as f:
     for line in f:
