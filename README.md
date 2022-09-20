@@ -226,7 +226,7 @@ outputs/                    service_info.json           workflow_engine_params.t
 run.pid                     start_time.txt              yevis-metadata.yml
 
 # Execute sapporo/ro_crate.py script
-$ docker run --rm -v $PWD:$PWD -w $PWD ghcr.io/sapporo-wes/sapporo-service:latest python3 /app/sapporo/ro_crate.py $PWD
+$ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:$PWD -w $PWD ghcr.io/sapporo-wes/sapporo-service:latest python3 /app/sapporo/ro_crate.py $PWD
 ```
 
 Please see, [ro-crate-metadata-example.json](./tests/ro-crate-metadata-example.json) as an example.
