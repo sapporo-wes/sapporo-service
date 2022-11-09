@@ -146,11 +146,13 @@ def generate_ro_crate(inputted_run_dir: str) -> None:
     run_id = run_dir.name
 
     crate = ROCrate(init=False, gen_preview=False)
-    add_root_data_entity(crate, yevis_metadata)
-    add_dataset_dir(crate, run_dir)
+    # add_root_data_entity(crate, yevis_metadata)
+    # add_dataset_dir(crate, run_dir)
+    # add_test(crate, run_dir, run_request, sapporo_config, service_info, yevis_metadata, run_id)
     add_workflow(crate, run_dir, run_request, yevis_metadata)
     add_workflow_attachment(crate, run_dir, run_request, yevis_metadata)
-    add_test(crate, run_dir, run_request, sapporo_config, service_info, yevis_metadata, run_id)
+    add_workflow_run(crate, run_dir, run_id)
+    add_workflow_execution_service(crate)
 
     crate.write(run_dir)
 
@@ -583,8 +585,97 @@ def add_workflow_attachment(crate: ROCrate, run_dir: Path, run_request: RunReque
         crate.add(file_ins)
 
 
-def add_workflow_run(crate: ROCrate) -> None:
-    crate
+def add_workflow_run(crate: ROCrate, run_dir: Path, run_id: str) -> None:
+    create_action_ins = generate_create_action(crate, run_dir, run_id)
+    wf_ins = crate.mainEntity
+    create_action_ins.append_to("instrument", wf_ins, compact=True)
+
+def generate_create_action(crate: ROCrate, run_dir: Path, run_id: str) -> ContextEntity:
+    create_action_ins = ContextEntity(crate, identifier=run_id, properties={
+        "@type": "CreateAction",
+        "name": "Sapporo workflow run " + run_id,
+    })
+    crate.add(create_action_ins)
+
+    # Add one-line text files
+    one_line_files: List[Tuple[RUN_DIR_STRUCTURE_KEYS, str]] = [
+        ("start_time", "startTime"),
+        ("end_time", "endTime"),
+        ("exit_code", "exitCode"),
+        ("pid", "pid"),
+        ("state", "state"),
+    ]
+    for key, field_key in one_line_files:
+        content = read_file(run_dir, key, one_line=True)
+        if content is None:
+            continue
+        if key == "pid" or key == "exit_code":
+            create_action_ins[field_key] = int(content)
+        else:
+            create_action_ins[field_key] = content
+
+    # Add log files
+    log_files: List[Tuple[RUN_DIR_STRUCTURE_KEYS, str]] = [
+        ("stdout", "Sapporo stdout"),
+        ("stderr", "Sapporo stderr"),
+        ("task_logs", "Sapporo task logs"),
+    ]
+    for key, name in log_files:
+        source = run_dir.joinpath(RUN_DIR_STRUCTURE[key])
+        if source.exists() is False:
+            continue
+        dest = source.relative_to(run_dir)
+        file_ins = File(crate, source, dest, properties={
+            "name": name,
+        })
+        update_local_file_stat(crate, file_ins, source)
+        create_action_ins.append_to("result", file_ins, compact=True)
+        crate.add(file_ins)
+
+    # Add output files
+    outputs: Optional[List[AttachedFile]] = read_file(run_dir, "outputs")
+    for source in run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"]).glob("**/*"):
+        if source.is_dir():
+            continue
+        source = source.resolve(strict=True)
+        dest = source.relative_to(run_dir)
+        file_ins = File(crate, source, dest, properties={
+            "@type": "File",
+        })
+        update_local_file_stat(crate, file_ins, source)
+
+        if outputs is not None:
+            # Include the URL of Sapporo's download feature
+            output_dir_dest = source.relative_to(run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"]))
+            for output in outputs:
+                if str(output["file_name"]) == str(output_dir_dest):
+                    file_ins["url"] = output["file_url"]
+
+        add_file_stats(crate, file_ins)
+
+        append_outputs_dir_dataset(crate, file_ins)
+        create_action_ins.append_to("result", file_ins, compact=True)
+        crate.add(file_ins)
+
+    # Add intermediate files
+    create_action_ins["object"] = []
+    already_added_ids = extract_exe_dir_file_ids(crate)
+    for source in run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"]).glob("**/*"):
+        if source.is_dir():
+            continue
+        source = source.resolve(strict=True)
+        dest = source.relative_to(run_dir)
+        if str(dest) in already_added_ids:
+            continue
+        file_ins = File(crate, source, dest, properties={
+            "@type": "File",
+        })
+        update_local_file_stat(crate, file_ins, source, include_content=False)
+        append_exe_dir_dataset(crate, file_ins)
+        create_action_ins.append_to("object", file_ins, compact=True)
+        crate.add(file_ins)
+
+    return create_action_ins
 
 def add_workflow_execution_service(crate: ROCrate) -> None:
     crate
