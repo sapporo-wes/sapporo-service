@@ -4,7 +4,7 @@
         {
             "@id": "./",
             "@type": "Dataset",
-            "datePublished": "2022-11-09T22:02:03+00:00",
+            "datePublished": "2022-11-09T22:13:14+00:00",
             "hasPart": [
                 {
                     "@id": "https://raw.githubusercontent.com/pitagora-network/pitagora-cwl/master/workflows/download-fastq/download-fastq.single.cwl"
@@ -27,6 +27,9 @@
             ],
             "mainEntity": {
                 "@id": "https://raw.githubusercontent.com/pitagora-network/pitagora-cwl/master/workflows/download-fastq/download-fastq.single.cwl"
+            },
+            "mentions": {
+                "@id": "#08f23d48-3e4d-4f68-b06b-e7bdf358e065"
             }
         },
         {

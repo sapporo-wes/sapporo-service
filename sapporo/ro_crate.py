@@ -678,6 +678,8 @@ def generate_create_action(crate: ROCrate, run_dir: Path, run_id: str) -> Contex
         crate.mainEntity.append_to("input", file_ins)
         crate.add(file_ins)
 
+    crate.root_dataset.append_to("mentions", create_action_ins, compact=True)
+
     return create_action_ins
 
 def add_workflow_execution_service(crate: ROCrate) -> None:
