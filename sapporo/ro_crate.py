@@ -583,6 +583,12 @@ def add_workflow_attachment(crate: ROCrate, run_dir: Path, run_request: RunReque
         crate.add(file_ins)
 
 
+def add_workflow_run(crate: ROCrate) -> None:
+    crate
+
+def add_workflow_execution_service(crate: ROCrate) -> None:
+    crate
+
 def add_test(crate: ROCrate, run_dir: Path, run_request: RunRequest,
              sapporo_config: SapporoConfig, service_info: ServiceInfo, yevis_meta: Optional[YevisMetadata], run_id: str) -> None:
     suite_ins = generate_test_suite(crate)
