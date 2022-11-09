@@ -630,6 +630,7 @@ def generate_create_action(crate: ROCrate, run_dir: Path, run_id: str) -> Contex
         })
         update_local_file_stat(crate, file_ins, source)
         create_action_ins.append_to("result", file_ins, compact=True)
+        crate.mainEntity.append_to("output", file_ins, compact=True)
         crate.add(file_ins)
 
     # Add output files
@@ -654,6 +655,7 @@ def generate_create_action(crate: ROCrate, run_dir: Path, run_id: str) -> Contex
         add_file_stats(crate, file_ins)
 
         append_outputs_dir_dataset(crate, file_ins)
+        crate.mainEntity.append_to("output", file_ins, compact=True)
         create_action_ins.append_to("result", file_ins, compact=True)
         crate.add(file_ins)
 
@@ -673,6 +675,7 @@ def generate_create_action(crate: ROCrate, run_dir: Path, run_id: str) -> Contex
         update_local_file_stat(crate, file_ins, source, include_content=False)
         append_exe_dir_dataset(crate, file_ins)
         create_action_ins.append_to("object", file_ins, compact=True)
+        crate.mainEntity.append_to("input", file_ins, compact=True)
         crate.add(file_ins)
 
     return create_action_ins
