@@ -4,7 +4,7 @@
         {
             "@id": "./",
             "@type": "Dataset",
-            "datePublished": "2022-11-09T22:13:14+00:00",
+            "datePublished": "2022-11-10T17:55:16+00:00",
             "hasPart": [
                 {
                     "@id": "https://raw.githubusercontent.com/pitagora-network/pitagora-cwl/master/workflows/download-fastq/download-fastq.single.cwl"
@@ -125,12 +125,6 @@
             "pid": 67,
             "result": [
                 {
-                    "@id": "stdout.log"
-                },
-                {
-                    "@id": "stderr.log"
-                },
-                {
                     "@id": "outputs/SRR1274307_1.fastq"
                 },
                 {
@@ -138,7 +132,15 @@
                 }
             ],
             "startTime": "2022-11-08T16:10:36",
-            "state": "COMPLETE"
+            "state": "COMPLETE",
+            "subjectOf": [
+                {
+                    "@id": "stdout.log"
+                },
+                {
+                    "@id": "stderr.log"
+                }
+            ]
         },
         {
             "@id": "stdout.log",

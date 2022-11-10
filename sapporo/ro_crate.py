@@ -629,7 +629,7 @@ def generate_create_action(crate: ROCrate, run_dir: Path, run_id: str) -> Contex
             "name": name,
         })
         update_local_file_stat(crate, file_ins, source)
-        create_action_ins.append_to("result", file_ins)
+        create_action_ins.append_to("subjectOf", file_ins)
         crate.mainEntity.append_to("output", file_ins)
         crate.add(file_ins)
 
