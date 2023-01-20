@@ -188,7 +188,7 @@ def add_root_data_entity(crate: ROCrate, yevis_meta: Optional[YevisMetadata]) ->
     metadata_ins.extra_terms.update(SAPPORO_EXTRA_TERMS)
 
     if yevis_meta is not None:
-        root_dataset_ins.append_to("license", generate_license(crate, yevis_meta), compact=True)
+        metadata_ins.append_to("license", generate_license(crate, yevis_meta), compact=True)
         authors = yevis_meta["authors"]
         for author in authors:
             root_dataset_ins.append_to("author", generate_person(crate, author), compact=True)

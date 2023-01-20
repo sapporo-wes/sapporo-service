@@ -238,6 +238,8 @@ You can start the development environment as follows:
 ```bash
 $ docker compose -f docker-compose.dev.yml up -d --build
 $ docker compose -f docker-compose.dev.yml exec app bash
+# inside container
+$ sapporo
 ```
 
 We use [flake8](https://pypi.org/project/flake8/), [isort](https://github.com/timothycrosley/isort), and [mypy](http://mypy-lang.org) as a linter.
