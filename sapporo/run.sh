@@ -147,7 +147,7 @@ function generate_outputs_list() {
 }
 
 function generate_ro_crate() {
-  python3 -c "from sapporo.ro_crate import generate_ro_crate; generate_ro_crate('${run_dir}')" || "{}" >"${run_dir}/ro-crate-metadata.json" || true
+  python3 -c "from sapporo.ro_crate import generate_ro_crate; generate_ro_crate('${run_dir}')" || echo "{}" >"${run_dir}/ro-crate-metadata.json" || true
 }
 
 function upload() {
