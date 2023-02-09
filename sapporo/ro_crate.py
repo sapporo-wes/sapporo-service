@@ -139,22 +139,25 @@ def generate_ro_crate(inputted_run_dir: str) -> None:
     run_dir: Path = Path(inputted_run_dir).resolve(strict=True)
     if not run_dir.is_dir():
         raise NotADirectoryError(f"{run_dir} is not a directory.")
+
+    crate = ROCrate(init=False, gen_preview=False)
+
     run_request: RunRequest = read_file(run_dir, "run_request")
-    sapporo_config: SapporoConfig = read_file(run_dir, "sapporo_config")
-    service_info: ServiceInfo = read_file(run_dir, "service_info")
     yevis_metadata: Optional[YevisMetadata] = read_file(run_dir, "yevis_metadata")
     run_id = run_dir.name
 
-    crate = ROCrate(init=False, gen_preview=False)
-    # add_root_data_entity(crate, yevis_metadata)
-    # add_dataset_dir(crate, run_dir)
-    # add_test(crate, run_dir, run_request, sapporo_config, service_info, yevis_metadata, run_id)
     add_workflow(crate, run_dir, run_request, yevis_metadata)
     add_workflow_attachment(crate, run_dir, run_request, yevis_metadata)
     add_workflow_run(crate, run_dir, run_id)
     add_workflow_execution_service(crate)
-    crate.metadata.extra_terms.update(SAPPORO_EXTRA_TERMS)
 
+    # sapporo_config: SapporoConfig = read_file(run_dir, "sapporo_config")
+    # service_info: ServiceInfo = read_file(run_dir, "service_info")
+    # add_root_data_entity(crate, yevis_metadata)
+    # add_dataset_dir(crate, run_dir)
+    # add_test(crate, run_dir, run_request, sapporo_config, service_info, yevis_metadata, run_id)
+
+    crate.metadata.extra_terms.update(SAPPORO_EXTRA_TERMS)
     crate.write(run_dir)
 
 
@@ -175,100 +178,6 @@ def read_file(run_dir: Path, file_type: RUN_DIR_STRUCTURE_KEYS, one_line: bool =
             return yaml.load(f, Loader=yaml.SafeLoader)
         except Exception:
             return f.read()
-
-
-def add_root_data_entity(crate: ROCrate, yevis_meta: Optional[YevisMetadata]) -> None:
-    """\
-    Modified from crate.__init__from_tree()
-
-    https://www.researchobject.org/ro-crate/1.1/root-data-entity.html#direct-properties-of-the-root-data-entity
-    """
-    root_dataset_ins = RootDataset(crate, properties={
-        "name": "Sapporo RO-Crate",
-        "description": "RO-Crate of Sapporo's run execution results.",
-    })
-    metadata_ins = Metadata(crate)
-    metadata_ins.extra_terms.update(SAPPORO_EXTRA_TERMS)
-
-    if yevis_meta is not None:
-        metadata_ins.append_to("license", generate_license(crate, yevis_meta), compact=True)
-        authors = yevis_meta["authors"]
-        for author in authors:
-            root_dataset_ins.append_to("author", generate_person(crate, author), compact=True)
-
-    crate.add(
-        root_dataset_ins,
-        metadata_ins,
-    )
-
-
-def generate_license(crate: ROCrate, yevis_meta: YevisMetadata) -> ContextEntity:
-    """\
-    Call GitHub REST API to get license information.
-    """
-    license = yevis_meta["license"]
-    with urllib.request.urlopen(f"https://api.github.com/licenses/{license}") as f:
-        if f.status == 200:
-            license_info = json.load(f)
-            name = license_info["name"]
-            id_ = license_info["html_url"]
-        else:
-            name = license
-            id_ = license
-    license_ins = ContextEntity(crate, id_, properties={
-        "@type": ["CreativeWork"],
-        "name": name,
-    })
-
-    crate.add(license_ins)
-
-    return license_ins
-
-
-def generate_person(crate: ROCrate, author: YevisAuthor) -> ContextEntity:
-    if "orcid" in author:
-        id_ = f"https://orcid.org/{author['orcid']}"
-    else:
-        id_ = f"https://github.com/{author['github_account']}"
-    person_ins = ContextEntity(crate, id_, properties={
-        "@type": ["Person"],
-        "name": author["name"],
-        "affiliation": author["affiliation"],
-    })
-
-    crate.add(person_ins)
-
-    return person_ins
-
-
-def add_dataset_dir(crate: ROCrate, run_dir: Path) -> None:
-    exe_dir = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"])
-    crate.add_dataset(
-        exe_dir, exe_dir.relative_to(run_dir), {
-            "name": "Sapporo execution directory",
-        }
-    )
-    outputs_dir = run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"])
-    crate.add_dataset(
-        outputs_dir, outputs_dir.relative_to(run_dir), {
-            "name": "Sapporo outputs directory",
-        }
-    )
-
-
-def append_exe_dir_dataset(crate: ROCrate, ins: DataEntity) -> None:
-    for entity in crate.get_entities():
-        if isinstance(entity, Dataset):
-            if str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['exe_dir']}/":
-                entity.append_to("hasPart", ins, compact=True)
-
-
-def append_outputs_dir_dataset(crate: ROCrate, ins: DataEntity) -> None:
-    for entity in crate.get_entities():
-        if isinstance(entity, Dataset):
-            if str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['outputs_dir']}/":
-                entity.append_to("hasPart", ins, compact=True)
-
 
 def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_meta: Optional[YevisMetadata]) -> None:
     """\
@@ -316,7 +225,6 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_m
         })
         crate.add(description_ins)
         wf_ins["description"] = description_ins
-
 
 def update_local_file_stat(crate: ROCrate, file_ins: File, file_path: Path, include_content: bool = True) -> None:
     if file_path.is_file() is False:
@@ -367,6 +275,12 @@ def update_local_file_stat(crate: ROCrate, file_ins: File, file_path: Path, incl
         # https://pypi.org/project/python-magic/
         file_ins["encodingFormat"] = magic.from_file(file_path, mime=True)
 
+def append_exe_dir_dataset(crate: ROCrate, ins: DataEntity) -> None:
+    for entity in crate.get_entities():
+        if isinstance(entity, Dataset):
+            if str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['exe_dir']}/":
+                entity.append_to("hasPart", ins, compact=True)
+
 def count_lines(file_path: Path) -> int:
     block_size = 65536
     count = 0
@@ -399,80 +313,6 @@ def generate_sha512(file_path: Path) -> str:
 
     return hash_
 
-
-class EDAM(TypedDict):
-    url: str
-    name: str
-
-
-EDAM_MAPPING: Dict[str, EDAM] = {
-    ".bam": {
-        "url": "http://edamontology.org/format_2572",
-        "name": "BAM format, the binary, BGZF-formatted compressed version of SAM format for alignment of nucleotide sequences (e.g. sequencing reads) to (a) reference sequence(s). May contain base-call and alignment qualities and other data.",
-    },
-    ".bb": {
-        "url": "http://edamontology.org/format_3004",
-        "name": "bigBed format for large sequence annotation tracks, similar to textual BED format.",
-    },
-    ".bed": {
-        "url": "http://edamontology.org/format_3003",
-        "name": "Browser Extensible Data (BED) format of sequence annotation track, typically to be displayed in a genome browser.",
-    },
-    ".bw": {
-        "url": "http://edamontology.org/format_3006",
-        "name": "bigWig format for large sequence annotation tracks that consist of a value for each sequence position. Similar to textual WIG format.",
-    },
-    ".fa": {
-        "url": "http://edamontology.org/format_1929",
-        "name": "FASTA format including NCBI-style IDs.",
-    },
-    ".fasta": {
-        "url": "http://edamontology.org/format_1929",
-        "name": "FASTA format including NCBI-style IDs.",
-    },
-    ".fastq": {
-        "url": "http://edamontology.org/format_1930",
-        "name": "FASTQ short read format ignoring quality scores.",
-    },
-    ".fastq.gz": {
-        "url": "http://edamontology.org/format_1930",
-        "name": "FASTQ short read format ignoring quality scores.",
-    },
-    ".fq": {
-        "url": "http://edamontology.org/format_1930",
-        "name": "FASTQ short read format ignoring quality scores.",
-    },
-    ".fq.gz": {
-        "url": "http://edamontology.org/format_1930",
-        "name": "FASTQ short read format ignoring quality scores.",
-    },
-    ".gtf": {
-        "url": "http://edamontology.org/format_2306",
-        "name": "Gene Transfer Format (GTF), a restricted version of GFF.",
-    },
-    ".gff": {
-        "url": "http://edamontology.org/format_1975",
-        "name": "Generic Feature Format version 3 (GFF3) of sequence features.",
-    },
-    ".sam": {
-        "url": "http://edamontology.org/format_2573",
-        "name": "Sequence Alignment/Map (SAM) format for alignment of nucleotide sequences (e.g. sequencing reads) to (a) reference sequence(s). May contain base-call and alignment qualities and other data.",
-    },
-    ".vcf": {
-        "url": "http://edamontology.org/format_3016",
-        "name": "Variant Call Format (VCF) for sequence variation (indels, polymorphisms, structural variation).",
-    },
-    ".vcf.gz": {
-        "url": "http://edamontology.org/format_3016",
-        "name": "Variant Call Format (VCF) for sequence variation (indels, polymorphisms, structural variation).",
-    },
-    ".wig": {
-        "url": "http://edamontology.org/format_3005",
-        "name": "Wiggle format (WIG) of a sequence annotation track that consists of a value for each sequence position. Typically to be displayed in a genome browser.",
-    },
-}
-
-
 def inspect_edam_format(file_path: Path) -> Optional[EDAM]:
     """\
     TODO: use tataki (https://github.com/suecharo/tataki)
@@ -482,6 +322,8 @@ def inspect_edam_format(file_path: Path) -> Optional[EDAM]:
             return edam
 
     return None
+
+
 
 
 def generate_wf_lang(crate: ROCrate, run_request: RunRequest) -> ComputerLanguage:
@@ -686,6 +528,176 @@ def generate_create_action(crate: ROCrate, run_dir: Path, run_id: str) -> Contex
 
 def add_workflow_execution_service(crate: ROCrate) -> None:
     crate
+
+
+
+
+
+
+
+
+
+
+
+# === functions unused ===
+
+def add_root_data_entity(crate: ROCrate, yevis_meta: Optional[YevisMetadata]) -> None:
+    """\
+    Modified from crate.__init__from_tree()
+
+    https://www.researchobject.org/ro-crate/1.1/root-data-entity.html#direct-properties-of-the-root-data-entity
+    """
+    root_dataset_ins = RootDataset(crate, properties={
+        "name": "Sapporo RO-Crate",
+        "description": "RO-Crate of Sapporo's run execution results.",
+    })
+    metadata_ins = Metadata(crate)
+    metadata_ins.extra_terms.update(SAPPORO_EXTRA_TERMS)
+
+    if yevis_meta is not None:
+        metadata_ins.append_to("license", generate_license(crate, yevis_meta), compact=True)
+        authors = yevis_meta["authors"]
+        for author in authors:
+            root_dataset_ins.append_to("author", generate_person(crate, author), compact=True)
+
+    crate.add(
+        root_dataset_ins,
+        metadata_ins,
+    )
+
+
+def generate_license(crate: ROCrate, yevis_meta: YevisMetadata) -> ContextEntity:
+    """\
+    Call GitHub REST API to get license information.
+    """
+    license = yevis_meta["license"]
+    with urllib.request.urlopen(f"https://api.github.com/licenses/{license}") as f:
+        if f.status == 200:
+            license_info = json.load(f)
+            name = license_info["name"]
+            id_ = license_info["html_url"]
+        else:
+            name = license
+            id_ = license
+    license_ins = ContextEntity(crate, id_, properties={
+        "@type": ["CreativeWork"],
+        "name": name,
+    })
+
+    crate.add(license_ins)
+
+    return license_ins
+
+
+def generate_person(crate: ROCrate, author: YevisAuthor) -> ContextEntity:
+    if "orcid" in author:
+        id_ = f"https://orcid.org/{author['orcid']}"
+    else:
+        id_ = f"https://github.com/{author['github_account']}"
+    person_ins = ContextEntity(crate, id_, properties={
+        "@type": ["Person"],
+        "name": author["name"],
+        "affiliation": author["affiliation"],
+    })
+
+    crate.add(person_ins)
+
+    return person_ins
+
+
+def add_dataset_dir(crate: ROCrate, run_dir: Path) -> None:
+    exe_dir = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"])
+    crate.add_dataset(
+        exe_dir, exe_dir.relative_to(run_dir), {
+            "name": "Sapporo execution directory",
+        }
+    )
+    outputs_dir = run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"])
+    crate.add_dataset(
+        outputs_dir, outputs_dir.relative_to(run_dir), {
+            "name": "Sapporo outputs directory",
+        }
+    )
+
+
+
+def append_outputs_dir_dataset(crate: ROCrate, ins: DataEntity) -> None:
+    for entity in crate.get_entities():
+        if isinstance(entity, Dataset):
+            if str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['outputs_dir']}/":
+                entity.append_to("hasPart", ins, compact=True)
+
+class EDAM(TypedDict):
+    url: str
+    name: str
+
+
+EDAM_MAPPING: Dict[str, EDAM] = {
+    ".bam": {
+        "url": "http://edamontology.org/format_2572",
+        "name": "BAM format, the binary, BGZF-formatted compressed version of SAM format for alignment of nucleotide sequences (e.g. sequencing reads) to (a) reference sequence(s). May contain base-call and alignment qualities and other data.",
+    },
+    ".bb": {
+        "url": "http://edamontology.org/format_3004",
+        "name": "bigBed format for large sequence annotation tracks, similar to textual BED format.",
+    },
+    ".bed": {
+        "url": "http://edamontology.org/format_3003",
+        "name": "Browser Extensible Data (BED) format of sequence annotation track, typically to be displayed in a genome browser.",
+    },
+    ".bw": {
+        "url": "http://edamontology.org/format_3006",
+        "name": "bigWig format for large sequence annotation tracks that consist of a value for each sequence position. Similar to textual WIG format.",
+    },
+    ".fa": {
+        "url": "http://edamontology.org/format_1929",
+        "name": "FASTA format including NCBI-style IDs.",
+    },
+    ".fasta": {
+        "url": "http://edamontology.org/format_1929",
+        "name": "FASTA format including NCBI-style IDs.",
+    },
+    ".fastq": {
+        "url": "http://edamontology.org/format_1930",
+        "name": "FASTQ short read format ignoring quality scores.",
+    },
+    ".fastq.gz": {
+        "url": "http://edamontology.org/format_1930",
+        "name": "FASTQ short read format ignoring quality scores.",
+    },
+    ".fq": {
+        "url": "http://edamontology.org/format_1930",
+        "name": "FASTQ short read format ignoring quality scores.",
+    },
+    ".fq.gz": {
+        "url": "http://edamontology.org/format_1930",
+        "name": "FASTQ short read format ignoring quality scores.",
+    },
+    ".gtf": {
+        "url": "http://edamontology.org/format_2306",
+        "name": "Gene Transfer Format (GTF), a restricted version of GFF.",
+    },
+    ".gff": {
+        "url": "http://edamontology.org/format_1975",
+        "name": "Generic Feature Format version 3 (GFF3) of sequence features.",
+    },
+    ".sam": {
+        "url": "http://edamontology.org/format_2573",
+        "name": "Sequence Alignment/Map (SAM) format for alignment of nucleotide sequences (e.g. sequencing reads) to (a) reference sequence(s). May contain base-call and alignment qualities and other data.",
+    },
+    ".vcf": {
+        "url": "http://edamontology.org/format_3016",
+        "name": "Variant Call Format (VCF) for sequence variation (indels, polymorphisms, structural variation).",
+    },
+    ".vcf.gz": {
+        "url": "http://edamontology.org/format_3016",
+        "name": "Variant Call Format (VCF) for sequence variation (indels, polymorphisms, structural variation).",
+    },
+    ".wig": {
+        "url": "http://edamontology.org/format_3005",
+        "name": "Wiggle format (WIG) of a sequence annotation track that consists of a value for each sequence position. Typically to be displayed in a genome browser.",
+    },
+}
 
 def add_test(crate: ROCrate, run_dir: Path, run_request: RunRequest,
              sapporo_config: SapporoConfig, service_info: ServiceInfo, yevis_meta: Optional[YevisMetadata], run_id: str) -> None:
