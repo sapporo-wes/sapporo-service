@@ -261,7 +261,7 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_m
         tmp_file_path, _ = urllib.request.urlretrieve(wf_url)
         wf_file_path = Path(tmp_file_path)
         wf_ins = ComputationalWorkflow(crate, wf_url)
-        update_local_file_stat(crate, wf_ins, wf_file_path)
+        # update_local_file_stat(crate, wf_ins, wf_file_path)
         del wf_ins["dateModified"]
         # del wf_ins["uid"]
         # del wf_ins["gid"]
@@ -269,7 +269,7 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_m
     else:
         wf_file_path = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], wf_url).resolve(strict=True)
         wf_ins = ComputationalWorkflow(crate, wf_file_path, wf_file_path.relative_to(run_dir))
-        update_local_file_stat(crate, wf_ins, wf_file_path)
+        # update_local_file_stat(crate, wf_ins, wf_file_path)
         append_exe_dir_dataset(crate, wf_ins)
 
     crate.add(wf_ins)
