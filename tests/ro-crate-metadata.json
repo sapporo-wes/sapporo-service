@@ -3,7 +3,6 @@
         "https://w3id.org/ro/crate/1.1/context",
         {
             "FileStats": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/ro-terms.csv#FileStats",
-            "Format": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/ro-terms.csv#Format",
             "IntermediateFile": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/ro-terms.csv#IntermediateFile",
             "OutputFile": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/ro-terms.csv#OutputFile",
             "SapporoConfiguration": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/ro-terms.csv#SapporoConfiguration",
@@ -21,7 +20,6 @@
             "environment": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/ro-terms.csv#environment",
             "executableWorkflows": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/ro-terms.csv#executableWorkflows",
             "exitCode": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/ro-terms.csv#exitCode",
-            "format": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/ro-terms.csv#format",
             "freeDiskSpace": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/ro-terms.csv#freeDiskSpace",
             "generatedBy": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/ro-terms.csv#generatedBy",
             "getRuns": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/ro-terms.csv#getRuns",
@@ -69,7 +67,7 @@
         {
             "@id": "./",
             "@type": "Dataset",
-            "datePublished": "2023-02-09T07:21:35+00:00",
+            "datePublished": "2023-02-09T08:52:57+00:00",
             "hasPart": [
                 {
                     "@id": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwltool/trimming_and_qc_remote.cwl"
