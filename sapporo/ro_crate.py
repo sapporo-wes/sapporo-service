@@ -71,17 +71,16 @@ with TERM_PATH.open(mode="r", encoding="utf-8") as f:
 
 # === type definitions ===
 
-
-class SapporoConfig(TypedDict):
-    sapporo_version: str
-    get_runs: bool
-    workflow_attachment: bool
-    registered_only_mode: bool
-    service_info: str
-    executable_workflows: str
-    run_sh: str
-    url_prefix: str
-    sapporo_endpoint: str
+# class SapporoConfig(TypedDict):
+#     sapporo_version: str
+#     get_runs: bool
+#     workflow_attachment: bool
+#     registered_only_mode: bool
+#     service_info: str
+#     executable_workflows: str
+#     run_sh: str
+#     url_prefix: str
+#     sapporo_endpoint: str
 
 
 class YevisAuthor(TypedDict):
