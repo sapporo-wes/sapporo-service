@@ -345,8 +345,6 @@ def update_local_file_stat(crate: ROCrate, file_ins: File, file_path: Path, incl
     # checksum using sha512 (https://www.researchobject.org/ro-crate/1.1/appendix/implementation-notes.html#combining-with-other-packaging-schemes)
     file_ins["sha512"] = generate_sha512(file_path)
 
-    # https://pypi.org/project/python-magic/
-    file_ins["encodingFormat"] = magic.from_file(file_path, mime=True)
 
     if include_content:
         # under 10kb, attach as text
@@ -358,13 +356,16 @@ def update_local_file_stat(crate: ROCrate, file_ins: File, file_path: Path, incl
 
     edam = inspect_edam_format(file_path)
     if edam is not None:
-        edam_ins = ContextEntity(crate, edam["url"], properties={
-            "@type": ["Format"],
-            "name": edam["name"],
-        })
-        crate.add(edam_ins)
-        file_ins.append_to("format", edam_ins, compact=True)
-
+        file_ins.append_to("encodingFormat", edam["url"], compact=True)
+        # edam_ins = ContextEntity(crate, edam["url"], properties={
+        #     "@type": ["Format"],
+        #     "name": edam["name"],
+        # })
+        # crate.add(edam_ins)
+        # file_ins.append_to("format", edam_ins, compact=True)
+    else:
+        # https://pypi.org/project/python-magic/
+        file_ins["encodingFormat"] = magic.from_file(file_path, mime=True)
 
 def count_lines(file_path: Path) -> int:
     block_size = 65536

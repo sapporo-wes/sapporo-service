@@ -58,5 +58,3 @@ duplicateRate,Property,duplicate rate,Duplicate rate of a sam/bam file,FileStats
 variantCount,Property,variant count,Variant count of a vcf file,FileStats,int
 snpsCount,Property,snps count,Snps count of a vcf file,FileStats,int
 indelsCount,Property,indels count,Indels count of a vcf file,FileStats,int
-format,Property,format,Edam format of a File,File,Format
-Format,Class,format,Edam format of a File,,
