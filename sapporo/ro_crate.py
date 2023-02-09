@@ -229,7 +229,6 @@ def generate_ro_crate(inputted_run_dir: str) -> None:
     crate.metadata.extra_terms.update(SAPPORO_EXTRA_TERMS)
     crate.write(run_dir)
 
-
 def read_file(run_dir: Path, file_type: RUN_DIR_STRUCTURE_KEYS, one_line: bool = False, raw: bool = False) -> Any:
     if "dir" in file_type:
         return None
@@ -258,11 +257,12 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_m
     wf_url = cast(str, run_request["workflow_url"])
     wf_url_parts = urlsplit(wf_url)
     if wf_url_parts.scheme == "http" or wf_url_parts.scheme == "https":
-        tmp_file_path, _ = urllib.request.urlretrieve(wf_url)
-        wf_file_path = Path(tmp_file_path)
-        wf_ins = ComputationalWorkflow(crate, wf_url)
+        wf_ins = ComputationalWorkflow(crate, wf_url_parts.path)
+        wf_ins["url"] = wf_url
+        # tmp_file_path, _ = urllib.request.urlretrieve(wf_url)
+        # wf_file_path = Path(tmp_file_path)
         # update_local_file_stat(crate, wf_ins, wf_file_path)
-        del wf_ins["dateModified"]
+        # del wf_ins["dateModified"]
         # del wf_ins["uid"]
         # del wf_ins["gid"]
         # del wf_ins["mode"]
@@ -592,8 +592,52 @@ def generate_create_action(crate: ROCrate, run_dir: Path, run_id: str) -> Contex
 
     return create_action_ins
 
+def add_file_stats(crate: ROCrate, file_ins: File) -> None:
+    """\
+    see "format" field of file_ins
+
+    ".bam": "http://edamontology.org/format_2572"
+    ".sam": "http://edamontology.org/format_2573",
+      -> quay.io/biocontainers/samtools:1.15.1--h1170115_0
+    ".vcf": "http://edamontology.org/format_3016",
+      -> quay.io/biocontainers/vcftools:0.1.16--pl5321h9a82719_6
+    """
+    # TODO: use docker or local command?
+    if shutil.which("docker") is None:
+        return
+
+    formats = get_norm_value(file_ins, "format")
+    for format_ in formats:
+        if format_ == "http://edamontology.org/format_2572" or format_ == "http://edamontology.org/format_2573":
+            # bam or sam
+            add_samtools_stats(crate, file_ins)
+        elif format_ == "http://edamontology.org/format_3016":
+            # vcf
+            add_vcftools_stats(crate, file_ins)
+
+def append_outputs_dir_dataset(crate: ROCrate, ins: DataEntity) -> None:
+    for entity in crate.get_entities():
+        if isinstance(entity, Dataset):
+            if str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['outputs_dir']}/":
+                entity.append_to("hasPart", ins, compact=True)
+
+
+def extract_exe_dir_file_ids(crate: ROCrate) -> List[str]:
+    for entity in crate.get_entities():
+        if isinstance(entity, Dataset):
+            if str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['exe_dir']}/":
+                return cast(List[str], get_norm_value(entity, "hasPart"))
+    return []
+
 def add_workflow_execution_service(crate: ROCrate) -> None:
     crate
+
+# === main ===
+
+if __name__ == "__main__":
+    import sys
+    inputted_dir = Path(sys.argv[1]).resolve(strict=True)
+    generate_ro_crate(str(inputted_dir))
 
 # === functions unused ===
 
@@ -674,15 +718,6 @@ def add_workflow_execution_service(crate: ROCrate) -> None:
 #             "name": "Sapporo outputs directory",
 #         }
 #     )
-
-
-
-# def append_outputs_dir_dataset(crate: ROCrate, ins: DataEntity) -> None:
-#     for entity in crate.get_entities():
-#         if isinstance(entity, Dataset):
-#             if str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['outputs_dir']}/":
-#                 entity.append_to("hasPart", ins, compact=True)
-
 
 # def add_test(crate: ROCrate, run_dir: Path, run_request: RunRequest,
 #              sapporo_config: SapporoConfig, service_info: ServiceInfo, yevis_meta: Optional[YevisMetadata], run_id: str) -> None:
@@ -1006,39 +1041,6 @@ def add_workflow_execution_service(crate: ROCrate) -> None:
 
 #     return test_result_ins
 
-
-# def extract_exe_dir_file_ids(crate: ROCrate) -> List[str]:
-#     for entity in crate.get_entities():
-#         if isinstance(entity, Dataset):
-#             if str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['exe_dir']}/":
-#                 return cast(List[str], get_norm_value(entity, "hasPart"))
-#     return []
-
-
-# def add_file_stats(crate: ROCrate, file_ins: File) -> None:
-#     """\
-#     see "format" field of file_ins
-
-#     ".bam": "http://edamontology.org/format_2572"
-#     ".sam": "http://edamontology.org/format_2573",
-#       -> quay.io/biocontainers/samtools:1.15.1--h1170115_0
-#     ".vcf": "http://edamontology.org/format_3016",
-#       -> quay.io/biocontainers/vcftools:0.1.16--pl5321h9a82719_6
-#     """
-#     # TODO: use docker or local command?
-#     if shutil.which("docker") is None:
-#         return
-
-#     formats = get_norm_value(file_ins, "format")
-#     for format_ in formats:
-#         if format_ == "http://edamontology.org/format_2572" or format_ == "http://edamontology.org/format_2573":
-#             # bam or sam
-#             add_samtools_stats(crate, file_ins)
-#         elif format_ == "http://edamontology.org/format_3016":
-#             # vcf
-#             add_vcftools_stats(crate, file_ins)
-
-
 # def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
 #     """\
 #     $ samtools flagstats --output-fmt json <file_path>
@@ -1142,9 +1144,3 @@ def add_workflow_execution_service(crate: ROCrate) -> None:
 #     crate.add(software_ins)
 
 #     return software_ins
-
-
-# if __name__ == "__main__":
-#     import sys
-#     inputted_dir = Path(sys.argv[1]).resolve(strict=True)
-#     generate_ro_crate(str(inputted_dir))
