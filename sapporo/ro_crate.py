@@ -263,9 +263,9 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_m
         wf_ins = ComputationalWorkflow(crate, wf_url)
         update_local_file_stat(crate, wf_ins, wf_file_path)
         del wf_ins["dateModified"]
-        del wf_ins["uid"]
-        del wf_ins["gid"]
-        del wf_ins["mode"]
+        # del wf_ins["uid"]
+        # del wf_ins["gid"]
+        # del wf_ins["mode"]
     else:
         wf_file_path = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], wf_url).resolve(strict=True)
         wf_ins = ComputationalWorkflow(crate, wf_file_path, wf_file_path.relative_to(run_dir))
@@ -309,9 +309,9 @@ def update_local_file_stat(crate: ROCrate, file_ins: File, file_path: Path, incl
     file_ins["dateModified"] = datetime.fromtimestamp(stat_result.st_mtime).isoformat()
 
     # additional properties (not defined)
-    file_ins["uid"] = stat_result.st_uid
-    file_ins["gid"] = stat_result.st_gid
-    file_ins["mode"] = stat.filemode(stat_result.st_mode)
+    # file_ins["uid"] = stat_result.st_uid
+    # file_ins["gid"] = stat_result.st_gid
+    # file_ins["mode"] = stat.filemode(stat_result.st_mode)
 
     # add file line count
     try:
@@ -512,7 +512,7 @@ def generate_create_action(crate: ROCrate, run_dir: Path, run_id: str) -> Contex
         ("start_time", "startTime"),
         ("end_time", "endTime"),
         ("exit_code", "exitCode"),
-        ("pid", "pid"),
+        # ("pid", "pid"),
         ("state", "state"),
     ]
     for key, field_key in one_line_files:

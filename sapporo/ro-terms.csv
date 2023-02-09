@@ -22,7 +22,6 @@ inDocker,Property,in docker,Is the environment running in a Docker container,Tes
 environment,Property,environment,Environment of the test instance,TestInstance,TestEnvironment
 TestResult,Class,test result,Result of a test run,,
 intermediateFiles,Property,intermediate files,Files that compose Sapporo's execution directory,TestResult,File
-pid,Property,pid,Process ID of a test run,TestResult,int
 stdout,Property,stdout,Stdout of a test run,TestResult,File
 stderr,Property,stderr,Stderr of a test run,TestResult,File
 exitCode,Property,exit code,Exit code of a test run,TestResult,int
@@ -31,9 +30,6 @@ outputs,Property,outputs,Output Files of a test run,TestResult,File
 result,Property,result,Result of a test run,TestSuite,TestResult
 runId,Property,run id,Run ID of a test run,TestResult,string
 WorkflowAttachment,Class,workflow attachment,File attached to a workflow,,
-uid,Property,uid,User ID of a file,File,string
-gid,Property,uid,Group ID of a file,File,string
-mode,Property,mode,File mode of a file,File,string
 sha512,Property,sha512,SHA512 checksum of a file,File,string
 lineCount,Property,line count,Line count of a file,File,int
 attachment,Property,attachment,File attached to a workflow,ComputationalWorkflow,File
