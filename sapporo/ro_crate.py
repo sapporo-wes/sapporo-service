@@ -128,6 +128,76 @@ class YevisMetadata(TypedDict):
     authors: List[YevisAuthor]
     workflow: YevisWorkflow
 
+class EDAM(TypedDict):
+    url: str
+    name: str
+
+EDAM_MAPPING: Dict[str, EDAM] = {
+    ".bam": {
+        "url": "http://edamontology.org/format_2572",
+        "name": "BAM format, the binary, BGZF-formatted compressed version of SAM format for alignment of nucleotide sequences (e.g. sequencing reads) to (a) reference sequence(s). May contain base-call and alignment qualities and other data.",
+    },
+    ".bb": {
+        "url": "http://edamontology.org/format_3004",
+        "name": "bigBed format for large sequence annotation tracks, similar to textual BED format.",
+    },
+    ".bed": {
+        "url": "http://edamontology.org/format_3003",
+        "name": "Browser Extensible Data (BED) format of sequence annotation track, typically to be displayed in a genome browser.",
+    },
+    ".bw": {
+        "url": "http://edamontology.org/format_3006",
+        "name": "bigWig format for large sequence annotation tracks that consist of a value for each sequence position. Similar to textual WIG format.",
+    },
+    ".fa": {
+        "url": "http://edamontology.org/format_1929",
+        "name": "FASTA format including NCBI-style IDs.",
+    },
+    ".fasta": {
+        "url": "http://edamontology.org/format_1929",
+        "name": "FASTA format including NCBI-style IDs.",
+    },
+    ".fastq": {
+        "url": "http://edamontology.org/format_1930",
+        "name": "FASTQ short read format ignoring quality scores.",
+    },
+    ".fastq.gz": {
+        "url": "http://edamontology.org/format_1930",
+        "name": "FASTQ short read format ignoring quality scores.",
+    },
+    ".fq": {
+        "url": "http://edamontology.org/format_1930",
+        "name": "FASTQ short read format ignoring quality scores.",
+    },
+    ".fq.gz": {
+        "url": "http://edamontology.org/format_1930",
+        "name": "FASTQ short read format ignoring quality scores.",
+    },
+    ".gtf": {
+        "url": "http://edamontology.org/format_2306",
+        "name": "Gene Transfer Format (GTF), a restricted version of GFF.",
+    },
+    ".gff": {
+        "url": "http://edamontology.org/format_1975",
+        "name": "Generic Feature Format version 3 (GFF3) of sequence features.",
+    },
+    ".sam": {
+        "url": "http://edamontology.org/format_2573",
+        "name": "Sequence Alignment/Map (SAM) format for alignment of nucleotide sequences (e.g. sequencing reads) to (a) reference sequence(s). May contain base-call and alignment qualities and other data.",
+    },
+    ".vcf": {
+        "url": "http://edamontology.org/format_3016",
+        "name": "Variant Call Format (VCF) for sequence variation (indels, polymorphisms, structural variation).",
+    },
+    ".vcf.gz": {
+        "url": "http://edamontology.org/format_3016",
+        "name": "Variant Call Format (VCF) for sequence variation (indels, polymorphisms, structural variation).",
+    },
+    ".wig": {
+        "url": "http://edamontology.org/format_3005",
+        "name": "Wiggle format (WIG) of a sequence annotation track that consists of a value for each sequence position. Typically to be displayed in a genome browser.",
+    },
+}
 
 # === functions ===
 
@@ -322,9 +392,6 @@ def inspect_edam_format(file_path: Path) -> Optional[EDAM]:
             return edam
 
     return None
-
-
-
 
 def generate_wf_lang(crate: ROCrate, run_request: RunRequest) -> ComputerLanguage:
     """\
@@ -627,77 +694,6 @@ def append_outputs_dir_dataset(crate: ROCrate, ins: DataEntity) -> None:
             if str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['outputs_dir']}/":
                 entity.append_to("hasPart", ins, compact=True)
 
-class EDAM(TypedDict):
-    url: str
-    name: str
-
-
-EDAM_MAPPING: Dict[str, EDAM] = {
-    ".bam": {
-        "url": "http://edamontology.org/format_2572",
-        "name": "BAM format, the binary, BGZF-formatted compressed version of SAM format for alignment of nucleotide sequences (e.g. sequencing reads) to (a) reference sequence(s). May contain base-call and alignment qualities and other data.",
-    },
-    ".bb": {
-        "url": "http://edamontology.org/format_3004",
-        "name": "bigBed format for large sequence annotation tracks, similar to textual BED format.",
-    },
-    ".bed": {
-        "url": "http://edamontology.org/format_3003",
-        "name": "Browser Extensible Data (BED) format of sequence annotation track, typically to be displayed in a genome browser.",
-    },
-    ".bw": {
-        "url": "http://edamontology.org/format_3006",
-        "name": "bigWig format for large sequence annotation tracks that consist of a value for each sequence position. Similar to textual WIG format.",
-    },
-    ".fa": {
-        "url": "http://edamontology.org/format_1929",
-        "name": "FASTA format including NCBI-style IDs.",
-    },
-    ".fasta": {
-        "url": "http://edamontology.org/format_1929",
-        "name": "FASTA format including NCBI-style IDs.",
-    },
-    ".fastq": {
-        "url": "http://edamontology.org/format_1930",
-        "name": "FASTQ short read format ignoring quality scores.",
-    },
-    ".fastq.gz": {
-        "url": "http://edamontology.org/format_1930",
-        "name": "FASTQ short read format ignoring quality scores.",
-    },
-    ".fq": {
-        "url": "http://edamontology.org/format_1930",
-        "name": "FASTQ short read format ignoring quality scores.",
-    },
-    ".fq.gz": {
-        "url": "http://edamontology.org/format_1930",
-        "name": "FASTQ short read format ignoring quality scores.",
-    },
-    ".gtf": {
-        "url": "http://edamontology.org/format_2306",
-        "name": "Gene Transfer Format (GTF), a restricted version of GFF.",
-    },
-    ".gff": {
-        "url": "http://edamontology.org/format_1975",
-        "name": "Generic Feature Format version 3 (GFF3) of sequence features.",
-    },
-    ".sam": {
-        "url": "http://edamontology.org/format_2573",
-        "name": "Sequence Alignment/Map (SAM) format for alignment of nucleotide sequences (e.g. sequencing reads) to (a) reference sequence(s). May contain base-call and alignment qualities and other data.",
-    },
-    ".vcf": {
-        "url": "http://edamontology.org/format_3016",
-        "name": "Variant Call Format (VCF) for sequence variation (indels, polymorphisms, structural variation).",
-    },
-    ".vcf.gz": {
-        "url": "http://edamontology.org/format_3016",
-        "name": "Variant Call Format (VCF) for sequence variation (indels, polymorphisms, structural variation).",
-    },
-    ".wig": {
-        "url": "http://edamontology.org/format_3005",
-        "name": "Wiggle format (WIG) of a sequence annotation track that consists of a value for each sequence position. Typically to be displayed in a genome browser.",
-    },
-}
 
 def add_test(crate: ROCrate, run_dir: Path, run_request: RunRequest,
              sapporo_config: SapporoConfig, service_info: ServiceInfo, yevis_meta: Optional[YevisMetadata], run_id: str) -> None:
