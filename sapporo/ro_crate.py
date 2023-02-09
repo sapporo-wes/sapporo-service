@@ -51,17 +51,17 @@ with TERM_PATH.open(mode="r", encoding="utf-8") as f:
 
 # https://www.researchobject.org/ro-terms/
 # https://www.researchobject.org/ro-terms/#why-are-terms-collected-in-a-csv
-TESTING_EXTRA_TERMS: Dict[str, str] = {
-    "TestSuite": "https://w3id.org/ro/terms/test#TestSuite",
-    "TestInstance": "https://w3id.org/ro/terms/test#TestInstance",
-    "TestService": "https://w3id.org/ro/terms/test#TestService",
-    "TestDefinition": "https://w3id.org/ro/terms/test#TestDefinition",
-    "instance": "https://w3id.org/ro/terms/test#instance",
-    "runsOn": "https://w3id.org/ro/terms/test#runsOn",
-    "resource": "https://w3id.org/ro/terms/test#resource",
-    "definition": "https://w3id.org/ro/terms/test#definition",
-    "engineVersion": "https://w3id.org/ro/terms/test#engineVersion",
-}
+# TESTING_EXTRA_TERMS: Dict[str, str] = {
+#     "TestSuite": "https://w3id.org/ro/terms/test#TestSuite",
+#     "TestInstance": "https://w3id.org/ro/terms/test#TestInstance",
+#     "TestService": "https://w3id.org/ro/terms/test#TestService",
+#     "TestDefinition": "https://w3id.org/ro/terms/test#TestDefinition",
+#     "instance": "https://w3id.org/ro/terms/test#instance",
+#     "runsOn": "https://w3id.org/ro/terms/test#runsOn",
+#     "resource": "https://w3id.org/ro/terms/test#resource",
+#     "definition": "https://w3id.org/ro/terms/test#definition",
+#     "engineVersion": "https://w3id.org/ro/terms/test#engineVersion",
+# }
 
 # https://www.researchobject.org/ro-crate/1.1/metadata.html#additional-metadata-standards
 # - https://bioschemas.org/ComputationalWorkflow
