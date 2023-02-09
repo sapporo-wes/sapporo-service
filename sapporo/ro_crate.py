@@ -153,6 +153,7 @@ def generate_ro_crate(inputted_run_dir: str) -> None:
     add_workflow_attachment(crate, run_dir, run_request, yevis_metadata)
     add_workflow_run(crate, run_dir, run_id)
     add_workflow_execution_service(crate)
+    crate.metadata.extra_terms.update(SAPPORO_EXTRA_TERMS)
 
     crate.write(run_dir)
 
