@@ -179,8 +179,7 @@ def generate_ro_crate(inputted_run_dir: str) -> None:
     add_extra_terms(crate)
     add_workflow(crate, run_dir, run_request, yevis_metadata)
     add_workflow_attachment(crate, run_dir, run_request, yevis_metadata)
-    add_workflow_run(crate, run_dir, run_id)
-    add_workflow_execution_service(crate)
+    add_workflow_run(crate, run_dir, run_request, run_id)
 
     crate.write(run_dir)
 
@@ -435,35 +434,124 @@ def add_workflow_attachment(crate: ROCrate, run_dir: Path, run_request: RunReque
         crate.mainEntity.append_to("attachment", file_ins, compact=True)
         crate.add(file_ins)
 
-def add_workflow_run(crate: ROCrate, run_dir: Path, run_id: str) -> None:
-    create_action_ins = generate_create_action(crate, run_dir, run_id)
-    wf_ins = crate.mainEntity
-    create_action_ins.append_to("instrument", wf_ins, compact=True)
-
-def generate_create_action(crate: ROCrate, run_dir: Path, run_id: str) -> ContextEntity:
+def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequest, run_id: str) -> None:
+    # Run metadata
     create_action_ins = ContextEntity(crate, identifier=run_id, properties={
         "@type": "CreateAction",
-        "name": "Sapporo workflow run " + run_id,
+        "name": "Sapporo workflow run " + run_id
     })
-    crate.add(create_action_ins)
+    create_action_ins.append_to("instrument", crate.mainEntity, compact=True)
 
-    # Add one-line text files
+    # Run state
     one_line_files: List[Tuple[RUN_DIR_STRUCTURE_KEYS, str]] = [
         ("start_time", "startTime"),
         ("end_time", "endTime"),
         ("exit_code", "exitCode"),
-        # ("pid", "pid"),
         ("state", "state"),
     ]
     for key, field_key in one_line_files:
         content = read_file(run_dir, key, one_line=True)
         if content is None:
             continue
-        if key == "pid" or key == "exit_code":
+        if key == "exit_code":
             create_action_ins[field_key] = int(content)
         else:
             create_action_ins[field_key] = content
 
+    crate.add(create_action_ins)
+
+    #
+    # Run inputs
+    #
+    wf_params = json.loads(run_request["workflow_params"])
+    for key, val in wf_params.items():
+        formal_param = ContextEntity(crate, key, properties={
+            "@type": "FormalParameter",
+            "name": key,
+        })
+
+        # If param is File or Directory
+        if isinstance(val, object):
+            param_class = val["class"]
+            param_path  = val["path"]
+            param_apath = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], param_path).resolve(strict=True)
+            param_rpath = param_apath.relative_to(run_dir)
+
+            formal_param["additionalType"] = param_class
+            formal_param["workExample"] = str(param_rpath)
+
+            actual_file = DataEntity(crate, param_rpath, properties={
+                "@type": param_class,
+                "name": os.path.basename(param_path),
+            })
+
+            if hasattr(val, "format"):
+                encoding_format = []
+                encoding_format.append(val["format"])
+                formal_param["encodingFormat"] = encoding_format
+                actual_file["encodingFormat"] = encoding_format
+
+            crate.add(actual_file)
+            create_action_ins.append_to("object", actual_file)
+        # Else if param is str,int,float,etc.
+        else:
+            formal_param["additionalType"] = type(val).__name__
+            formal_param["workExample"] = key
+
+            actual_value = DataEntity(crate, key, properties={
+                "@type": "PropertyValue",
+                "name": key,
+                "value": val
+            })
+
+            crate.add(actual_value)
+            create_action_ins.append_to("object", actual_value)
+
+        crate.add(formal_param)
+        crate.mainEntity.append_to("input", formal_param)
+
+    #
+    # Run outputs
+    #
+    outputs: Optional[List[AttachedFile]] = read_file(run_dir, "outputs")
+    for source in run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"]).glob("**/*"):
+        if source.is_dir():
+            continue
+
+        file_apath = source.resolve(strict=True)
+        file_rpath = file_apath.relative_to(run_dir)
+        file_basename = os.path.basename(file_apath)
+
+        formal_param = ContextEntity(crate, file_basename, properties={
+            "@type": "FormalParameter",
+            "name": file_basename,
+        })
+        formal_param.append_to("workExample", str(file_rpath))
+        crate.mainEntity.append_to("output", formal_param)
+        crate.add(formal_param)
+
+        actual_file = File(crate, file_apath, file_rpath, properties={
+            "@type": "File",
+        })
+        actual_file.append_to("exampleOfWork", formal_param)
+        update_local_file_stat(crate, actual_file, file_apath)
+
+        if outputs is not None:
+            # Include the URL of Sapporo's download feature
+            output_dir_dest = file_apath.relative_to(run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"]))
+            for output in outputs:
+                if str(output["file_name"]) == str(output_dir_dest):
+                    actual_file["url"] = output["file_url"]
+
+        add_file_stats(crate, actual_file)
+        append_outputs_dir_dataset(crate, actual_file)
+
+        create_action_ins.append_to("result", actual_file)
+        crate.add(actual_file)
+
+    #
+    # Log files
+    #
     # Add log files
     log_files: List[Tuple[RUN_DIR_STRUCTURE_KEYS, str]] = [
         ("stdout", "Sapporo stdout"),
@@ -482,55 +570,6 @@ def generate_create_action(crate: ROCrate, run_dir: Path, run_id: str) -> Contex
         create_action_ins.append_to("subjectOf", file_ins)
         crate.mainEntity.append_to("output", file_ins)
         crate.add(file_ins)
-
-    # Add output files
-    outputs: Optional[List[AttachedFile]] = read_file(run_dir, "outputs")
-    for source in run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"]).glob("**/*"):
-        if source.is_dir():
-            continue
-        source = source.resolve(strict=True)
-        dest = source.relative_to(run_dir)
-        file_ins = File(crate, source, dest, properties={
-            "@type": "File",
-        })
-        update_local_file_stat(crate, file_ins, source)
-
-        if outputs is not None:
-            # Include the URL of Sapporo's download feature
-            output_dir_dest = source.relative_to(run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"]))
-            for output in outputs:
-                if str(output["file_name"]) == str(output_dir_dest):
-                    file_ins["url"] = output["file_url"]
-
-        add_file_stats(crate, file_ins)
-
-        append_outputs_dir_dataset(crate, file_ins)
-        crate.mainEntity.append_to("output", file_ins)
-        create_action_ins.append_to("result", file_ins)
-        crate.add(file_ins)
-
-    # Add intermediate files
-    create_action_ins["object"] = []
-    already_added_ids = extract_exe_dir_file_ids(crate)
-    for source in run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"]).glob("**/*"):
-        if source.is_dir():
-            continue
-        source = source.resolve(strict=True)
-        dest = source.relative_to(run_dir)
-        if str(dest) in already_added_ids:
-            continue
-        file_ins = File(crate, source, dest, properties={
-            "@type": "File",
-        })
-        update_local_file_stat(crate, file_ins, source, include_content=False)
-        append_exe_dir_dataset(crate, file_ins)
-        create_action_ins.append_to("object", file_ins)
-        crate.mainEntity.append_to("input", file_ins)
-        crate.add(file_ins)
-
-    crate.root_dataset.append_to("mentions", create_action_ins, compact=True)
-
-    return create_action_ins
 
 def add_file_stats(crate: ROCrate, file_ins: File) -> None:
     """\
@@ -568,9 +607,6 @@ def extract_exe_dir_file_ids(crate: ROCrate) -> List[str]:
             if str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['exe_dir']}/":
                 return cast(List[str], get_norm_value(entity, "hasPart"))
     return []
-
-def add_workflow_execution_service(crate: ROCrate) -> None:
-    crate
 
 # === main ===
 
