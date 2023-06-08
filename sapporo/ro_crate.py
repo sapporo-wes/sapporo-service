@@ -175,18 +175,13 @@ def generate_ro_crate(inputted_run_dir: str) -> None:
     yevis_metadata: Optional[YevisMetadata] = read_file(run_dir, "yevis_metadata")
     run_id = run_dir.name
 
+    add_crate_metadata(crate)
+    add_extra_terms(crate)
     add_workflow(crate, run_dir, run_request, yevis_metadata)
     add_workflow_attachment(crate, run_dir, run_request, yevis_metadata)
     add_workflow_run(crate, run_dir, run_id)
     add_workflow_execution_service(crate)
 
-    # sapporo_config: SapporoConfig = read_file(run_dir, "sapporo_config")
-    # service_info: ServiceInfo = read_file(run_dir, "service_info")
-    # add_root_data_entity(crate, yevis_metadata)
-    # add_dataset_dir(crate, run_dir)
-    # add_test(crate, run_dir, run_request, sapporo_config, service_info, yevis_metadata, run_id)
-
-    crate.metadata.extra_terms.update(SAPPORO_EXTRA_TERMS)
     crate.write(run_dir)
 
 def read_file(run_dir: Path, file_type: RUN_DIR_STRUCTURE_KEYS, one_line: bool = False, raw: bool = False) -> Any:
@@ -206,6 +201,19 @@ def read_file(run_dir: Path, file_type: RUN_DIR_STRUCTURE_KEYS, one_line: bool =
             return yaml.load(f, Loader=yaml.SafeLoader)
         except Exception:
             return f.read()
+
+def add_crate_metadata(crate: ROCrate) -> None:
+    # @id: ro-crate-metadata.json
+    profiles = set(_.rstrip("/") for _ in get_norm_value(crate.metadata, "conformsTo"))
+    profiles.add(WORKFLOW_PROFILE)
+    crate.metadata["conformsTo"] = [{"@id": _} for _ in sorted(profiles)]
+
+    # @id: ./
+    profiles.add("https://w3id.org/ro/wfrun/workflow/0.1")
+    crate.root_dataset["conformsTo"] = [{"@id": _} for _ in sorted(profiles)]
+
+def add_extra_terms(crate: ROCrate) -> None:
+    crate.metadata.extra_terms.update(SAPPORO_EXTRA_TERMS)
 
 def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_meta: Optional[YevisMetadata]) -> None:
     """\
@@ -231,9 +239,6 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_m
     wf_ins.lang = generate_wf_lang(crate, run_request)
 
     crate.mainEntity = wf_ins
-    profiles = set(_.rstrip("/") for _ in get_norm_value(crate.metadata, "conformsTo"))
-    profiles.add(WORKFLOW_PROFILE)
-    crate.metadata["conformsTo"] = [{"@id": _} for _ in sorted(profiles)]
 
     if yevis_meta is not None:
         wf_ins["yevisId"] = yevis_meta["id"]
