@@ -232,13 +232,11 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_m
         append_exe_dir_dataset(crate, wf_ins)
 
     crate.add(wf_ins)
-
-    if run_request["workflow_name"] is not None:
-        wf_ins["name"] = run_request["workflow_name"]
+    crate.mainEntity = wf_ins
 
     wf_ins.lang = generate_wf_lang(crate, run_request)
-
-    crate.mainEntity = wf_ins
+    if run_request["workflow_name"] is not None:
+        wf_ins["name"] = run_request["workflow_name"]
 
     if yevis_meta is not None:
         wf_ins["yevisId"] = yevis_meta["id"]
@@ -248,8 +246,8 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_m
             "@type": ["WebPage"],
             "name": "README.md",
         })
-        crate.add(description_ins)
         wf_ins["description"] = description_ins
+        crate.add(description_ins)
 
 def update_local_file_stat(crate: ROCrate, file_ins: File, file_path: Path, include_content: bool = True) -> None:
     if file_path.is_file() is False:
