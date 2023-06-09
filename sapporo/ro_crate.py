@@ -494,6 +494,7 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequest, run
                 formal_param["encodingFormat"] = encoding_format
                 actual_file["encodingFormat"] = encoding_format
 
+            actual_file.append_to("exampleOfWork", formal_param)
             crate.add(actual_file)
             create_action_ins.append_to("object", actual_file)
         # Else if param is str,int,float,etc.
@@ -507,6 +508,7 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequest, run
                 "value": val
             })
 
+            actual_value.append_to("exampleOfWork", formal_param)
             crate.add(actual_value)
             create_action_ins.append_to("object", actual_value)
 
