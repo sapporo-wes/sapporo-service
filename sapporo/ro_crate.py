@@ -208,8 +208,11 @@ def add_crate_metadata(crate: ROCrate) -> None:
     crate.metadata["conformsTo"] = [{"@id": _} for _ in sorted(profiles)]
 
     # @id: ./
-    profiles.add("https://w3id.org/ro/wfrun/workflow/0.1")
-    crate.root_dataset["conformsTo"] = [{"@id": _} for _ in sorted(profiles)]
+    crate.root_dataset.append_to("conformsTo", [
+        { "@id": "https://w3id.org/ro/wfrun/process/0.1" },
+        { "@id": "https://w3id.org/ro/wfrun/workflow/0.1" },
+        { "@id": WORKFLOW_PROFILE },
+    ])
 
 def add_extra_terms(crate: ROCrate) -> None:
     crate.metadata.extra_terms.update(SAPPORO_EXTRA_TERMS)
