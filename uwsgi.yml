@@ -14,3 +14,6 @@ uwsgi:
   reload-on-rss: 2048 # Restart workers after this much resident memory (2GB)
   auto-procname: true
   procname-prefix: "sapporo "
+  harakiri: 60 # Kill workers taking longer than 60 seconds
+  workers: 4 # Adjust according to your server's CPU cores
+  threads: 2 # Adjust according to your needs
