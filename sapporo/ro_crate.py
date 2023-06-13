@@ -421,7 +421,7 @@ def add_workflow_attachment(crate: ROCrate, run_dir: Path, run_request: RunReque
         dest = source.relative_to(run_dir)
         if str(dest) == str(main_wf_id):
             continue
-        type_list = ["File", "FormalParameter", "WorkflowAttachment"]
+        type_list = ["File"]
         if "script" in magic.from_file(source):
             type_list.append("SoftwareSourceCode")
 
