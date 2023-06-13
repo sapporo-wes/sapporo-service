@@ -610,6 +610,110 @@ def add_file_stats(crate: ROCrate, file_ins: File) -> None:
             # vcf
             add_vcftools_stats(crate, file_ins)
 
+def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
+    """\
+    $ samtools flagstats --output-fmt json <file_path>
+
+    Using: quay.io/biocontainers/samtools:1.15.1--h1170115_0
+    """
+    source = file_ins.source
+    cmd = shlex.split(" ".join([
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        f"{source}:/work/{source.name}",
+        "-w",
+        "/work",
+        "quay.io/biocontainers/samtools:1.15.1--h1170115_0",
+        "samtools",
+        "flagstats",
+        "--output-fmt",
+        "json",
+        source.name,
+    ]))
+    proc = subprocess.run(cmd, capture_output=True)
+    if proc.returncode != 0:
+        return
+    try:
+        stats = json.loads(proc.stdout)
+        total = stats["QC-passed reads"]["total"]
+        mapped = stats["QC-passed reads"]["mapped"]
+        unmapped = total - mapped
+        duplicate = stats["QC-passed reads"]["duplicates"]
+        stats_ins = ContextEntity(crate, properties={
+            "@type": ["FileStats"],
+            "totalReads": total,
+            "mappedReads": mapped,
+            "unmappedReads": unmapped,
+            "duplicateReads": duplicate,
+            "mappedRate": mapped / total,
+            "unmappedRate": unmapped / total,
+            "duplicateRate": duplicate / total,
+        })
+        stats_ins.append_to("generatedBy", find_or_generate_software_ins(crate, "samtools", "1.15.1--h1170115_0"), compact=True)
+        file_ins.append_to("stats", stats_ins, compact=True)
+        crate.add(stats_ins)
+    except json.JSONDecodeError:
+        return
+
+
+def add_vcftools_stats(crate: ROCrate, file_ins: File) -> None:
+    """\
+    $ vcf-stats <file_path>
+
+    Using: quay.io/biocontainers/vcftools:0.1.16--pl5321h9a82719_6
+    """
+    source = file_ins.source
+    cmd = shlex.split(" ".join([
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        f"{source}:/work/{source.name}",
+        "-w",
+        "/work",
+        "quay.io/biocontainers/vcftools:0.1.16--pl5321h9a82719_6",
+        "vcf-stats",
+        source.name,
+    ]))
+    proc = subprocess.run(cmd, capture_output=True)
+    if proc.returncode != 0:
+        return
+    try:
+        stdout = proc.stdout.decode()
+        stdout = stdout.strip()
+        stdout = stdout.lstrip("$VAR1 = ")
+        stdout = stdout.rstrip(";")
+        stdout = stdout.replace("=>", ":")
+        stdout = stdout.replace("\'", "\"")
+        stats = json.loads(stdout)
+        stats_ins = ContextEntity(crate, properties={
+            "@type": ["FileStats"],
+            "variantCount": stats["all"].get("count", 0),
+            "snpsCount": stats["all"].get("snp_count", 0),
+            "indelsCount": stats["all"].get("indel_count", 0),
+        })
+        stats_ins.append_to("generatedBy", find_or_generate_software_ins(crate, "vcftools", "0.1.16--pl5321h9a82719_6"), compact=True)
+        file_ins.append_to("stats", stats_ins, compact=True)
+        crate.add(stats_ins)
+    except json.JSONDecodeError:
+        return
+
+
+def find_or_generate_software_ins(crate: ROCrate, name: str, version: str) -> SoftwareApplication:
+    for entity in crate.get_entities():
+        if isinstance(entity, SoftwareApplication):
+            if entity["name"] == name:
+                return entity
+    software_ins = SoftwareApplication(crate, identifier=name, properties={
+        "name": name,
+        "version": version
+    })
+    crate.add(software_ins)
+
+    return software_ins
+
 def append_outputs_dir_dataset(crate: ROCrate, ins: DataEntity) -> None:
     for entity in crate.get_entities():
         if isinstance(entity, Dataset):
