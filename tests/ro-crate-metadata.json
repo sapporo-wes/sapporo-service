@@ -3,22 +3,16 @@
         "https://w3id.org/ro/crate/1.1/context",
         {
             "FileStats": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#FileStats",
-            "Format": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#Format",
             "duplicateRate": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#duplicateRate",
             "duplicateReads": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#duplicateReads",
-            "format": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#format",
             "generatedBy": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#generatedBy",
-            "gid": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#gid",
             "indelsCount": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#indelsCount",
             "lineCount": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#lineCount",
             "mappedRate": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#mappedRate",
             "mappedReads": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#mappedReads",
-            "mode": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#mode",
-            "sha512": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#sha512",
             "snpsCount": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#snpsCount",
             "stats": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#stats",
             "totalReads": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#totalReads",
-            "uid": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#uid",
             "unmappedRate": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#unmappedRate",
             "unmappedReads": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#unmappedReads",
             "variantCount": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/wes-ro-terms.csv#variantCount"
@@ -39,7 +33,7 @@
                     "@id": "https://w3id.org/workflowhub/workflow-ro-crate/1.0"
                 }
             ],
-            "datePublished": "2023-06-13T06:17:24+00:00",
+            "datePublished": "2023-06-13T06:57:39+00:00",
             "hasPart": [
                 {
                     "@id": "https://raw.githubusercontent.com/sapporo-wes/yevis-cli/d81e0e38143c63ead17d475b85c9b639958b1b47/tests/CWL/wf/trimming_and_qc.cwl"
@@ -216,6 +210,7 @@
             "actionStatus": [
                 {
                     "@id": "CompletedActionStatus",
+                    "label": "COMPLETE",
                     "value": 0
                 }
             ],
@@ -253,7 +248,6 @@
                 }
             ],
             "startTime": "2023-01-13T09:13:32",
-            "state": "COMPLETE",
             "subjectOf": [
                 {
                     "@id": "stdout.log"

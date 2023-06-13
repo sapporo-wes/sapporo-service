@@ -448,30 +448,26 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequest, run
     })
     create_action_ins.append_to("instrument", crate.mainEntity, compact=True)
 
-    # Run state
-    one_line_files: List[Tuple[RUN_DIR_STRUCTURE_KEYS, str]] = [
-        ("start_time", "startTime"),
-        ("end_time", "endTime"),
-        ("exit_code", "exitCode"),
-        ("state", "state"),
-    ]
-    for key, field_key in one_line_files:
-        content = read_file(run_dir, key, one_line=True)
-        if content is None:
-            continue
-        if key == "exit_code":
-            if content != "0":
-                create_action_ins.append_to("actionStatus", {
-                    "@id": "FailedActionStatus",
-                    "value": int(content)
-                })
-            else:
-                create_action_ins.append_to("actionStatus", {
-                    "@id": "CompletedActionStatus",
-                    "value": int(content)
-                })
-        else:
-            create_action_ins[field_key] = content
+    # Run status
+    # Time
+    create_action_ins["startTime"] = read_file(run_dir, "start_time", one_line=True)
+    create_action_ins["endTime"] = read_file(run_dir, "end_time", one_line=True)
+
+    # Status
+    exit_code = read_file(run_dir, "exit_code", one_line=True)
+    state = read_file(run_dir, "state", one_line=True)
+    if exit_code == "0":
+        create_action_ins.append_to("actionStatus", {
+            "@id": "CompletedActionStatus",
+            "value": int(exit_code),
+            "label": state,
+        })
+    else:
+        create_action_ins.append_to("actionStatus", {
+            "@id": "FailedActionStatus",
+            "value": int(exit_code),
+            "label": state,
+        })
 
     crate.add(create_action_ins)
 
