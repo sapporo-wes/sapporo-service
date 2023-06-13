@@ -460,7 +460,16 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequest, run
         if content is None:
             continue
         if key == "exit_code":
-            create_action_ins[field_key] = int(content)
+            if content != "0":
+                create_action_ins.append_to("actionStatus", {
+                    "@id": "FailedActionStatus",
+                    "value": int(content)
+                })
+            else:
+                create_action_ins.append_to("actionStatus", {
+                    "@id": "CompletedActionStatus",
+                    "value": int(content)
+                })
         else:
             create_action_ins[field_key] = content
 
