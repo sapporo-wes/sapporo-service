@@ -245,7 +245,7 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_m
         wf_ins["version"] = yevis_meta["version"]
         wf_ins["name"] = yevis_meta["workflow"]["name"]
         description_ins = ContextEntity(crate, yevis_meta["workflow"]["readme"], properties={
-            "@type": ["WebPage"],
+            "@type": ["TextObject"],
             "name": "README.md",
         })
         wf_ins["description"] = description_ins
