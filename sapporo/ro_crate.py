@@ -11,6 +11,7 @@ import stat
 import subprocess
 import urllib
 import urllib.request
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple, TypedDict, cast
@@ -343,6 +344,8 @@ def generate_wf_lang(crate: ROCrate, run_request: RunRequest) -> ComputerLanguag
     """
     wf_type = cast(str, run_request["workflow_type"])
     wf_type_version = cast(str, run_request["workflow_type_version"])
+    if re.search("^v", wf_type_version):
+        wf_type_version = wf_type_version[1:]
 
     lang_type_for_ro_crate = wf_type
     if wf_type.lower() == "nfl":

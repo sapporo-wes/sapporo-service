@@ -39,7 +39,7 @@
                     "@id": "https://w3id.org/workflowhub/workflow-ro-crate/1.0"
                 }
             ],
-            "datePublished": "2023-06-13T05:44:16+00:00",
+            "datePublished": "2023-06-13T05:52:14+00:00",
             "hasPart": [
                 {
                     "@id": "https://raw.githubusercontent.com/sapporo-wes/yevis-cli/d81e0e38143c63ead17d475b85c9b639958b1b47/tests/CWL/wf/trimming_and_qc.cwl"
@@ -159,7 +159,7 @@
             "version": "1.0.0"
         },
         {
-            "@id": "https://w3id.org/cwl/vv1.0/",
+            "@id": "https://w3id.org/cwl/v1.0/",
             "@type": [
                 "WebPage"
             ]
@@ -175,13 +175,13 @@
             "@type": "ComputerLanguage",
             "alternateName": "CWL",
             "identifier": {
-                "@id": "https://w3id.org/cwl/vv1.0/"
+                "@id": "https://w3id.org/cwl/v1.0/"
             },
             "name": "Common Workflow Language",
             "url": {
                 "@id": "https://www.commonwl.org/"
             },
-            "version": "v1.0"
+            "version": "1.0"
         },
         {
             "@id": "https://raw.githubusercontent.com/sapporo-wes/yevis-cli/d81e0e38143c63ead17d475b85c9b639958b1b47/README.md",
