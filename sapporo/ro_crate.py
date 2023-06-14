@@ -4,21 +4,16 @@ import gc
 import hashlib
 import json
 import os
-import platform
+import re
 import shlex
 import shutil
-import stat
 import subprocess
-import urllib
-import urllib.request
-import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple, TypedDict, cast
+from typing import Any, Dict, List, Literal, Optional, Tuple, TypedDict
 from urllib.parse import urlsplit
 
 import magic
-import psutil
 import yaml
 from rocrate.model.computationalworkflow import ComputationalWorkflow
 from rocrate.model.computerlanguage import ComputerLanguage
@@ -27,22 +22,18 @@ from rocrate.model.contextentity import ContextEntity
 from rocrate.model.data_entity import DataEntity
 from rocrate.model.dataset import Dataset
 from rocrate.model.file import File
-from rocrate.model.metadata import WORKFLOW_PROFILE, Metadata
-from rocrate.model.root_dataset import RootDataset
+from rocrate.model.metadata import WORKFLOW_PROFILE
 from rocrate.model.softwareapplication import SoftwareApplication
-from rocrate.model.testdefinition import TestDefinition
-from rocrate.model.testinstance import TestInstance
-from rocrate.model.testservice import TestService
-from rocrate.model.testsuite import TestSuite
 from rocrate.rocrate import ROCrate
 from rocrate.utils import get_norm_value
 
+from sapporo import __version__
 from sapporo.const import RUN_DIR_STRUCTURE, RUN_DIR_STRUCTURE_KEYS
-from sapporo.model import AttachedFile, RunRequest, ServiceInfo
+from sapporo.model import AttachedFile, RunRequest
 
 TERM_FNAME = "wes-ro-terms.csv"
 TERM_PATH = Path(__file__).parent.joinpath(TERM_FNAME)
-TERM_URL_BASE = f"https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo/{TERM_FNAME}"
+TERM_URL_BASE = f"https://raw.githubusercontent.com/sapporo-wes/sapporo-service/{__version__}/sapporo/{TERM_FNAME}"
 SAPPORO_EXTRA_TERMS: Dict[str, str] = {}
 with TERM_PATH.open(mode="r", encoding="utf-8") as f:
     for line in f:
@@ -51,29 +42,35 @@ with TERM_PATH.open(mode="r", encoding="utf-8") as f:
         term = line.strip().split(",")[0]
         SAPPORO_EXTRA_TERMS[term] = f"{TERM_URL_BASE}#{term}"
 
+
 class YevisAuthor(TypedDict):
     github_account: str
     name: str
     affiliation: str
     orcid: Optional[str]
 
+
 class YevisLanguage(TypedDict):
     type: str
     version: str
+
 
 class YevisFile(TypedDict):
     url: str
     target: str
     type: Literal["primary", "secondary"]
 
+
 class YevisTestFile(TypedDict):
     url: str
     target: str
     type: Literal["wf_params", "wf_engine_params", "other"]
 
+
 class YevisTest(TypedDict):
     id: str
     files: List[YevisTestFile]
+
 
 class YevisWorkflow(TypedDict):
     name: str
@@ -82,6 +79,7 @@ class YevisWorkflow(TypedDict):
     files: List[YevisFile]
     testing: List[YevisTest]
 
+
 class YevisMetadata(TypedDict):
     id: str
     version: str
@@ -89,9 +87,11 @@ class YevisMetadata(TypedDict):
     authors: List[YevisAuthor]
     workflow: YevisWorkflow
 
+
 class EDAM(TypedDict):
     url: str
     name: str
+
 
 EDAM_MAPPING: Dict[str, EDAM] = {
     ".bam": {
@@ -162,9 +162,16 @@ EDAM_MAPPING: Dict[str, EDAM] = {
 
 # === functions ===
 
+
 def generate_ro_crate(inputted_run_dir: str) -> None:
     """\
-    Called in run.sh
+    This function can be an entry point of this `ro_crate.py` module
+    Executed in run.sh as:
+
+    `python3 -c "from sapporo.ro_crate import generate_ro_crate; generate_ro_crate('${run_dir}')" || echo "{}" >"${run_dir}/ro-crate-metadata.json" || true`
+
+    This `run_dir` is the directory where the run is executed, and the absolute path is passed.
+    Also, as a debug, if you execute `python3 ro_crate.py <run_dir>`, `<run_dir>/ro-crate-metadata.json` will be generated.
     """
     run_dir: Path = Path(inputted_run_dir).resolve(strict=True)
     if not run_dir.is_dir():
@@ -184,7 +191,12 @@ def generate_ro_crate(inputted_run_dir: str) -> None:
 
     crate.write(run_dir)
 
+
 def read_file(run_dir: Path, file_type: RUN_DIR_STRUCTURE_KEYS, one_line: bool = False, raw: bool = False) -> Any:
+    """\
+    Read a file in run_dir.
+    There is a function with the same name in `utils.py`, but this one takes `run_dir` instead of `run_id` as an argument.
+    """
     if "dir" in file_type:
         return None
     file_path = run_dir.joinpath(RUN_DIR_STRUCTURE[file_type])
@@ -202,6 +214,7 @@ def read_file(run_dir: Path, file_type: RUN_DIR_STRUCTURE_KEYS, one_line: bool =
         except Exception:
             return f.read()
 
+
 def add_crate_metadata(crate: ROCrate) -> None:
     # @id: ro-crate-metadata.json
     profiles = set(_.rstrip("/") for _ in get_norm_value(crate.metadata, "conformsTo"))
@@ -210,13 +223,15 @@ def add_crate_metadata(crate: ROCrate) -> None:
 
     # @id: ./
     crate.root_dataset.append_to("conformsTo", [
-        { "@id": "https://w3id.org/ro/wfrun/process/0.1" },
-        { "@id": "https://w3id.org/ro/wfrun/workflow/0.1" },
-        { "@id": WORKFLOW_PROFILE },
+        {"@id": "https://w3id.org/ro/wfrun/process/0.1"},
+        {"@id": "https://w3id.org/ro/wfrun/workflow/0.1"},
+        {"@id": WORKFLOW_PROFILE},
     ])
+
 
 def add_extra_terms(crate: ROCrate) -> None:
     crate.metadata.extra_terms.update(SAPPORO_EXTRA_TERMS)
+
 
 def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_meta: Optional[YevisMetadata]) -> None:
     """\
@@ -225,7 +240,7 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_m
     RunRequest:
       - wf_url: Remote location, or local file path attached as workflow_attachment and downloaded to exe_dir
     """
-    wf_url = cast(str, run_request["workflow_url"])
+    wf_url: str = run_request["workflow_url"]  # type: ignore
     wf_url_parts = urlsplit(wf_url)
     if wf_url_parts.scheme == "http" or wf_url_parts.scheme == "https":
         wf_ins = ComputationalWorkflow(crate, wf_url)
@@ -242,7 +257,6 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_m
         wf_ins["name"] = run_request["workflow_name"]
 
     if yevis_meta is not None:
-        # wf_ins["yevisId"] = yevis_meta["id"]
         wf_ins["version"] = yevis_meta["version"]
         wf_ins["name"] = yevis_meta["workflow"]["name"]
         description_ins = ContextEntity(crate, yevis_meta["workflow"]["readme"], properties={
@@ -252,11 +266,16 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_m
         wf_ins["description"] = description_ins
         crate.add(description_ins)
 
-def update_local_file_stat(crate: ROCrate, file_ins: File, file_path: Path, include_content: bool = True) -> None:
+
+def update_local_file_stat(file_ins: File, file_path: Path, include_content: bool = True) -> None:
+    """\
+    Add file stat such as `contentSize` and `sha512` to the file instance given as an argument.
+    The instance itself is updated.
+    """
     if file_path.is_file() is False:
-        return
+        return None
     if file_path.exists() is False:
-        return
+        return None
 
     # From file stat
     stat_result = file_path.stat()
@@ -274,7 +293,6 @@ def update_local_file_stat(crate: ROCrate, file_ins: File, file_path: Path, incl
     # checksum using sha512 (https://www.researchobject.org/ro-crate/1.1/appendix/implementation-notes.html#combining-with-other-packaging-schemes)
     file_ins["sha512"] = generate_sha512(file_path)
 
-
     if include_content:
         # under 10kb, attach as text
         if file_ins["contentSize"] < 10 * 1024:
@@ -290,11 +308,13 @@ def update_local_file_stat(crate: ROCrate, file_ins: File, file_path: Path, incl
         # https://pypi.org/project/python-magic/
         file_ins["encodingFormat"] = magic.from_file(file_path, mime=True)
 
+
 def append_exe_dir_dataset(crate: ROCrate, ins: DataEntity) -> None:
     for entity in crate.get_entities():
         if isinstance(entity, Dataset):
             if str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['exe_dir']}/":
                 entity.append_to("hasPart", ins, compact=True)
+
 
 def count_lines(file_path: Path) -> int:
     block_size = 65536
@@ -310,6 +330,7 @@ def count_lines(file_path: Path) -> int:
     gc.collect()
 
     return count
+
 
 def generate_sha512(file_path: Path) -> str:
     block_size = 65536
@@ -327,6 +348,7 @@ def generate_sha512(file_path: Path) -> str:
 
     return hash_
 
+
 def inspect_edam_format(file_path: Path) -> Optional[EDAM]:
     """\
     TODO: use tataki (https://github.com/suecharo/tataki)
@@ -337,13 +359,14 @@ def inspect_edam_format(file_path: Path) -> Optional[EDAM]:
 
     return None
 
+
 def generate_wf_lang(crate: ROCrate, run_request: RunRequest) -> ComputerLanguage:
     """\
     wf_type: "CWL", "WDL", "NFL", "SMK" or others
     wf_type_version: str
     """
-    wf_type = cast(str, run_request["workflow_type"])
-    wf_type_version = cast(str, run_request["workflow_type_version"])
+    wf_type: str = run_request["workflow_type"]  # type: ignore
+    wf_type_version: str = run_request["workflow_type_version"]  # type: ignore
     if re.search("^v", wf_type_version):
         wf_type_version = wf_type_version[1:]
 
@@ -395,6 +418,7 @@ def generate_wf_lang(crate: ROCrate, run_request: RunRequest) -> ComputerLanguag
 
     return lang_ins
 
+
 def add_workflow_attachment(crate: ROCrate, run_dir: Path, run_request: RunRequest,
                             yevis_meta: Optional[YevisMetadata]) -> None:
     """\
@@ -410,7 +434,8 @@ def add_workflow_attachment(crate: ROCrate, run_dir: Path, run_request: RunReque
     else:
         secondary_files = [file["target"] for file in yevis_meta["workflow"]["files"] if file["type"] == "secondary"]
 
-    wf_attachment = cast(str, run_request["workflow_attachment"])  # encoded json string
+    # This wf_attachment in run_request is a encoded JSON string
+    wf_attachment: str = run_request["workflow_attachment"]  # type: ignore
     wf_attachment_obj: List[AttachedFile] = json.loads(wf_attachment)
     for item in wf_attachment_obj:
         if yevis_meta is not None:
@@ -435,10 +460,11 @@ def add_workflow_attachment(crate: ROCrate, run_dir: Path, run_request: RunReque
             "@type": type_list,
             "url": url,
         })
-        update_local_file_stat(crate, file_ins, source, include_content=False)
+        update_local_file_stat(file_ins, source, include_content=False)
         append_exe_dir_dataset(crate, file_ins)
         crate.mainEntity.append_to("attachment", file_ins, compact=True)
         crate.add(file_ins)
+
 
 def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequest, run_id: str) -> None:
     # Run metadata
@@ -471,51 +497,71 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequest, run
 
     crate.add(create_action_ins)
 
-    #
+    # Get `wf_lang` to check the format of wf_params.
+    # This function is called after `add_workflow`, so trace from `crate.mainEntity`
+    wf_lang: Optional[ComputerLanguage] = None
+    if crate.mainEntity is not None:
+        wf_lang: ComputerLanguage = crate.mainEntity.lang  # type: ignore
+
     # Run inputs
-    #
-    wf_params = json.loads(run_request["workflow_params"])
+    wf_params = json.loads(run_request["workflow_params"])  # type: ignore
     for key, val in wf_params.items():
         formal_param = ContextEntity(crate, key, properties={
             "@type": "FormalParameter",
             "name": key,
         })
+        actual_value: DataEntity
 
-        # If param is File or Directory
-        if isinstance(val, object):
-            param_class = val["class"]
-            param_path  = val["path"]
-            param_apath = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], param_path).resolve(strict=True)
-            param_rpath = param_apath.relative_to(run_dir)
+        if isinstance(val, dict):
+            if wf_lang is not None and wf_lang.name == "Common Workflow Language":
+                # If param is CWL's File or Directory
+                param_class = val["class"]
+                param_path = val["path"]
+                param_apath = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], param_path).resolve(strict=True)
+                param_rpath = param_apath.relative_to(run_dir)
 
-            formal_param["additionalType"] = param_class
-            formal_param["workExample"] = str(param_rpath)
+                formal_param["additionalType"] = param_class
+                formal_param["workExample"] = str(param_rpath)
 
-            actual_file = DataEntity(crate, param_rpath, properties={
-                "@type": param_class,
-                "name": os.path.basename(param_path),
+                actual_value = DataEntity(crate, param_rpath, properties={
+                    "@type": param_class,
+                    "name": os.path.basename(param_path),
+                })
+
+                if "format" in val:
+                    encoding_format = []
+                    encoding_format.append(val["format"])
+                    formal_param["encodingFormat"] = encoding_format
+                    actual_value["encodingFormat"] = encoding_format
+            else:
+                # Just add as a dict as a JSON string
+                formal_param["additionalType"] = "dict"
+                formal_param["workExample"] = key
+                actual_value = DataEntity(crate, key, properties={
+                    "@type": "PropertyValue",
+                    "name": key,
+                    "value": json.dumps(val),
+                })
+        elif isinstance(val, list):
+            # If param is list
+            formal_param["additionalType"] = "list"
+            formal_param["workExample"] = key
+            actual_value = DataEntity(crate, key, properties={
+                "@type": "PropertyValue",
+                "name": key,
+                "value": json.dumps(val),
             })
-
-            if hasattr(val, "format"):
-                encoding_format = []
-                encoding_format.append(val["format"])
-                formal_param["encodingFormat"] = encoding_format
-                actual_file["encodingFormat"] = encoding_format
-
-            actual_file.append_to("exampleOfWork", formal_param)
-            crate.add(actual_file)
-            create_action_ins.append_to("object", actual_file)
-        # Else if param is str,int,float,etc.
         else:
+            # Else if param is str, int, float, etc.
             formal_param["additionalType"] = type(val).__name__
             formal_param["workExample"] = key
-
             actual_value = DataEntity(crate, key, properties={
                 "@type": "PropertyValue",
                 "name": key,
                 "value": val
             })
 
+        if actual_value:
             actual_value.append_to("exampleOfWork", formal_param)
             crate.add(actual_value)
             create_action_ins.append_to("object", actual_value)
@@ -523,9 +569,7 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequest, run
         crate.add(formal_param)
         crate.mainEntity.append_to("input", formal_param)
 
-    #
     # Run outputs
-    #
     outputs: Optional[List[AttachedFile]] = read_file(run_dir, "outputs")
     for source in run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"]).glob("**/*"):
         if source.is_dir():
@@ -533,7 +577,7 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequest, run
 
         file_apath = source.resolve(strict=True)
         file_rpath = file_apath.relative_to(run_dir)
-        file_basename = os.path.basename(file_apath)
+        file_basename = file_apath.name
 
         formal_param = ContextEntity(crate, file_basename, properties={
             "@type": "FormalParameter",
@@ -547,7 +591,7 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequest, run
             "@type": "File",
         })
         actual_file.append_to("exampleOfWork", formal_param)
-        update_local_file_stat(crate, actual_file, file_apath)
+        update_local_file_stat(actual_file, file_apath)
 
         if outputs is not None:
             # Include the URL of Sapporo's download feature
@@ -562,9 +606,7 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequest, run
         create_action_ins.append_to("result", actual_file)
         crate.add(actual_file)
 
-    #
     # Log files
-    #
     # Add log files
     log_files: List[Tuple[RUN_DIR_STRUCTURE_KEYS, str]] = [
         ("stdout", "Sapporo stdout"),
@@ -579,9 +621,10 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequest, run
         file_ins = File(crate, source, dest, properties={
             "name": name,
         })
-        update_local_file_stat(crate, file_ins, source)
+        update_local_file_stat(file_ins, source)
         create_action_ins.append_to("subjectOf", file_ins)
         crate.add(file_ins)
+
 
 def add_file_stats(crate: ROCrate, file_ins: File) -> None:
     """\
@@ -605,6 +648,7 @@ def add_file_stats(crate: ROCrate, file_ins: File) -> None:
         elif format_ == "http://edamontology.org/format_3016":
             # vcf
             add_vcftools_stats(crate, file_ins)
+
 
 def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
     """\
@@ -710,6 +754,7 @@ def find_or_generate_software_ins(crate: ROCrate, name: str, version: str) -> So
 
     return software_ins
 
+
 def append_outputs_dir_dataset(crate: ROCrate, ins: DataEntity) -> None:
     for entity in crate.get_entities():
         if isinstance(entity, Dataset):
@@ -721,10 +766,11 @@ def extract_exe_dir_file_ids(crate: ROCrate) -> List[str]:
     for entity in crate.get_entities():
         if isinstance(entity, Dataset):
             if str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['exe_dir']}/":
-                return cast(List[str], get_norm_value(entity, "hasPart"))
+                return get_norm_value(entity, "hasPart")  # type: ignore
     return []
 
 # === main ===
+
 
 if __name__ == "__main__":
     import sys
