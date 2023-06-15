@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # coding: utf-8
 # pylint: disable=import-outside-toplevel, unused-argument
+from pathlib import Path
 from time import sleep
 from typing import Any, cast
 
 from flask.testing import FlaskClient
-from py._path.local import LocalPath
 
 from sapporo.app import create_app
 from sapporo.config import get_config, parse_args
@@ -18,7 +18,7 @@ def get_runs(client: FlaskClient) -> Any:  # type: ignore
     return res
 
 
-def test_get_runs(delete_env_vars: None, tmpdir: LocalPath) -> None:
+def test_get_runs(delete_env_vars: None, tmpdir: Path) -> None:
     args = parse_args(["--run-dir", str(tmpdir)])
     config = get_config(args)
     app = create_app(config)

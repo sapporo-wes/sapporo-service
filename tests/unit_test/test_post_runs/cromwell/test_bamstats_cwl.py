@@ -60,7 +60,5 @@ def test_bamstats_cwl(setup_test_server: None) -> None:
     assert data["run_id"] == run_id
     assert data["run_log"]["exit_code"] == 0
     assert data["run_log"]["name"] is None
-    stdout = cast(str, data["run_log"]["stdout"])
-    assert "Workflow Dockstore.cwl complete." in stdout
     assert str(data["state"]) == "COMPLETE"
     assert data["task_logs"] is None

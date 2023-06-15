@@ -46,10 +46,9 @@ function run_toil() {
 }
 
 function run_cromwell() {
-  local container="broadinstitute/cromwell:80"
+  local container="ghcr.io/sapporo-wes/cromwell-with-docker:80"
   local wf_type=$(jq -r ".workflow_type" ${run_request})
-  local wf_type_version=$(jq -r ".workflow_type_version" ${run_request})
-  local cmd_txt="docker run --rm ${D_SOCK} -v ${run_dir}:${run_dir} -v /tmp:/tmp -v /usr/bin/docker:/usr/bin/docker -w=${exe_dir} ${container} run ${wf_engine_params} ${wf_url} -i ${wf_params} -m ${exe_dir}/metadata.json --type ${wf_type} --type-version ${wf_type_version} 1>${stdout} 2>${stderr}"
+  local cmd_txt="docker run --rm ${D_SOCK} -v ${run_dir}:${run_dir} -v /tmp:/tmp -w=${exe_dir} ${container} run ${wf_engine_params} ${wf_url} -i ${wf_params} -m ${exe_dir}/metadata.json 1>${stdout} 2>${stderr}"
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
   if [[ ${wf_type} == "CWL" ]]; then

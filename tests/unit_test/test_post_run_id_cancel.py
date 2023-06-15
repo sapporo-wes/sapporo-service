@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # coding: utf-8
 # pylint: disable=unused-argument, too-many-locals, import-outside-toplevel
+from pathlib import Path
 from time import sleep
 from typing import Any, cast
 
 from flask.testing import FlaskClient
-from py._path.local import LocalPath
 
 from sapporo.app import create_app
 from sapporo.config import get_config, parse_args
@@ -18,7 +18,7 @@ def post_run_id_cancel(client: FlaskClient, run_id: str) -> Any:  # type: ignore
     return res
 
 
-def test_post_run_id_cancel(delete_env_vars: None, tmpdir: LocalPath) -> None:
+def test_post_run_id_cancel(delete_env_vars: None, tmpdir: Path) -> None:
     args = parse_args(["--run-dir", str(tmpdir)])
     config = get_config(args)
     app = create_app(config)
