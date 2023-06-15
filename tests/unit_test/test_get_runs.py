@@ -12,7 +12,7 @@ from sapporo.config import get_config, parse_args
 from sapporo.model import RunListResponse
 
 
-def get_runs(client: FlaskClient) -> Any:
+def get_runs(client: FlaskClient) -> Any:  # type: ignore
     res = client.get("/runs")
 
     return res

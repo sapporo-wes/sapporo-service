@@ -15,6 +15,8 @@ from typing import Generator
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
+from sapporo.app import create_app, get_config
+
 UNIT_TEST_DIR = Path(__file__).parent.resolve()
 ROOT_DIR = UNIT_TEST_DIR.parent.parent.resolve()
 
@@ -27,6 +29,17 @@ def delete_env_vars(monkeypatch: MonkeyPatch) -> None:
     for key in os.environ:
         if key.startswith("SAPPORO"):
             monkeypatch.delenv(key)
+
+
+@pytest.fixture()
+def client() -> Generator[None, None, None]:
+    tempdir = tempfile.mkdtemp()
+    args = shlex.split(f"sapporo --run-dir {tempdir} --debug")
+    app = create_app(get_config(args))  # type: ignore
+    app.testing = True
+
+    with app.test_client() as client:
+        yield client
 
 
 @pytest.fixture()

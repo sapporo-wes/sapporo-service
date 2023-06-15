@@ -12,7 +12,7 @@ from sapporo.config import get_config, parse_args
 from sapporo.model import RunId, RunLog, RunStatus
 
 
-def post_run_id_cancel(client: FlaskClient, run_id: str) -> Any:
+def post_run_id_cancel(client: FlaskClient, run_id: str) -> Any:  # type: ignore
     res = client.post(f"/runs/{run_id}/cancel")
 
     return res

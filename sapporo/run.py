@@ -14,7 +14,7 @@ from urllib import parse
 
 import requests
 from flask import current_app, request
-from werkzeug.utils import _filename_ascii_strip_re
+from werkzeug.utils import _filename_ascii_strip_re  # type: ignore
 
 from sapporo.const import RUN_DIR_STRUCTURE, RUN_DIR_STRUCTURE_KEYS
 from sapporo.model import RunRequest, State

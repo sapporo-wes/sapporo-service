@@ -12,7 +12,7 @@ from sapporo.config import get_config, parse_args
 from sapporo.model import RunStatus
 
 
-def get_run_id_status(client: FlaskClient, run_id: str) -> Any:
+def get_run_id_status(client: FlaskClient, run_id: str) -> Any:  # type: ignore
     res = client.get(f"/runs/{run_id}/status")
 
     return res
