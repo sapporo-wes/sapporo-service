@@ -1,0 +1,30 @@
+# Tests for the RO-Crate Feature
+
+This directory hosts a series of tests for [`../../sapporo/ro-crate.py`](../../sapporo/ro-crate.py). Sapporo executes `ro-crate.py` within `run.sh` after a workflow run, generating a `ro-crate-metadata.json` file in each run_dir, using the [RO-Crate](https://www.researchobject.org/ro-crate/).
+
+The function used for execution within `run.sh` is:
+
+```bash
+function generate_ro_crate() {
+  python3 -c "from sapporo.ro_crate import generate_ro_crate; generate_ro_crate('${run_dir}')" || echo "{}" >"${run_dir}/ro-crate-metadata.json" || true
+}
+```
+
+The purpose of the tests in this directory is to confirm the generation of RO-Crates following the execution of workflows using various workflow engines. Additionally, examples of the generated RO-Crates are provided.
+
+## Running the Tests
+
+The tests execute various workflows found in the `../curl_example/post_runs` directory, followed by the verification of the RO-Crates generated within each directory.
+
+To run these tests, follow the commands below:
+
+```bash
+# Preparations, launch Sapporo (Execute from the library root directory)
+$ cd ../../
+$ docker compose -f docker-compose.dev.yml up -d
+$ docker compose -f docker-compose.dev.yml exec app sapporo
+
+# Run the tests
+$ cd tests/ro-crate
+$ bash run_ro-crate_test.sh
+```

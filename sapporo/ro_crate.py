@@ -306,7 +306,7 @@ def update_local_file_stat(file_ins: File, file_path: Path, include_content: boo
         file_ins.append_to("encodingFormat", edam["url"], compact=True)
     else:
         # https://pypi.org/project/python-magic/
-        file_ins["encodingFormat"] = magic.from_file(file_path, mime=True)
+        file_ins["encodingFormat"] = magic.from_file(str(file_path), mime=True)
 
 
 def append_exe_dir_dataset(crate: ROCrate, ins: DataEntity) -> None:
@@ -447,7 +447,7 @@ def add_workflow_attachment(crate: ROCrate, run_dir: Path, run_request: RunReque
         if str(dest) == str(main_wf_id):
             continue
         type_list = ["File"]
-        if "script" in magic.from_file(source):
+        if "script" in magic.from_file(str(source)):
             type_list.append("SoftwareSourceCode")
 
         if yevis_meta is None:
