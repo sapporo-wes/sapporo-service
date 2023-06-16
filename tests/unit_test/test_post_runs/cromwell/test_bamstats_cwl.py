@@ -5,7 +5,6 @@ import json
 import shlex
 import subprocess
 from time import sleep
-from typing import cast
 
 from sapporo.model import RunId
 
