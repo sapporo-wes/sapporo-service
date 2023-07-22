@@ -462,7 +462,7 @@ def add_workflow_attachment(crate: ROCrate, run_dir: Path, run_request: RunReque
         })
         update_local_file_stat(file_ins, source, include_content=False)
         append_exe_dir_dataset(crate, file_ins)
-        crate.mainEntity.append_to("attachment", file_ins, compact=True)
+        crate.mainEntity.append_to("hasPart", file_ins, compact=True)
         crate.add(file_ins)
 
 
