@@ -516,10 +516,13 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequest, run
             if wf_lang is not None and wf_lang.name == "Common Workflow Language":
                 # If param is CWL's File or Directory
                 param_class = val["class"]
-                param_path = val["path"]
-                param_apath = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], param_path).resolve(strict=True)
-                param_rpath = param_apath.relative_to(run_dir)
-
+                # CWL file object has `path` and `location`
+                param_path = val.get("path", val.get("location"))
+                if param_path.startswith("http://") or param_path.startswith("https://"):
+                    param_rpath = param_path
+                else:
+                    param_apath = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], param_path).resolve(strict=True)
+                    param_rpath = param_apath.relative_to(run_dir)
                 formal_param["additionalType"] = param_class
                 formal_param["workExample"] = str(param_rpath)
 
