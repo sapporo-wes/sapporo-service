@@ -114,7 +114,7 @@ function print_summary() {
 
 # Print debug commands for runs that failed to generate RO-Crate
 function print_debug_commands_for_failed_runs() {
-  if [[ ${#wf_name_failed_to_generate_ro_crate[@]} -gt 0 ]]; then
+  if [[ -n ${wf_name_failed_to_generate_ro_crate+x} && ${#wf_name_failed_to_generate_ro_crate[@]} -gt 0 ]]; then
     echo "=== Debug commands for runs that failed to generate RO-Crate ==="
     for wf_name in ${wf_name_failed_to_generate_ro_crate[@]}; do
       local run_id=${wf_name_to_run_id[${wf_name}]}
@@ -134,7 +134,7 @@ print_debug_commands_for_failed_runs
 echo "=== Done ==="
 
 # Exit with error if there are runs that failed to generate RO-Crate
-if [[ ${#wf_name_failed_to_generate_ro_crate[@]} -gt 0 ]]; then
+if [[ -n ${wf_name_failed_to_generate_ro_crate+x} && ${#wf_name_failed_to_generate_ro_crate[@]} -gt 0 ]]; then
   exit 1
 else
   exit 0
