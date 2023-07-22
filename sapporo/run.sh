@@ -150,7 +150,7 @@ function generate_ro_crate() {
 }
 
 function upload() {
-  local protocol=$(jq -r '.tags | fromjson | .export_output.protocol' ${run_request})
+  local protocol=$(jq -r 'select(.tags != null) | .tags | fromjson | .export_output.protocol' ${run_request})
   case ${protocol} in
   's3')
     upload_to_s3
