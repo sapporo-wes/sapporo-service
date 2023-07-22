@@ -474,26 +474,19 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequest, run
     })
     create_action_ins.append_to("instrument", crate.mainEntity, compact=True)
 
-    # Run status
     # Time
     create_action_ins["startTime"] = read_file(run_dir, "start_time", one_line=True)
     create_action_ins["endTime"] = read_file(run_dir, "end_time", one_line=True)
 
     # Status
     exit_code = read_file(run_dir, "exit_code", one_line=True)
+    create_action_ins["exitCode"] = int(exit_code)
     state = read_file(run_dir, "state", one_line=True)
+    create_action_ins["wesState"] = state
     if exit_code == "0":
-        create_action_ins.append_to("actionStatus", {
-            "@id": "CompletedActionStatus",
-            "value": int(exit_code),
-            "label": state,
-        })
+        create_action_ins["actionStatus"] = "CompletedActionStatus"
     else:
-        create_action_ins.append_to("actionStatus", {
-            "@id": "FailedActionStatus",
-            "value": int(exit_code),
-            "label": state,
-        })
+        create_action_ins["actionStatus"] = "FailedActionStatus"
 
     crate.add(create_action_ins)
 

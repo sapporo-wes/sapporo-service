@@ -13,3 +13,5 @@ duplicateRate,Property,duplicate rate,Duplicate rate of a sam/bam file,FileStats
 variantCount,Property,variant count,Variant count of a vcf file,FileStats,int
 snpsCount,Property,snps count,Snps count of a vcf file,FileStats,int
 indelsCount,Property,indels count,Indels count of a vcf file,FileStats,int
+wesState,Property,WES state,Run state of a WES run,CreateAction,string
+exitCode,Property,exit code,Exit code of a WES run,CreateAction,int
