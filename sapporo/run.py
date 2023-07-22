@@ -238,7 +238,7 @@ def download_workflow_attachment(inputted_run_dir: str) -> None:
         if parsed_url.scheme in ["http", "https"] and not url.startswith(endpoint):
             file_path = exe_dir.joinpath(secure_filepath(name)).resolve()
             file_path.parent.mkdir(parents=True, exist_ok=True)
-            with requests.get(url, stream=True) as res:
+            with requests.get(url, stream=True, headers={"User-Agent": "Sapporo-service"}) as res:
                 if res.status_code == 200:
                     with file_path.open(mode="wb") as f:
                         res.raw.decode_content = True
