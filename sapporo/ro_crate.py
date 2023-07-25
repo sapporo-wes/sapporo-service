@@ -27,20 +27,10 @@ from rocrate.model.softwareapplication import SoftwareApplication
 from rocrate.rocrate import ROCrate
 from rocrate.utils import get_norm_value
 
-from sapporo import __version__
 from sapporo.const import RUN_DIR_STRUCTURE, RUN_DIR_STRUCTURE_KEYS
 from sapporo.model import AttachedFile, RunRequest
 
-TERM_FNAME = "wes-ro-terms.csv"
-TERM_PATH = Path(__file__).parent.joinpath(TERM_FNAME)
-TERM_URL_BASE = f"https://raw.githubusercontent.com/sapporo-wes/sapporo-service/{__version__}/sapporo/{TERM_FNAME}"
-SAPPORO_EXTRA_TERMS: Dict[str, str] = {}
-with TERM_PATH.open(mode="r", encoding="utf-8") as f:
-    for line in f:
-        if line.startswith("term"):
-            continue
-        term = line.strip().split(",")[0]
-        SAPPORO_EXTRA_TERMS[term] = f"{TERM_URL_BASE}#{term}"
+SAPPORO_EXTRA_CONTEXT = "https://w3id.org/ro/terms/sapporo"
 
 
 class YevisAuthor(TypedDict):
@@ -184,7 +174,7 @@ def generate_ro_crate(inputted_run_dir: str) -> None:
     run_id = run_dir.name
 
     add_crate_metadata(crate)
-    add_extra_terms(crate)
+    add_extra_context(crate)
     add_workflow(crate, run_dir, run_request, yevis_metadata)
     add_workflow_attachment(crate, run_dir, run_request, yevis_metadata)
     add_workflow_run(crate, run_dir, run_request, run_id)
@@ -229,8 +219,8 @@ def add_crate_metadata(crate: ROCrate) -> None:
     ])
 
 
-def add_extra_terms(crate: ROCrate) -> None:
-    crate.metadata.extra_terms.update(SAPPORO_EXTRA_TERMS)
+def add_extra_context(crate: ROCrate) -> None:
+    crate.metadata.extra_terms = SAPPORO_EXTRA_CONTEXT
 
 
 def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_meta: Optional[YevisMetadata]) -> None:
