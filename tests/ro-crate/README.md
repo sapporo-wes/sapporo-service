@@ -58,3 +58,9 @@ $ ls test-logs/
 ro-crate-metadata_c13b6e27-a4ee-426f-8bdb-8cf5c4310bad_1.0.0_test_1.json
 $ cp test-logs/ro-crate-metadata_c13b6e27-a4ee-426f-8bdb-8cf5c4310bad_1.0.0_test_1.json ./ro-crate-metadata.json
 ```
+
+In addition, copy the complete run directory from which the `ro-crate-metadata.json` was generated to the `ro-crate_dir` directory.
+
+```bash
+$ cp -r ../../run/27/27469c13-2f6d-47af-9623-39cdee5f1a04 ./ro-crate_dir
+```

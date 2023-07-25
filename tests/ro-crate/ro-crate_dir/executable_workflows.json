@@ -1,0 +1,658 @@
+[
+  {
+    "workflow_name": "Example workflow - CWL - Trimming and QC",
+    "workflow_url": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwltool/trimming_and_qc.cwl",
+    "workflow_type": "CWL",
+    "workflow_type_version": "v1.0",
+    "workflow_attachment": [
+      {
+        "file_name": "fastqc.cwl",
+        "file_url": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwltool/fastqc.cwl"
+      },
+      {
+        "file_name": "trimmomatic_pe.cwl",
+        "file_url": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwltool/trimmomatic_pe.cwl"
+      }
+    ]
+  },
+  {
+    "workflow_name": "Pitagora CWL - Download SRA: 1.0.0",
+    "workflow_url": "https://zenodo.org/api/files/2422dda0-1bd9-4109-aa44-53d55fd934de/download-sra.cwl",
+    "workflow_type": "CWL",
+    "workflow_type_version": "v1.0",
+    "workflow_attachment": []
+  },
+  {
+    "workflow_name": "human-reseq: fastqSE2bam: 1.0.0",
+    "workflow_url": "https://zenodo.org/api/files/11e4eba4-f403-49ca-a08d-e1f457bb9361/fastqSE2bam.cwl",
+    "workflow_type": "CWL",
+    "workflow_type_version": "v1.0",
+    "workflow_attachment": []
+  },
+  {
+    "workflow_name": "nf-core - rnaseq: 1.0.0",
+    "workflow_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/main.nf",
+    "workflow_type": "NFL",
+    "workflow_type_version": "1.0",
+    "workflow_attachment": [
+      {
+        "file_name": "LICENSE",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/LICENSE"
+      },
+      {
+        "file_name": "README.md",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/README.md"
+      },
+      {
+        "file_name": "assets_dummy_file.txt",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/assets_dummy_file.txt"
+      },
+      {
+        "file_name": "assets_email_template.html",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/assets_email_template.html"
+      },
+      {
+        "file_name": "assets_email_template.txt",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/assets_email_template.txt"
+      },
+      {
+        "file_name": "assets_multiqc_biotypes_header.txt",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/assets_multiqc_biotypes_header.txt"
+      },
+      {
+        "file_name": "assets_multiqc_deseq2_clustering_header.txt",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/assets_multiqc_deseq2_clustering_header.txt"
+      },
+      {
+        "file_name": "assets_multiqc_deseq2_pca_header.txt",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/assets_multiqc_deseq2_pca_header.txt"
+      },
+      {
+        "file_name": "assets_multiqc_config.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/assets_multiqc_config.yml"
+      },
+      {
+        "file_name": "assets_nf-core-rnaseq_logo_light.png",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/assets_nf-core-rnaseq_logo_light.png"
+      },
+      {
+        "file_name": "assets_rrna-db-defaults.txt",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/assets_rrna-db-defaults.txt"
+      },
+      {
+        "file_name": "assets_samplesheet.csv",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/assets_samplesheet.csv"
+      },
+      {
+        "file_name": "assets_schema_input.json",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/assets_schema_input.json"
+      },
+      {
+        "file_name": "assets_sendmail_template.txt",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/assets_sendmail_template.txt"
+      },
+      {
+        "file_name": "bin_check_samplesheet.py",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/bin_check_samplesheet.py"
+      },
+      {
+        "file_name": "bin_deseq2_qc.r",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/bin_deseq2_qc.r"
+      },
+      {
+        "file_name": "bin_dupradar.r",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/bin_dupradar.r"
+      },
+      {
+        "file_name": "bin_fasta2gtf.py",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/bin_fasta2gtf.py"
+      },
+      {
+        "file_name": "bin_fastq_dir_to_samplesheet.py",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/bin_fastq_dir_to_samplesheet.py"
+      },
+      {
+        "file_name": "bin_filter_gtf_for_genes_in_genome.py",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/bin_filter_gtf_for_genes_in_genome.py"
+      },
+      {
+        "file_name": "bin_gtf2bed",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/bin_gtf2bed"
+      },
+      {
+        "file_name": "bin_mqc_features_stat.py",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/bin_mqc_features_stat.py"
+      },
+      {
+        "file_name": "bin_salmon_summarizedexperiment.r",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/bin_salmon_summarizedexperiment.r"
+      },
+      {
+        "file_name": "bin_salmon_tx2gene.py",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/bin_salmon_tx2gene.py"
+      },
+      {
+        "file_name": "bin_salmon_tximport.r",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/bin_salmon_tximport.r"
+      },
+      {
+        "file_name": "conf_base.config",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/conf_base.config"
+      },
+      {
+        "file_name": "conf_igenomes.config",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/conf_igenomes.config"
+      },
+      {
+        "file_name": "conf_modules.config",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/conf_modules.config"
+      },
+      {
+        "file_name": "conf_test.config",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/conf_test.config"
+      },
+      {
+        "file_name": "conf_test_full.config",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/conf_test_full.config"
+      },
+      {
+        "file_name": "lib_NfcoreSchema.groovy",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/lib_NfcoreSchema.groovy"
+      },
+      {
+        "file_name": "lib_NfcoreTemplate.groovy",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/lib_NfcoreTemplate.groovy"
+      },
+      {
+        "file_name": "lib_Utils.groovy",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/lib_Utils.groovy"
+      },
+      {
+        "file_name": "lib_WorkflowMain.groovy",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/lib_WorkflowMain.groovy"
+      },
+      {
+        "file_name": "lib_WorkflowRnaseq.groovy",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/lib_WorkflowRnaseq.groovy"
+      },
+      {
+        "file_name": "lib_nfcore_external_java_deps.jar",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/lib_nfcore_external_java_deps.jar"
+      },
+      {
+        "file_name": "modules.json",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules.json"
+      },
+      {
+        "file_name": "modules_local_bedtools_genomecov.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_local_bedtools_genomecov.nf"
+      },
+      {
+        "file_name": "modules_local_cat_additional_fasta.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_local_cat_additional_fasta.nf"
+      },
+      {
+        "file_name": "modules_local_deseq2_qc.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_local_deseq2_qc.nf"
+      },
+      {
+        "file_name": "modules_local_dupradar.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_local_dupradar.nf"
+      },
+      {
+        "file_name": "modules_local_gtf2bed.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_local_gtf2bed.nf"
+      },
+      {
+        "file_name": "modules_local_gtf_gene_filter.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_local_gtf_gene_filter.nf"
+      },
+      {
+        "file_name": "modules_local_multiqc.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_local_multiqc.nf"
+      },
+      {
+        "file_name": "modules_local_multiqc_custom_biotype.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_local_multiqc_custom_biotype.nf"
+      },
+      {
+        "file_name": "modules_local_multiqc_tsv_from_list.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_local_multiqc_tsv_from_list.nf"
+      },
+      {
+        "file_name": "modules_local_rsem_merge_counts.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_local_rsem_merge_counts.nf"
+      },
+      {
+        "file_name": "modules_local_salmon_summarizedexperiment.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_local_salmon_summarizedexperiment.nf"
+      },
+      {
+        "file_name": "modules_local_salmon_tx2gene.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_local_salmon_tx2gene.nf"
+      },
+      {
+        "file_name": "modules_local_salmon_tximport.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_local_salmon_tximport.nf"
+      },
+      {
+        "file_name": "modules_local_samplesheet_check.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_local_samplesheet_check.nf"
+      },
+      {
+        "file_name": "modules_local_star_align.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_local_star_align.nf"
+      },
+      {
+        "file_name": "modules_local_star_genomegenerate.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_local_star_genomegenerate.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_bbmap_bbsplit_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_bbmap_bbsplit_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_bbmap_bbsplit_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_bbmap_bbsplit_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_cat_fastq_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_cat_fastq_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_cat_fastq_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_cat_fastq_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_custom_dumpsoftwareversions_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_custom_dumpsoftwareversions_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_custom_dumpsoftwareversions_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_custom_dumpsoftwareversions_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_custom_dumpsoftwareversions_templates_dumpsoftwareversions.py",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_custom_dumpsoftwareversions_templates_dumpsoftwareversions.py"
+      },
+      {
+        "file_name": "modules_nf-core_modules_custom_getchromsizes_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_custom_getchromsizes_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_custom_getchromsizes_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_custom_getchromsizes_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_fastqc_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_fastqc_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_fastqc_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_fastqc_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_gffread_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_gffread_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_gffread_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_gffread_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_gunzip_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_gunzip_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_gunzip_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_gunzip_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_hisat2_align_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_hisat2_align_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_hisat2_align_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_hisat2_align_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_hisat2_build_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_hisat2_build_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_hisat2_build_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_hisat2_build_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_hisat2_extractsplicesites_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_hisat2_extractsplicesites_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_hisat2_extractsplicesites_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_hisat2_extractsplicesites_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_picard_markduplicates_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_picard_markduplicates_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_picard_markduplicates_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_picard_markduplicates_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_preseq_lcextrap_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_preseq_lcextrap_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_preseq_lcextrap_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_preseq_lcextrap_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_qualimap_rnaseq_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_qualimap_rnaseq_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rsem_calculateexpression_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rsem_calculateexpression_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rsem_calculateexpression_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rsem_calculateexpression_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rsem_preparereference_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rsem_preparereference_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rsem_preparereference_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rsem_preparereference_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rseqc_bamstat_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rseqc_bamstat_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rseqc_bamstat_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rseqc_bamstat_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rseqc_inferexperiment_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rseqc_inferexperiment_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rseqc_inferexperiment_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rseqc_inferexperiment_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rseqc_innerdistance_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rseqc_innerdistance_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rseqc_innerdistance_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rseqc_innerdistance_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rseqc_junctionannotation_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rseqc_junctionannotation_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rseqc_junctionannotation_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rseqc_junctionannotation_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rseqc_junctionsaturation_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rseqc_junctionsaturation_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rseqc_junctionsaturation_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rseqc_junctionsaturation_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rseqc_readdistribution_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rseqc_readdistribution_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rseqc_readdistribution_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rseqc_readdistribution_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rseqc_readduplication_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rseqc_readduplication_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rseqc_readduplication_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rseqc_readduplication_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rseqc_tin_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rseqc_tin_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_rseqc_tin_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_rseqc_tin_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_salmon_index_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_salmon_index_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_salmon_index_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_salmon_index_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_salmon_quant_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_salmon_quant_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_salmon_quant_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_salmon_quant_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_samtools_flagstat_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_samtools_flagstat_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_samtools_flagstat_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_samtools_flagstat_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_samtools_idxstats_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_samtools_idxstats_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_samtools_idxstats_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_samtools_idxstats_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_samtools_index_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_samtools_index_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_samtools_index_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_samtools_index_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_samtools_sort_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_samtools_sort_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_samtools_sort_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_samtools_sort_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_samtools_stats_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_samtools_stats_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_samtools_stats_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_samtools_stats_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_sortmerna_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_sortmerna_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_stringtie_stringtie_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_stringtie_stringtie_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_stringtie_stringtie_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_stringtie_stringtie_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_subread_featurecounts_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_subread_featurecounts_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_subread_featurecounts_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_subread_featurecounts_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_trimgalore_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_trimgalore_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_trimgalore_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_trimgalore_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_ucsc_bedclip_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_ucsc_bedclip_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_ucsc_bedclip_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_ucsc_bedclip_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_ucsc_bedgraphtobigwig_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_ucsc_bedgraphtobigwig_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_ucsc_bedgraphtobigwig_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_ucsc_bedgraphtobigwig_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_umitools_dedup_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_umitools_dedup_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_umitools_dedup_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_umitools_dedup_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_umitools_extract_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_umitools_extract_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_umitools_extract_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_umitools_extract_meta.yml"
+      },
+      {
+        "file_name": "modules_nf-core_modules_untar_main.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_untar_main.nf"
+      },
+      {
+        "file_name": "modules_nf-core_modules_untar_meta.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/modules_nf-core_modules_untar_meta.yml"
+      },
+      {
+        "file_name": "nextflow.config",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/nextflow.config"
+      },
+      {
+        "file_name": "nextflow_schema.json",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/nextflow_schema.json"
+      },
+      {
+        "file_name": "subworkflows_local_align_star.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/subworkflows_local_align_star.nf"
+      },
+      {
+        "file_name": "subworkflows_local_input_check.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/subworkflows_local_input_check.nf"
+      },
+      {
+        "file_name": "subworkflows_local_prepare_genome.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/subworkflows_local_prepare_genome.nf"
+      },
+      {
+        "file_name": "subworkflows_local_quantify_rsem.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/subworkflows_local_quantify_rsem.nf"
+      },
+      {
+        "file_name": "subworkflows_local_quantify_salmon.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/subworkflows_local_quantify_salmon.nf"
+      },
+      {
+        "file_name": "subworkflows_nf-core_align_hisat2.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/subworkflows_nf-core_align_hisat2.nf"
+      },
+      {
+        "file_name": "subworkflows_nf-core_bam_sort_samtools.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/subworkflows_nf-core_bam_sort_samtools.nf"
+      },
+      {
+        "file_name": "subworkflows_nf-core_bam_stats_samtools.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/subworkflows_nf-core_bam_stats_samtools.nf"
+      },
+      {
+        "file_name": "subworkflows_nf-core_bedgraph_to_bigwig.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/subworkflows_nf-core_bedgraph_to_bigwig.nf"
+      },
+      {
+        "file_name": "subworkflows_nf-core_dedup_umi_umitools.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/subworkflows_nf-core_dedup_umi_umitools.nf"
+      },
+      {
+        "file_name": "subworkflows_nf-core_fastqc_umitools_trimgalore.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/subworkflows_nf-core_fastqc_umitools_trimgalore.nf"
+      },
+      {
+        "file_name": "subworkflows_nf-core_mark_duplicates_picard.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/subworkflows_nf-core_mark_duplicates_picard.nf"
+      },
+      {
+        "file_name": "subworkflows_nf-core_rseqc.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/subworkflows_nf-core_rseqc.nf"
+      },
+      {
+        "file_name": "tower.yml",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/tower.yml"
+      },
+      {
+        "file_name": "workflows_rnaseq.nf",
+        "file_url": "https://zenodo.org/api/files/bb3e4bea-a1e5-49c8-8479-960299972c43/workflows_rnaseq.nf"
+      }
+    ]
+  },
+  {
+    "workflow_name": "GATK workflows - Mitochondria Pipeline: 1.0.0",
+    "workflow_url": "https://zenodo.org/api/files/d539b0a0-5bce-41f1-9938-d9b97ca3f523/MitochondriaPipeline.wdl",
+    "workflow_type": "WDL",
+    "workflow_type_version": "1.0",
+    "workflow_attachment": [
+      {
+        "file_name": "AlignAndCall.wdl",
+        "file_url": "https://zenodo.org/api/files/d539b0a0-5bce-41f1-9938-d9b97ca3f523/AlignAndCall.wdl"
+      },
+      {
+        "file_name": "AlignmentPipeline.wdl",
+        "file_url": "https://zenodo.org/api/files/d539b0a0-5bce-41f1-9938-d9b97ca3f523/AlignmentPipeline.wdl"
+      }
+    ]
+  },
+  {
+    "workflow_name": "mutect2: 1.0.0",
+    "workflow_url": "https://zenodo.org/api/files/b46e9f32-49d8-4d1c-8adf-f116e3bd2da2/mutect2.wdl",
+    "workflow_type": "WDL",
+    "workflow_type_version": "1.0",
+    "workflow_attachment": []
+  },
+  {
+    "workflow_name": "DAT2-cwl - bacteria genome workflow: 1.0.0",
+    "workflow_url": "https://zenodo.org/api/files/af647e79-1ec9-4947-b7dd-c451faf4a511/bacteria-genome.packed.cwl",
+    "workflow_type": "CWL",
+    "workflow_type_version": "v1.0",
+    "workflow_attachment": []
+  }
+]
