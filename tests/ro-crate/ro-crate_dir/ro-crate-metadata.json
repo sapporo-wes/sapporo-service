@@ -1,7 +1,25 @@
 {
     "@context": [
         "https://w3id.org/ro/crate/1.1/context",
-        "https://w3id.org/ro/terms/sapporo"
+        {
+            "FileStats": "https://w3id.org/ro/terms/sapporo#FileStats",
+            "duplicateRate": "https://w3id.org/ro/terms/sapporo#duplicateRate",
+            "duplicateReads": "https://w3id.org/ro/terms/sapporo#duplicateReads",
+            "exitCode": "https://w3id.org/ro/terms/sapporo#exitCode",
+            "generatedBy": "https://w3id.org/ro/terms/sapporo#generatedBy",
+            "indelsCount": "https://w3id.org/ro/terms/sapporo#indelsCount",
+            "lineCount": "https://w3id.org/ro/terms/sapporo#lineCount",
+            "mappedRate": "https://w3id.org/ro/terms/sapporo#mappedRate",
+            "mappedReads": "https://w3id.org/ro/terms/sapporo#mappedReads",
+            "sha512": "https://w3id.org/ro/terms/workflow-run#sha512",
+            "snpsCount": "https://w3id.org/ro/terms/sapporo#snpsCount",
+            "stats": "https://w3id.org/ro/terms/sapporo#stats",
+            "totalReads": "https://w3id.org/ro/terms/sapporo#totalReads",
+            "unmappedRate": "https://w3id.org/ro/terms/sapporo#unmappedRate",
+            "unmappedReads": "https://w3id.org/ro/terms/sapporo#unmappedReads",
+            "variantCount": "https://w3id.org/ro/terms/sapporo#variantCount",
+            "wesState": "https://w3id.org/ro/terms/sapporo#wesState"
+        }
     ],
     "@graph": [
         {
@@ -18,7 +36,7 @@
                     "@id": "https://w3id.org/workflowhub/workflow-ro-crate/1.0"
                 }
             ],
-            "datePublished": "2023-07-25T14:54:07+00:00",
+            "datePublished": "2023-08-03T02:33:26+00:00",
             "hasPart": [
                 {
                     "@id": "https://raw.githubusercontent.com/sapporo-wes/yevis-cli/6411de7d3a823d717d61d29591f59c681e8705be/tests/CWL/wf/trimming_and_qc.cwl"
@@ -62,7 +80,12 @@
             ],
             "mainEntity": {
                 "@id": "https://raw.githubusercontent.com/sapporo-wes/yevis-cli/6411de7d3a823d717d61d29591f59c681e8705be/tests/CWL/wf/trimming_and_qc.cwl"
-            }
+            },
+            "mentions": [
+                {
+                    "@id": "#27469c13-2f6d-47af-9623-39cdee5f1a04"
+                }
+            ]
         },
         {
             "@id": "ro-crate-metadata.json",
@@ -78,6 +101,24 @@
                     "@id": "https://w3id.org/workflowhub/workflow-ro-crate/1.0"
                 }
             ]
+        },
+        {
+            "@id": "https://w3id.org/ro/wfrun/process/0.1",
+            "@type": "CreativeWork",
+            "name": "Process Run Crate",
+            "version": "0.1"
+        },
+        {
+            "@id": "https://w3id.org/ro/wfrun/workflow/0.1",
+            "@type": "CreativeWork",
+            "name": "Workflow Run Crate",
+            "version": "0.1"
+        },
+        {
+            "@id": "https://w3id.org/workflowhub/workflow-ro-crate/1.0",
+            "@type": "CreativeWork",
+            "name": "Workflow RO-Crate",
+            "version": "1.0"
         },
         {
             "@id": "https://raw.githubusercontent.com/sapporo-wes/yevis-cli/6411de7d3a823d717d61d29591f59c681e8705be/tests/CWL/wf/trimming_and_qc.cwl",
@@ -170,7 +211,7 @@
                 "SoftwareSourceCode"
             ],
             "contentSize": 577,
-            "dateModified": "2023-07-25T14:53:39.479513",
+            "dateModified": "2023-08-03T02:33:19.737168",
             "encodingFormat": "text/plain",
             "lineCount": 33,
             "sha512": "af6d23d05f8b42739feb4db4f3222e0201f7186953a4200bc3a72668589db672d738f27275eb5298cd2d4a1f5f3aa854f5f56a8561f5a8217a7f1c9663627b95",
@@ -183,7 +224,7 @@
                 "SoftwareSourceCode"
             ],
             "contentSize": 1570,
-            "dateModified": "2023-07-25T14:53:40.023515",
+            "dateModified": "2023-08-03T02:33:19.737168",
             "encodingFormat": "text/plain",
             "lineCount": 66,
             "sha512": "cc384f32389e588706860139d843194bef48d53081183f12fc3ed32d3bc56bfca868c2965d5e9dd4e50a66e913b7b3afc0e0f9766353a14ad87f3b4a33b2ed2e",
@@ -284,7 +325,7 @@
             "@id": "outputs/ERR034597_1.small.fq.trimmed.2U.fq",
             "@type": "File",
             "contentSize": 80131,
-            "dateModified": "2023-07-25T14:54:00.819571",
+            "dateModified": "2023-08-03T02:33:19.785168",
             "encodingFormat": "http://edamontology.org/format_1930",
             "exampleOfWork": [
                 {
@@ -307,7 +348,7 @@
             "@id": "outputs/ERR034597_1.small.fq.trimmed.1U.fq",
             "@type": "File",
             "contentSize": 187289,
-            "dateModified": "2023-07-25T14:54:00.819571",
+            "dateModified": "2023-08-03T02:33:19.769168",
             "encodingFormat": "http://edamontology.org/format_1930",
             "exampleOfWork": [
                 {
@@ -330,7 +371,7 @@
             "@id": "outputs/ERR034597_1.small_fastqc.html",
             "@type": "File",
             "contentSize": 592394,
-            "dateModified": "2023-07-25T14:53:57.815562",
+            "dateModified": "2023-08-03T02:33:19.753168",
             "encodingFormat": "text/html",
             "exampleOfWork": [
                 {
@@ -353,7 +394,7 @@
             "@id": "outputs/ERR034597_2.small_fastqc.html",
             "@type": "File",
             "contentSize": 592566,
-            "dateModified": "2023-07-25T14:54:05.391583",
+            "dateModified": "2023-08-03T02:33:19.753168",
             "encodingFormat": "text/html",
             "exampleOfWork": [
                 {
@@ -376,7 +417,7 @@
             "@id": "outputs/ERR034597_1.small.fq.trimmed.1P.fq",
             "@type": "File",
             "contentSize": 5566650,
-            "dateModified": "2023-07-25T14:54:00.819571",
+            "dateModified": "2023-08-03T02:33:19.769168",
             "encodingFormat": "http://edamontology.org/format_1930",
             "exampleOfWork": [
                 {
@@ -399,7 +440,7 @@
             "@id": "outputs/ERR034597_1.small.fq.trimmed.2P.fq",
             "@type": "File",
             "contentSize": 5560582,
-            "dateModified": "2023-07-25T14:54:00.819571",
+            "dateModified": "2023-08-03T02:33:19.785168",
             "encodingFormat": "http://edamontology.org/format_1930",
             "exampleOfWork": [
                 {
@@ -414,7 +455,7 @@
             "@id": "stdout.log",
             "@type": "File",
             "contentSize": 3218,
-            "dateModified": "2023-07-25T14:54:05.775584",
+            "dateModified": "2023-08-03T02:33:19.789168",
             "encodingFormat": "application/json",
             "lineCount": 50,
             "name": "Sapporo stdout",
@@ -425,7 +466,7 @@
             "@id": "stderr.log",
             "@type": "File",
             "contentSize": 4207,
-            "dateModified": "2023-07-25T14:54:05.775584",
+            "dateModified": "2023-08-03T02:33:19.789168",
             "encodingFormat": "text/plain",
             "lineCount": 92,
             "name": "Sapporo stderr",

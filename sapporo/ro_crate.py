@@ -498,6 +498,7 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequest, run
         "name": "Sapporo workflow run " + run_id
     })
     create_action_ins.append_to("instrument", crate.mainEntity, compact=True)
+    crate.root_dataset.append_to("mentions", create_action_ins)
 
     # Time
     create_action_ins["startTime"] = read_file(run_dir, "start_time", one_line=True)
