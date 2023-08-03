@@ -30,7 +30,25 @@ from rocrate.utils import get_norm_value
 from sapporo.const import RUN_DIR_STRUCTURE, RUN_DIR_STRUCTURE_KEYS
 from sapporo.model import AttachedFile, RunRequest
 
-SAPPORO_EXTRA_CONTEXT = "https://w3id.org/ro/terms/sapporo"
+EXTRA_CONTEXT = {
+    "lineCount": "https://w3id.org/ro/terms/sapporo#lineCount",
+    "FileStats": "https://w3id.org/ro/terms/sapporo#FileStats",
+    "stats": "https://w3id.org/ro/terms/sapporo#stats",
+    "generatedBy": "https://w3id.org/ro/terms/sapporo#generatedBy",
+    "totalReads": "https://w3id.org/ro/terms/sapporo#totalReads",
+    "mappedReads": "https://w3id.org/ro/terms/sapporo#mappedReads",
+    "unmappedReads": "https://w3id.org/ro/terms/sapporo#unmappedReads",
+    "duplicateReads": "https://w3id.org/ro/terms/sapporo#duplicateReads",
+    "mappedRate": "https://w3id.org/ro/terms/sapporo#mappedRate",
+    "unmappedRate": "https://w3id.org/ro/terms/sapporo#unmappedRate",
+    "duplicateRate": "https://w3id.org/ro/terms/sapporo#duplicateRate",
+    "variantCount": "https://w3id.org/ro/terms/sapporo#variantCount",
+    "snpsCount": "https://w3id.org/ro/terms/sapporo#snpsCount",
+    "indelsCount": "https://w3id.org/ro/terms/sapporo#indelsCount",
+    "wesState": "https://w3id.org/ro/terms/sapporo#wesState",
+    "exitCode": "https://w3id.org/ro/terms/sapporo#exitCode",
+    "sha512": "https://w3id.org/ro/terms/workflow-run#sha512"
+}
 
 
 class YevisAuthor(TypedDict):
@@ -220,7 +238,7 @@ def add_crate_metadata(crate: ROCrate) -> None:
 
 
 def add_extra_context(crate: ROCrate) -> None:
-    crate.metadata.extra_terms = SAPPORO_EXTRA_CONTEXT
+    crate.metadata.extra_terms = EXTRA_CONTEXT
 
 
 def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_meta: Optional[YevisMetadata]) -> None:
