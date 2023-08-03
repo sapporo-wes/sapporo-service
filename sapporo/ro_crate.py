@@ -19,6 +19,7 @@ from rocrate.model.computationalworkflow import ComputationalWorkflow
 from rocrate.model.computerlanguage import ComputerLanguage
 from rocrate.model.computerlanguage import get_lang as ro_crate_get_lang
 from rocrate.model.contextentity import ContextEntity
+from rocrate.model.creativework import CreativeWork
 from rocrate.model.data_entity import DataEntity
 from rocrate.model.dataset import Dataset
 from rocrate.model.file import File
@@ -192,6 +193,7 @@ def generate_ro_crate(inputted_run_dir: str) -> None:
     run_id = run_dir.name
 
     add_crate_metadata(crate)
+    add_run_crate_profile(crate)
     add_extra_context(crate)
     add_workflow(crate, run_dir, run_request, yevis_metadata)
     add_workflow_attachment(crate, run_dir, run_request, yevis_metadata)
@@ -235,6 +237,21 @@ def add_crate_metadata(crate: ROCrate) -> None:
         {"@id": "https://w3id.org/ro/wfrun/workflow/0.1"},
         {"@id": WORKFLOW_PROFILE},
     ])
+
+
+def add_run_crate_profile(crate: ROCrate) -> None:
+    crate.add(CreativeWork(crate, "https://w3id.org/ro/wfrun/process/0.1", properties={
+        "name": "Process Run Crate",
+        "version": "0.1"
+    }))
+    crate.add(CreativeWork(crate, "https://w3id.org/ro/wfrun/workflow/0.1", properties={
+        "name": "Workflow Run Crate",
+        "version": "0.1"
+    }))
+    crate.add(CreativeWork(crate, "https://w3id.org/workflowhub/workflow-ro-crate/1.0", properties={
+        "name": "Workflow RO-Crate",
+        "version": "1.0"
+    }))
 
 
 def add_extra_context(crate: ROCrate) -> None:
