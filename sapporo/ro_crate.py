@@ -195,7 +195,7 @@ def generate_ro_crate(inputted_run_dir: str) -> None:
     add_crate_metadata(crate)
     add_run_crate_profile(crate)
     add_extra_context(crate)
-    add_workflow(crate, run_dir, run_request, yevis_metadata)
+    add_workflow(crate, run_dir, run_request)
     add_workflow_attachment(crate, run_dir, run_request, yevis_metadata)
     add_workflow_run(crate, run_dir, run_request, run_id)
 
@@ -258,7 +258,7 @@ def add_extra_context(crate: ROCrate) -> None:
     crate.metadata.extra_terms = EXTRA_CONTEXT
 
 
-def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_meta: Optional[YevisMetadata]) -> None:
+def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest) -> None:
     """\
     Modified from crate.add_workflow()
 
@@ -280,16 +280,6 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest, yevis_m
     wf_ins.lang = generate_wf_lang(crate, run_request)
     if run_request["workflow_name"] is not None:
         wf_ins["name"] = run_request["workflow_name"]
-
-    if yevis_meta is not None:
-        wf_ins["version"] = yevis_meta["version"]
-        wf_ins["name"] = yevis_meta["workflow"]["name"]
-        description_ins = ContextEntity(crate, yevis_meta["workflow"]["readme"], properties={
-            "@type": ["TextObject"],
-            "name": "README.md",
-        })
-        wf_ins["description"] = description_ins
-        crate.add(description_ins)
 
 
 def update_local_file_stat(file_ins: File, file_path: Path, include_content: bool = True) -> None:

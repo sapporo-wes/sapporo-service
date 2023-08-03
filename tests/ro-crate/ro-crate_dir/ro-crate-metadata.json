@@ -36,7 +36,7 @@
                     "@id": "https://w3id.org/workflowhub/workflow-ro-crate/1.0"
                 }
             ],
-            "datePublished": "2023-08-03T02:33:26+00:00",
+            "datePublished": "2023-08-03T03:12:06+00:00",
             "hasPart": [
                 {
                     "@id": "https://raw.githubusercontent.com/sapporo-wes/yevis-cli/6411de7d3a823d717d61d29591f59c681e8705be/tests/CWL/wf/trimming_and_qc.cwl"
@@ -127,9 +127,6 @@
                 "SoftwareSourceCode",
                 "ComputationalWorkflow"
             ],
-            "description": {
-                "@id": "https://raw.githubusercontent.com/sapporo-wes/yevis-cli/6411de7d3a823d717d61d29591f59c681e8705be/README.md"
-            },
             "hasPart": [
                 {
                     "@id": "exe/fastqc.cwl"
@@ -146,7 +143,7 @@
                     "@id": "#fastq_2"
                 }
             ],
-            "name": "CWL_trimming_and_qc by Apache-2.0",
+            "name": "https://raw.githubusercontent.com/sapporo-wes/yevis-cli/6411de7d3a823d717d61d29591f59c681e8705be/tests/CWL/wf/trimming_and_qc",
             "output": [
                 {
                     "@id": "#ERR034597_1.small.fq.trimmed.2U.fq"
@@ -169,8 +166,7 @@
             ],
             "programmingLanguage": {
                 "@id": "https://w3id.org/workflowhub/workflow-ro-crate#cwl"
-            },
-            "version": "1.0.0"
+            }
         },
         {
             "@id": "https://w3id.org/cwl/v1.0/",
@@ -198,20 +194,13 @@
             "version": "1.0"
         },
         {
-            "@id": "https://raw.githubusercontent.com/sapporo-wes/yevis-cli/6411de7d3a823d717d61d29591f59c681e8705be/README.md",
-            "@type": [
-                "TextObject"
-            ],
-            "name": "README.md"
-        },
-        {
             "@id": "exe/fastqc.cwl",
             "@type": [
                 "File",
                 "SoftwareSourceCode"
             ],
             "contentSize": 577,
-            "dateModified": "2023-08-03T02:33:19.737168",
+            "dateModified": "2023-08-03T03:11:24.750413",
             "encodingFormat": "text/plain",
             "lineCount": 33,
             "sha512": "af6d23d05f8b42739feb4db4f3222e0201f7186953a4200bc3a72668589db672d738f27275eb5298cd2d4a1f5f3aa854f5f56a8561f5a8217a7f1c9663627b95",
@@ -224,7 +213,7 @@
                 "SoftwareSourceCode"
             ],
             "contentSize": 1570,
-            "dateModified": "2023-08-03T02:33:19.737168",
+            "dateModified": "2023-08-03T03:11:24.750413",
             "encodingFormat": "text/plain",
             "lineCount": 66,
             "sha512": "cc384f32389e588706860139d843194bef48d53081183f12fc3ed32d3bc56bfca868c2965d5e9dd4e50a66e913b7b3afc0e0f9766353a14ad87f3b4a33b2ed2e",
@@ -325,7 +314,7 @@
             "@id": "outputs/ERR034597_1.small.fq.trimmed.2U.fq",
             "@type": "File",
             "contentSize": 80131,
-            "dateModified": "2023-08-03T02:33:19.785168",
+            "dateModified": "2023-08-03T03:11:24.798414",
             "encodingFormat": "http://edamontology.org/format_1930",
             "exampleOfWork": [
                 {
@@ -348,7 +337,7 @@
             "@id": "outputs/ERR034597_1.small.fq.trimmed.1U.fq",
             "@type": "File",
             "contentSize": 187289,
-            "dateModified": "2023-08-03T02:33:19.769168",
+            "dateModified": "2023-08-03T03:11:24.782413",
             "encodingFormat": "http://edamontology.org/format_1930",
             "exampleOfWork": [
                 {
@@ -371,7 +360,7 @@
             "@id": "outputs/ERR034597_1.small_fastqc.html",
             "@type": "File",
             "contentSize": 592394,
-            "dateModified": "2023-08-03T02:33:19.753168",
+            "dateModified": "2023-08-03T03:11:24.762413",
             "encodingFormat": "text/html",
             "exampleOfWork": [
                 {
@@ -394,7 +383,7 @@
             "@id": "outputs/ERR034597_2.small_fastqc.html",
             "@type": "File",
             "contentSize": 592566,
-            "dateModified": "2023-08-03T02:33:19.753168",
+            "dateModified": "2023-08-03T03:11:24.766413",
             "encodingFormat": "text/html",
             "exampleOfWork": [
                 {
@@ -417,7 +406,7 @@
             "@id": "outputs/ERR034597_1.small.fq.trimmed.1P.fq",
             "@type": "File",
             "contentSize": 5566650,
-            "dateModified": "2023-08-03T02:33:19.769168",
+            "dateModified": "2023-08-03T03:11:24.782413",
             "encodingFormat": "http://edamontology.org/format_1930",
             "exampleOfWork": [
                 {
@@ -440,7 +429,7 @@
             "@id": "outputs/ERR034597_1.small.fq.trimmed.2P.fq",
             "@type": "File",
             "contentSize": 5560582,
-            "dateModified": "2023-08-03T02:33:19.785168",
+            "dateModified": "2023-08-03T03:11:24.798414",
             "encodingFormat": "http://edamontology.org/format_1930",
             "exampleOfWork": [
                 {
@@ -455,7 +444,7 @@
             "@id": "stdout.log",
             "@type": "File",
             "contentSize": 3218,
-            "dateModified": "2023-08-03T02:33:19.789168",
+            "dateModified": "2023-08-03T03:11:24.802414",
             "encodingFormat": "application/json",
             "lineCount": 50,
             "name": "Sapporo stdout",
@@ -466,7 +455,7 @@
             "@id": "stderr.log",
             "@type": "File",
             "contentSize": 4207,
-            "dateModified": "2023-08-03T02:33:19.789168",
+            "dateModified": "2023-08-03T03:11:24.802414",
             "encodingFormat": "text/plain",
             "lineCount": 92,
             "name": "Sapporo stderr",
