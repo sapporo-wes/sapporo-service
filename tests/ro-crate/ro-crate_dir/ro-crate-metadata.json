@@ -1,25 +1,8 @@
 {
     "@context": [
         "https://w3id.org/ro/crate/1.1/context",
-        {
-            "FileStats": "https://w3id.org/ro/terms/sapporo#FileStats",
-            "duplicateRate": "https://w3id.org/ro/terms/sapporo#duplicateRate",
-            "duplicateReads": "https://w3id.org/ro/terms/sapporo#duplicateReads",
-            "exitCode": "https://w3id.org/ro/terms/sapporo#exitCode",
-            "generatedBy": "https://w3id.org/ro/terms/sapporo#generatedBy",
-            "indelsCount": "https://w3id.org/ro/terms/sapporo#indelsCount",
-            "lineCount": "https://w3id.org/ro/terms/sapporo#lineCount",
-            "mappedRate": "https://w3id.org/ro/terms/sapporo#mappedRate",
-            "mappedReads": "https://w3id.org/ro/terms/sapporo#mappedReads",
-            "sha512": "https://w3id.org/ro/terms/workflow-run#sha512",
-            "snpsCount": "https://w3id.org/ro/terms/sapporo#snpsCount",
-            "stats": "https://w3id.org/ro/terms/sapporo#stats",
-            "totalReads": "https://w3id.org/ro/terms/sapporo#totalReads",
-            "unmappedRate": "https://w3id.org/ro/terms/sapporo#unmappedRate",
-            "unmappedReads": "https://w3id.org/ro/terms/sapporo#unmappedReads",
-            "variantCount": "https://w3id.org/ro/terms/sapporo#variantCount",
-            "wesState": "https://w3id.org/ro/terms/sapporo#wesState"
-        }
+        "https://w3id.org/ro/terms/sapporo",
+        "https://w3id.org/ro/terms/workflow-run"
     ],
     "@graph": [
         {

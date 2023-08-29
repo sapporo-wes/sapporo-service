@@ -1,25 +1,8 @@
 {
   "@context": [
     "https://w3id.org/ro/crate/1.1/context",
-    {
-      "FileStats": "https://w3id.org/ro/terms/sapporo#FileStats",
-      "duplicateRate": "https://w3id.org/ro/terms/sapporo#duplicateRate",
-      "duplicateReads": "https://w3id.org/ro/terms/sapporo#duplicateReads",
-      "exitCode": "https://w3id.org/ro/terms/sapporo#exitCode",
-      "generatedBy": "https://w3id.org/ro/terms/sapporo#generatedBy",
-      "indelsCount": "https://w3id.org/ro/terms/sapporo#indelsCount",
-      "lineCount": "https://w3id.org/ro/terms/sapporo#lineCount",
-      "mappedRate": "https://w3id.org/ro/terms/sapporo#mappedRate",
-      "mappedReads": "https://w3id.org/ro/terms/sapporo#mappedReads",
-      "sha512": "https://w3id.org/ro/terms/workflow-run#sha512",
-      "snpsCount": "https://w3id.org/ro/terms/sapporo#snpsCount",
-      "stats": "https://w3id.org/ro/terms/sapporo#stats",
-      "totalReads": "https://w3id.org/ro/terms/sapporo#totalReads",
-      "unmappedRate": "https://w3id.org/ro/terms/sapporo#unmappedRate",
-      "unmappedReads": "https://w3id.org/ro/terms/sapporo#unmappedReads",
-      "variantCount": "https://w3id.org/ro/terms/sapporo#variantCount",
-      "wesState": "https://w3id.org/ro/terms/sapporo#wesState"
-    }
+    "https://w3id.org/ro/terms/sapporo",
+    "https://w3id.org/ro/terms/workflow-run"
   ],
   "@graph": [
     {
@@ -122,7 +105,11 @@
     },
     {
       "@id": "https://raw.githubusercontent.com/sapporo-wes/yevis-cli/6411de7d3a823d717d61d29591f59c681e8705be/tests/CWL/wf/trimming_and_qc.cwl",
-      "@type": ["File", "SoftwareSourceCode", "ComputationalWorkflow"],
+      "@type": [
+        "File",
+        "SoftwareSourceCode",
+        "ComputationalWorkflow"
+      ],
       "hasPart": [
         {
           "@id": "exe/fastqc.cwl"
@@ -166,11 +153,15 @@
     },
     {
       "@id": "https://w3id.org/cwl/v1.0/",
-      "@type": ["WebPage"]
+      "@type": [
+        "WebPage"
+      ]
     },
     {
       "@id": "https://www.commonwl.org/",
-      "@type": ["WebPage"]
+      "@type": [
+        "WebPage"
+      ]
     },
     {
       "@id": "https://w3id.org/workflowhub/workflow-ro-crate#cwl",
@@ -187,7 +178,10 @@
     },
     {
       "@id": "exe/fastqc.cwl",
-      "@type": ["File", "SoftwareSourceCode"],
+      "@type": [
+        "File",
+        "SoftwareSourceCode"
+      ],
       "contentSize": 577,
       "dateModified": "2023-08-03T03:11:24.750413",
       "encodingFormat": "text/plain",
@@ -197,7 +191,10 @@
     },
     {
       "@id": "exe/trimmomatic_pe.cwl",
-      "@type": ["File", "SoftwareSourceCode"],
+      "@type": [
+        "File",
+        "SoftwareSourceCode"
+      ],
       "contentSize": 1570,
       "dateModified": "2023-08-03T03:11:24.750413",
       "encodingFormat": "text/plain",
@@ -292,7 +289,9 @@
       "@id": "#ERR034597_1.small.fq.trimmed.2U.fq",
       "@type": "FormalParameter",
       "name": "ERR034597_1.small.fq.trimmed.2U.fq",
-      "workExample": ["outputs/ERR034597_1.small.fq.trimmed.2U.fq"]
+      "workExample": [
+        "outputs/ERR034597_1.small.fq.trimmed.2U.fq"
+      ]
     },
     {
       "@id": "outputs/ERR034597_1.small.fq.trimmed.2U.fq",
@@ -313,7 +312,9 @@
       "@id": "#ERR034597_1.small.fq.trimmed.1U.fq",
       "@type": "FormalParameter",
       "name": "ERR034597_1.small.fq.trimmed.1U.fq",
-      "workExample": ["outputs/ERR034597_1.small.fq.trimmed.1U.fq"]
+      "workExample": [
+        "outputs/ERR034597_1.small.fq.trimmed.1U.fq"
+      ]
     },
     {
       "@id": "outputs/ERR034597_1.small.fq.trimmed.1U.fq",
@@ -334,7 +335,9 @@
       "@id": "#ERR034597_1.small_fastqc.html",
       "@type": "FormalParameter",
       "name": "ERR034597_1.small_fastqc.html",
-      "workExample": ["outputs/ERR034597_1.small_fastqc.html"]
+      "workExample": [
+        "outputs/ERR034597_1.small_fastqc.html"
+      ]
     },
     {
       "@id": "outputs/ERR034597_1.small_fastqc.html",
@@ -355,7 +358,9 @@
       "@id": "#ERR034597_2.small_fastqc.html",
       "@type": "FormalParameter",
       "name": "ERR034597_2.small_fastqc.html",
-      "workExample": ["outputs/ERR034597_2.small_fastqc.html"]
+      "workExample": [
+        "outputs/ERR034597_2.small_fastqc.html"
+      ]
     },
     {
       "@id": "outputs/ERR034597_2.small_fastqc.html",
@@ -376,7 +381,9 @@
       "@id": "#ERR034597_1.small.fq.trimmed.1P.fq",
       "@type": "FormalParameter",
       "name": "ERR034597_1.small.fq.trimmed.1P.fq",
-      "workExample": ["outputs/ERR034597_1.small.fq.trimmed.1P.fq"]
+      "workExample": [
+        "outputs/ERR034597_1.small.fq.trimmed.1P.fq"
+      ]
     },
     {
       "@id": "outputs/ERR034597_1.small.fq.trimmed.1P.fq",
@@ -397,7 +404,9 @@
       "@id": "#ERR034597_1.small.fq.trimmed.2P.fq",
       "@type": "FormalParameter",
       "name": "ERR034597_1.small.fq.trimmed.2P.fq",
-      "workExample": ["outputs/ERR034597_1.small.fq.trimmed.2P.fq"]
+      "workExample": [
+        "outputs/ERR034597_1.small.fq.trimmed.2P.fq"
+      ]
     },
     {
       "@id": "outputs/ERR034597_1.small.fq.trimmed.2P.fq",

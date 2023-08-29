@@ -31,25 +31,8 @@ from rocrate.utils import get_norm_value
 from sapporo.const import RUN_DIR_STRUCTURE, RUN_DIR_STRUCTURE_KEYS
 from sapporo.model import AttachedFile, RunRequest
 
-EXTRA_CONTEXT = {
-    "lineCount": "https://w3id.org/ro/terms/sapporo#lineCount",
-    "FileStats": "https://w3id.org/ro/terms/sapporo#FileStats",
-    "stats": "https://w3id.org/ro/terms/sapporo#stats",
-    "generatedBy": "https://w3id.org/ro/terms/sapporo#generatedBy",
-    "totalReads": "https://w3id.org/ro/terms/sapporo#totalReads",
-    "mappedReads": "https://w3id.org/ro/terms/sapporo#mappedReads",
-    "unmappedReads": "https://w3id.org/ro/terms/sapporo#unmappedReads",
-    "duplicateReads": "https://w3id.org/ro/terms/sapporo#duplicateReads",
-    "mappedRate": "https://w3id.org/ro/terms/sapporo#mappedRate",
-    "unmappedRate": "https://w3id.org/ro/terms/sapporo#unmappedRate",
-    "duplicateRate": "https://w3id.org/ro/terms/sapporo#duplicateRate",
-    "variantCount": "https://w3id.org/ro/terms/sapporo#variantCount",
-    "snpsCount": "https://w3id.org/ro/terms/sapporo#snpsCount",
-    "indelsCount": "https://w3id.org/ro/terms/sapporo#indelsCount",
-    "wesState": "https://w3id.org/ro/terms/sapporo#wesState",
-    "exitCode": "https://w3id.org/ro/terms/sapporo#exitCode",
-    "sha512": "https://w3id.org/ro/terms/workflow-run#sha512"
-}
+SAPPORO_EXTRA_CONTEXT = "https://w3id.org/ro/terms/sapporo"
+WF_RUN_CRATE_CONTEXT = "https://w3id.org/ro/terms/workflow-run"
 
 
 class YevisAuthor(TypedDict):
@@ -194,12 +177,17 @@ def generate_ro_crate(inputted_run_dir: str) -> None:
 
     add_crate_metadata(crate)
     add_run_crate_profile(crate)
-    add_extra_context(crate)
     add_workflow(crate, run_dir, run_request)
     add_workflow_attachment(crate, run_dir, run_request, yevis_metadata)
     add_workflow_run(crate, run_dir, run_request, run_id)
 
-    crate.write(run_dir)
+    jsonld = crate.metadata.generate()
+    if isinstance(jsonld["@context"], str):
+        jsonld["@context"] = [jsonld["@context"]]
+    jsonld["@context"].append(SAPPORO_EXTRA_CONTEXT)
+    jsonld["@context"].append(WF_RUN_CRATE_CONTEXT)
+    with run_dir.joinpath(crate.metadata.BASENAME).open(mode="w", encoding="utf-8") as f:
+        json.dump(jsonld, f, indent=2, sort_keys=True)
 
 
 def read_file(run_dir: Path, file_type: RUN_DIR_STRUCTURE_KEYS, one_line: bool = False, raw: bool = False) -> Any:
@@ -252,10 +240,6 @@ def add_run_crate_profile(crate: ROCrate) -> None:
         "name": "Workflow RO-Crate",
         "version": "1.0"
     }))
-
-
-def add_extra_context(crate: ROCrate) -> None:
-    crate.metadata.extra_terms = EXTRA_CONTEXT
 
 
 def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest) -> None:
