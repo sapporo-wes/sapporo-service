@@ -31,30 +31,6 @@
                     "@id": "exe/trimmomatic_pe.cwl"
                 },
                 {
-                    "@id": "exe/ERR034597_1.small.fq.gz"
-                },
-                {
-                    "@id": "exe/ERR034597_2.small.fq.gz"
-                },
-                {
-                    "@id": "outputs/ERR034597_1.small.fq.trimmed.2U.fq"
-                },
-                {
-                    "@id": "outputs/ERR034597_1.small.fq.trimmed.1U.fq"
-                },
-                {
-                    "@id": "outputs/ERR034597_1.small_fastqc.html"
-                },
-                {
-                    "@id": "outputs/ERR034597_2.small_fastqc.html"
-                },
-                {
-                    "@id": "outputs/ERR034597_1.small.fq.trimmed.1P.fq"
-                },
-                {
-                    "@id": "outputs/ERR034597_1.small.fq.trimmed.2P.fq"
-                },
-                {
                     "@id": "stdout.log"
                 },
                 {
@@ -119,35 +95,7 @@
                     "@id": "exe/trimmomatic_pe.cwl"
                 }
             ],
-            "input": [
-                {
-                    "@id": "#fastq_1"
-                },
-                {
-                    "@id": "#fastq_2"
-                }
-            ],
             "name": "https://raw.githubusercontent.com/sapporo-wes/yevis-cli/6411de7d3a823d717d61d29591f59c681e8705be/tests/CWL/wf/trimming_and_qc",
-            "output": [
-                {
-                    "@id": "#ERR034597_1.small.fq.trimmed.2U.fq"
-                },
-                {
-                    "@id": "#ERR034597_1.small.fq.trimmed.1U.fq"
-                },
-                {
-                    "@id": "#ERR034597_1.small_fastqc.html"
-                },
-                {
-                    "@id": "#ERR034597_2.small_fastqc.html"
-                },
-                {
-                    "@id": "#ERR034597_1.small.fq.trimmed.1P.fq"
-                },
-                {
-                    "@id": "#ERR034597_1.small.fq.trimmed.2P.fq"
-                }
-            ],
             "programmingLanguage": {
                 "@id": "https://w3id.org/workflowhub/workflow-ro-crate#cwl"
             }
@@ -213,34 +161,6 @@
                 "@id": "https://raw.githubusercontent.com/sapporo-wes/yevis-cli/6411de7d3a823d717d61d29591f59c681e8705be/tests/CWL/wf/trimming_and_qc.cwl"
             },
             "name": "Sapporo workflow run 27469c13-2f6d-47af-9623-39cdee5f1a04",
-            "object": [
-                {
-                    "@id": "exe/ERR034597_1.small.fq.gz"
-                },
-                {
-                    "@id": "exe/ERR034597_2.small.fq.gz"
-                }
-            ],
-            "result": [
-                {
-                    "@id": "outputs/ERR034597_1.small.fq.trimmed.2U.fq"
-                },
-                {
-                    "@id": "outputs/ERR034597_1.small.fq.trimmed.1U.fq"
-                },
-                {
-                    "@id": "outputs/ERR034597_1.small_fastqc.html"
-                },
-                {
-                    "@id": "outputs/ERR034597_2.small_fastqc.html"
-                },
-                {
-                    "@id": "outputs/ERR034597_1.small.fq.trimmed.1P.fq"
-                },
-                {
-                    "@id": "outputs/ERR034597_1.small.fq.trimmed.2P.fq"
-                }
-            ],
             "startTime": "2023-07-25T14:53:41",
             "subjectOf": [
                 {
@@ -251,178 +171,6 @@
                 }
             ],
             "wesState": "COMPLETE"
-        },
-        {
-            "@id": "exe/ERR034597_1.small.fq.gz",
-            "@type": "File",
-            "exampleOfWork": [
-                {
-                    "@id": "#fastq_1"
-                }
-            ],
-            "name": "ERR034597_1.small.fq.gz"
-        },
-        {
-            "@id": "#fastq_1",
-            "@type": "FormalParameter",
-            "additionalType": "File",
-            "name": "fastq_1",
-            "workExample": "exe/ERR034597_1.small.fq.gz"
-        },
-        {
-            "@id": "exe/ERR034597_2.small.fq.gz",
-            "@type": "File",
-            "exampleOfWork": [
-                {
-                    "@id": "#fastq_2"
-                }
-            ],
-            "name": "ERR034597_2.small.fq.gz"
-        },
-        {
-            "@id": "#fastq_2",
-            "@type": "FormalParameter",
-            "additionalType": "File",
-            "name": "fastq_2",
-            "workExample": "exe/ERR034597_2.small.fq.gz"
-        },
-        {
-            "@id": "#ERR034597_1.small.fq.trimmed.2U.fq",
-            "@type": "FormalParameter",
-            "name": "ERR034597_1.small.fq.trimmed.2U.fq",
-            "workExample": [
-                "outputs/ERR034597_1.small.fq.trimmed.2U.fq"
-            ]
-        },
-        {
-            "@id": "outputs/ERR034597_1.small.fq.trimmed.2U.fq",
-            "@type": "File",
-            "contentSize": 80131,
-            "dateModified": "2023-08-03T03:11:24.798414",
-            "encodingFormat": "http://edamontology.org/format_1930",
-            "exampleOfWork": [
-                {
-                    "@id": "#ERR034597_1.small.fq.trimmed.2U.fq"
-                }
-            ],
-            "lineCount": 1468,
-            "sha512": "ff2ac389f7a48bd87576c27935c436899dd9ad4929d8b0a3e85fd4ca711dcb17c6b323b1be3d68ff8353e94b83be14637081a66eccb27daa69b95fba5b5eaf63",
-            "url": "http://localhost:1122/runs/27469c13-2f6d-47af-9623-39cdee5f1a04/data/outputs/ERR034597_1.small.fq.trimmed.2U.fq"
-        },
-        {
-            "@id": "#ERR034597_1.small.fq.trimmed.1U.fq",
-            "@type": "FormalParameter",
-            "name": "ERR034597_1.small.fq.trimmed.1U.fq",
-            "workExample": [
-                "outputs/ERR034597_1.small.fq.trimmed.1U.fq"
-            ]
-        },
-        {
-            "@id": "outputs/ERR034597_1.small.fq.trimmed.1U.fq",
-            "@type": "File",
-            "contentSize": 187289,
-            "dateModified": "2023-08-03T03:11:24.782413",
-            "encodingFormat": "http://edamontology.org/format_1930",
-            "exampleOfWork": [
-                {
-                    "@id": "#ERR034597_1.small.fq.trimmed.1U.fq"
-                }
-            ],
-            "lineCount": 3424,
-            "sha512": "dba779dbc2280232dcc64c3aee9dca5ad56508d13a9905e986d0b30c04ff2eb14a7dabc3055cf8a02a1805dad6daa736d98e1df89385847e1884a3ea80bf8b23",
-            "url": "http://localhost:1122/runs/27469c13-2f6d-47af-9623-39cdee5f1a04/data/outputs/ERR034597_1.small.fq.trimmed.1U.fq"
-        },
-        {
-            "@id": "#ERR034597_1.small_fastqc.html",
-            "@type": "FormalParameter",
-            "name": "ERR034597_1.small_fastqc.html",
-            "workExample": [
-                "outputs/ERR034597_1.small_fastqc.html"
-            ]
-        },
-        {
-            "@id": "outputs/ERR034597_1.small_fastqc.html",
-            "@type": "File",
-            "contentSize": 592394,
-            "dateModified": "2023-08-03T03:11:24.762413",
-            "encodingFormat": "text/html",
-            "exampleOfWork": [
-                {
-                    "@id": "#ERR034597_1.small_fastqc.html"
-                }
-            ],
-            "lineCount": 186,
-            "sha512": "ebff6d0fabc176b0d45894f94d2382b322f3cc8a7191c6e828b73c4f81d78c07ed9d260ec8a54000633b24e241b730b55128a35bc286b0b61cbc2307079122a5",
-            "url": "http://localhost:1122/runs/27469c13-2f6d-47af-9623-39cdee5f1a04/data/outputs/ERR034597_1.small_fastqc.html"
-        },
-        {
-            "@id": "#ERR034597_2.small_fastqc.html",
-            "@type": "FormalParameter",
-            "name": "ERR034597_2.small_fastqc.html",
-            "workExample": [
-                "outputs/ERR034597_2.small_fastqc.html"
-            ]
-        },
-        {
-            "@id": "outputs/ERR034597_2.small_fastqc.html",
-            "@type": "File",
-            "contentSize": 592566,
-            "dateModified": "2023-08-03T03:11:24.766413",
-            "encodingFormat": "text/html",
-            "exampleOfWork": [
-                {
-                    "@id": "#ERR034597_2.small_fastqc.html"
-                }
-            ],
-            "lineCount": 186,
-            "sha512": "27ef360733cbf2265d0d24eddb347119ca0040fa25dce619d4726c399457367498e6776ba6486516b4e2510231c73d5a58373e3563b68b483e01a38167049183",
-            "url": "http://localhost:1122/runs/27469c13-2f6d-47af-9623-39cdee5f1a04/data/outputs/ERR034597_2.small_fastqc.html"
-        },
-        {
-            "@id": "#ERR034597_1.small.fq.trimmed.1P.fq",
-            "@type": "FormalParameter",
-            "name": "ERR034597_1.small.fq.trimmed.1P.fq",
-            "workExample": [
-                "outputs/ERR034597_1.small.fq.trimmed.1P.fq"
-            ]
-        },
-        {
-            "@id": "outputs/ERR034597_1.small.fq.trimmed.1P.fq",
-            "@type": "File",
-            "contentSize": 5566650,
-            "dateModified": "2023-08-03T03:11:24.782413",
-            "encodingFormat": "http://edamontology.org/format_1930",
-            "exampleOfWork": [
-                {
-                    "@id": "#ERR034597_1.small.fq.trimmed.1P.fq"
-                }
-            ],
-            "lineCount": 94556,
-            "sha512": "b5d5b088550ef1cd1b8d1760d6e7bc93fe1500cded15df196e5173e7b5e2732b0a63ccb3dcc535c1991ad95faaf81eda5e61958d0ef42a561d1daa2fae5858b6",
-            "url": "http://localhost:1122/runs/27469c13-2f6d-47af-9623-39cdee5f1a04/data/outputs/ERR034597_1.small.fq.trimmed.1P.fq"
-        },
-        {
-            "@id": "#ERR034597_1.small.fq.trimmed.2P.fq",
-            "@type": "FormalParameter",
-            "name": "ERR034597_1.small.fq.trimmed.2P.fq",
-            "workExample": [
-                "outputs/ERR034597_1.small.fq.trimmed.2P.fq"
-            ]
-        },
-        {
-            "@id": "outputs/ERR034597_1.small.fq.trimmed.2P.fq",
-            "@type": "File",
-            "contentSize": 5560582,
-            "dateModified": "2023-08-03T03:11:24.798414",
-            "encodingFormat": "http://edamontology.org/format_1930",
-            "exampleOfWork": [
-                {
-                    "@id": "#ERR034597_1.small.fq.trimmed.2P.fq"
-                }
-            ],
-            "lineCount": 94556,
-            "sha512": "908eccc73c48bb1ae1accd0ff91aaf13f41a6340288357199da3944f2801a94935dd314c3c8877bed7959ba77d3c88b2c0b58f937f77b9ba6167c103a85a027a",
-            "url": "http://localhost:1122/runs/27469c13-2f6d-47af-9623-39cdee5f1a04/data/outputs/ERR034597_1.small.fq.trimmed.2P.fq"
         },
         {
             "@id": "stdout.log",
