@@ -1,0 +1,11 @@
+{
+  "sapporo_version": "1.4.9",
+  "get_runs": true,
+  "workflow_attachment": true,
+  "registered_only_mode": false,
+  "service_info": "/app/sapporo/service-info.json",
+  "executable_workflows": "/app/sapporo/executable_workflows.json",
+  "run_sh": "/app/sapporo/run.sh",
+  "url_prefix": "/",
+  "sapporo_endpoint": "http://localhost:1122"
+}
