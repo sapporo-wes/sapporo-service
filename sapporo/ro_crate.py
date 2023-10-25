@@ -178,7 +178,6 @@ def generate_ro_crate(inputted_run_dir: str) -> None:
     add_crate_metadata(crate)
     add_run_crate_profile(crate)
     add_workflow(crate, run_dir, run_request)
-    add_workflow_attachment(crate, run_dir, run_request, yevis_metadata)
     add_workflow_run(crate, run_dir, run_request, run_id)
 
     jsonld = crate.metadata.generate()
@@ -418,53 +417,6 @@ def generate_wf_lang(crate: ROCrate, run_request: RunRequest) -> ComputerLanguag
     return lang_ins
 
 
-def add_workflow_attachment(crate: ROCrate, run_dir: Path, run_request: RunRequest,
-                            yevis_meta: Optional[YevisMetadata]) -> None:
-    """\
-    If no Yevis (Sapporo only): All workflow attachments are treated as workflow inputs.
-    If with Yevis: Workflow attachments are treated as workflow inputs, but test files are added to TestDefinition.
-
-    workflow_attachment are placed in exe_dir (downloaded)
-    """
-    main_wf_id = crate.mainEntity["@id"]
-
-    if yevis_meta is None:
-        secondary_files: List[str] = []
-    else:
-        secondary_files = [file["target"] for file in yevis_meta["workflow"]["files"] if file["type"] == "secondary"]
-
-    # This wf_attachment in run_request is a encoded JSON string
-    wf_attachment: str = run_request["workflow_attachment"]  # type: ignore
-    wf_attachment_obj: List[AttachedFile] = json.loads(wf_attachment)
-    for item in wf_attachment_obj:
-        if yevis_meta is not None:
-            if item["file_name"] not in secondary_files:
-                continue
-
-        source = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], item["file_name"])
-        dest = source.relative_to(run_dir)
-        if str(dest) == str(main_wf_id):
-            continue
-        type_list = ["File"]
-        if "script" in magic.from_file(str(source)):
-            type_list.append("SoftwareSourceCode")
-
-        if yevis_meta is None:
-            url = item["file_url"]
-        else:
-            file = [f for f in yevis_meta["workflow"]["files"] if f["target"] == item["file_name"]][0]
-            url = file["url"]
-
-        file_ins = File(crate, source, dest, properties={
-            "@type": type_list,
-            "url": url,
-        })
-        update_local_file_stat(file_ins, source, include_content=False)
-        append_exe_dir_dataset(crate, file_ins)
-        crate.mainEntity.append_to("hasPart", file_ins, compact=True)
-        crate.add(file_ins)
-
-
 def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequest, run_id: str) -> None:
     # Run metadata
     create_action_ins = ContextEntity(crate, identifier=run_id, properties={
@@ -490,80 +442,26 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequest, run
 
     crate.add(create_action_ins)
 
-    # Get `wf_lang` to check the format of wf_params.
-    # This function is called after `add_workflow`, so trace from `crate.mainEntity`
-    wf_lang: Optional[ComputerLanguage] = None
-    if crate.mainEntity is not None:
-        wf_lang: ComputerLanguage = crate.mainEntity.lang  # type: ignore
-
     # Run inputs
-    wf_params = json.loads(run_request["workflow_params"])  # type: ignore
-    for key, val in wf_params.items():
-        formal_param = ContextEntity(crate, key, properties={
-            "@type": "FormalParameter",
-            "name": key,
+    # All workflow attachments (run_request["workflow_attachment"]) are treated as workflow inputs.
+    # These workflow attachments are placed in exe_dir (downloaded)
+    main_wf_id = crate.mainEntity["@id"]
+    # This wf_attachment in run_request is a encoded JSON string
+    wf_attachment: str = run_request["workflow_attachment"]  # type: ignore
+    wf_attachment_obj: List[AttachedFile] = json.loads(wf_attachment)
+    for item in wf_attachment_obj:
+        source = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], item["file_name"])
+        dest = source.relative_to(run_dir)
+        if str(dest) == str(main_wf_id):
+            continue
+        file_ins = File(crate, source, dest, properties={
+            "@type": "File",
+            "url": item["file_url"],
         })
-        actual_value: DataEntity
-
-        if isinstance(val, dict):
-            if wf_lang is not None and wf_lang.name == "Common Workflow Language":
-                # If param is CWL's File or Directory
-                param_class = val["class"]
-                # CWL file object has `path` and `location`
-                param_path = val.get("path", val.get("location"))
-                if param_path.startswith("http://") or param_path.startswith("https://"):
-                    param_rpath = param_path
-                else:
-                    param_apath = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], param_path).resolve(strict=True)
-                    param_rpath = param_apath.relative_to(run_dir)
-                formal_param["additionalType"] = param_class
-                formal_param["workExample"] = str(param_rpath)
-
-                actual_value = DataEntity(crate, param_rpath, properties={
-                    "@type": param_class,
-                    "name": os.path.basename(param_path),
-                })
-
-                if "format" in val:
-                    encoding_format = []
-                    encoding_format.append(val["format"])
-                    formal_param["encodingFormat"] = encoding_format
-                    actual_value["encodingFormat"] = encoding_format
-            else:
-                # Just add as a dict as a JSON string
-                formal_param["additionalType"] = "dict"
-                formal_param["workExample"] = key
-                actual_value = DataEntity(crate, key, properties={
-                    "@type": "PropertyValue",
-                    "name": key,
-                    "value": json.dumps(val),
-                })
-        elif isinstance(val, list):
-            # If param is list
-            formal_param["additionalType"] = "list"
-            formal_param["workExample"] = key
-            actual_value = DataEntity(crate, key, properties={
-                "@type": "PropertyValue",
-                "name": key,
-                "value": json.dumps(val),
-            })
-        else:
-            # Else if param is str, int, float, etc.
-            formal_param["additionalType"] = type(val).__name__
-            formal_param["workExample"] = key
-            actual_value = DataEntity(crate, key, properties={
-                "@type": "PropertyValue",
-                "name": key,
-                "value": val
-            })
-
-        if actual_value:
-            actual_value.append_to("exampleOfWork", formal_param)
-            crate.add(actual_value)
-            create_action_ins.append_to("object", actual_value)
-
-        crate.add(formal_param)
-        crate.mainEntity.append_to("input", formal_param)
+        update_local_file_stat(file_ins, source, include_content=False)
+        append_exe_dir_dataset(crate, file_ins)
+        crate.add(file_ins)
+        create_action_ins.append_to("object", file_ins)
 
     # Run outputs
     outputs: Optional[List[AttachedFile]] = read_file(run_dir, "outputs")
@@ -573,20 +471,10 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequest, run
 
         file_apath = source.resolve(strict=True)
         file_rpath = file_apath.relative_to(run_dir)
-        file_basename = file_apath.name
-
-        formal_param = ContextEntity(crate, file_basename, properties={
-            "@type": "FormalParameter",
-            "name": file_basename,
-        })
-        formal_param.append_to("workExample", str(file_rpath))
-        crate.mainEntity.append_to("output", formal_param)
-        crate.add(formal_param)
 
         actual_file = File(crate, file_apath, file_rpath, properties={
             "@type": "File",
         })
-        actual_file.append_to("exampleOfWork", formal_param)
         update_local_file_stat(actual_file, file_apath)
 
         if outputs is not None:
