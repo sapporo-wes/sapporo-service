@@ -3,7 +3,6 @@
 import gc
 import hashlib
 import json
-import os
 import re
 import shlex
 import shutil
@@ -172,7 +171,7 @@ def generate_ro_crate(inputted_run_dir: str) -> None:
     crate = ROCrate(init=False, gen_preview=False)
 
     run_request: RunRequest = read_file(run_dir, "run_request")
-    yevis_metadata: Optional[YevisMetadata] = read_file(run_dir, "yevis_metadata")
+    # yevis_metadata: Optional[YevisMetadata] = read_file(run_dir, "yevis_metadata")
     run_id = run_dir.name
 
     add_crate_metadata(crate)
