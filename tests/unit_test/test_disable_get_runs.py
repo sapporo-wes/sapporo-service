@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 # coding: utf-8
 # pylint: disable=unused-argument, import-outside-toplevel
+from pathlib import Path
 from typing import cast
-
-from py._path.local import LocalPath
 
 from sapporo.app import create_app
 from sapporo.config import get_config, parse_args
 from sapporo.model import ErrorResponse
 
 
-def test_disable_get_runs(delete_env_vars: None, tmpdir: LocalPath) -> None:
+def test_disable_get_runs(delete_env_vars: None, tmpdir: Path) -> None:
     args = parse_args(["--disable-get-runs", "--run-dir", str(tmpdir)])
     config = get_config(args)
     app = create_app(config)

@@ -14,7 +14,7 @@ from sapporo.model import RunId, RunRequest
 from . import RESOURCE, SCRIPT_DIR, TEST_HOST, TEST_PORT
 
 
-def post_runs_attach_all_files_with_flask(client: FlaskClient) -> RunId:
+def post_runs_attach_all_files_with_flask(client: FlaskClient) -> RunId:  # type: ignore
     with SCRIPT_DIR.joinpath(
             "attach_all_files/workflow_params.json").open(mode="r") as f:
         workflow_params = f.read()

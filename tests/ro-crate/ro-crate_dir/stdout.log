@@ -1,0 +1,50 @@
+{
+    "qc_result_1": {
+        "location": "file:///home/ubuntu/git/github.com/sapporo-wes/sapporo-service/run/27/27469c13-2f6d-47af-9623-39cdee5f1a04/outputs/ERR034597_1.small_fastqc.html",
+        "basename": "ERR034597_1.small_fastqc.html",
+        "class": "File",
+        "checksum": "sha1$952a08356f0746b63d9763fb79549567c1921d4f",
+        "size": 592394,
+        "path": "/home/ubuntu/git/github.com/sapporo-wes/sapporo-service/run/27/27469c13-2f6d-47af-9623-39cdee5f1a04/outputs/ERR034597_1.small_fastqc.html"
+    },
+    "qc_result_2": {
+        "location": "file:///home/ubuntu/git/github.com/sapporo-wes/sapporo-service/run/27/27469c13-2f6d-47af-9623-39cdee5f1a04/outputs/ERR034597_2.small_fastqc.html",
+        "basename": "ERR034597_2.small_fastqc.html",
+        "class": "File",
+        "checksum": "sha1$fba8f178237f0e938b0d272f9c279f9b70906db0",
+        "size": 592566,
+        "path": "/home/ubuntu/git/github.com/sapporo-wes/sapporo-service/run/27/27469c13-2f6d-47af-9623-39cdee5f1a04/outputs/ERR034597_2.small_fastqc.html"
+    },
+    "trimmed_fastq1P": {
+        "location": "file:///home/ubuntu/git/github.com/sapporo-wes/sapporo-service/run/27/27469c13-2f6d-47af-9623-39cdee5f1a04/outputs/ERR034597_1.small.fq.trimmed.1P.fq",
+        "basename": "ERR034597_1.small.fq.trimmed.1P.fq",
+        "class": "File",
+        "checksum": "sha1$5188cdb59cab8010eb673e8bc113b7fd7a686660",
+        "size": 5566650,
+        "path": "/home/ubuntu/git/github.com/sapporo-wes/sapporo-service/run/27/27469c13-2f6d-47af-9623-39cdee5f1a04/outputs/ERR034597_1.small.fq.trimmed.1P.fq"
+    },
+    "trimmed_fastq1U": {
+        "location": "file:///home/ubuntu/git/github.com/sapporo-wes/sapporo-service/run/27/27469c13-2f6d-47af-9623-39cdee5f1a04/outputs/ERR034597_1.small.fq.trimmed.1U.fq",
+        "basename": "ERR034597_1.small.fq.trimmed.1U.fq",
+        "class": "File",
+        "checksum": "sha1$be4d3444537d2596d122db1ca8e5955954094f6b",
+        "size": 187289,
+        "path": "/home/ubuntu/git/github.com/sapporo-wes/sapporo-service/run/27/27469c13-2f6d-47af-9623-39cdee5f1a04/outputs/ERR034597_1.small.fq.trimmed.1U.fq"
+    },
+    "trimmed_fastq2P": {
+        "location": "file:///home/ubuntu/git/github.com/sapporo-wes/sapporo-service/run/27/27469c13-2f6d-47af-9623-39cdee5f1a04/outputs/ERR034597_1.small.fq.trimmed.2P.fq",
+        "basename": "ERR034597_1.small.fq.trimmed.2P.fq",
+        "class": "File",
+        "checksum": "sha1$cd1451093c91a9b619337a7bfbe592ad76554745",
+        "size": 5560582,
+        "path": "/home/ubuntu/git/github.com/sapporo-wes/sapporo-service/run/27/27469c13-2f6d-47af-9623-39cdee5f1a04/outputs/ERR034597_1.small.fq.trimmed.2P.fq"
+    },
+    "trimmed_fastq2U": {
+        "location": "file:///home/ubuntu/git/github.com/sapporo-wes/sapporo-service/run/27/27469c13-2f6d-47af-9623-39cdee5f1a04/outputs/ERR034597_1.small.fq.trimmed.2U.fq",
+        "basename": "ERR034597_1.small.fq.trimmed.2U.fq",
+        "class": "File",
+        "checksum": "sha1$dd7edf1b2d599eb3c8fa49426be55d8a0360561c",
+        "size": 80131,
+        "path": "/home/ubuntu/git/github.com/sapporo-wes/sapporo-service/run/27/27469c13-2f6d-47af-9623-39cdee5f1a04/outputs/ERR034597_1.small.fq.trimmed.2U.fq"
+    }
+}

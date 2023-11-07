@@ -4,13 +4,11 @@
 from pathlib import Path
 from uuid import uuid4
 
-from py._path.local import LocalPath
-
 from sapporo.app import create_app
 from sapporo.config import get_config, parse_args
 
 
-def test_download_link(delete_env_vars: None, tmpdir: LocalPath) -> None:
+def test_download_link(delete_env_vars: None, tmpdir: Path) -> None:
     args = parse_args(["--run-dir", str(tmpdir)])
     config = get_config(args)
     app = create_app(config)

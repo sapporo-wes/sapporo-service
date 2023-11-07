@@ -6,6 +6,10 @@ import requests
 
 from sapporo.model import Workflow
 
+headers = {
+    "User-Agent": "Sapporo-service",
+}
+
 
 def get_wfs(trs_endpoint: str) -> List[Workflow]:
     try:
@@ -21,7 +25,7 @@ def get_wfs(trs_endpoint: str) -> List[Workflow]:
 
 def get_service_info(trs_endpoint: str) -> Any:
     url = trs_endpoint.rstrip("/") + "/service-info"
-    res = requests.get(url, allow_redirects=True)
+    res = requests.get(url, allow_redirects=True, headers=headers)
     if res.status_code != 200:
         raise Exception("Failed to get service info")
     return res.json()
@@ -42,7 +46,7 @@ def is_trs_endpoint(trs_endpoint: str) -> bool:
 
 def get_tools(trs_endpoint: str) -> Any:
     url = trs_endpoint.rstrip("/") + "/tools"
-    res = requests.get(url, allow_redirects=True)
+    res = requests.get(url, allow_redirects=True, headers=headers)
     if res.status_code != 200:
         raise Exception("Failed to get tools")
     return res.json()
@@ -84,7 +88,7 @@ def get_wfs_via_api(trs_endpoint: str) -> List[Workflow]:
 
 def get_files_via_api(trs_endpoint: str, id: str, ver: str, _type: str) -> Any:
     url = trs_endpoint.rstrip("/") + f"/tools/{id}/versions/{ver}/{_type}/files"
-    res = requests.get(url, allow_redirects=True)
+    res = requests.get(url, allow_redirects=True, headers=headers)
     if res.status_code != 200:
         raise Exception("Failed to get files")
     return res.json()

@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 set -eu
 
-SCRIPT_DIR=$(
-    cd $(dirname $0)
+get_dir() {
+    cd $(dirname $1)
     pwd
-)
-BASE_DIR=$(
-    cd ${SCRIPT_DIR}/../..
-    pwd
-)
+}
+
+SCRIPT_DIR=$(get_dir $0)
+BASE_DIR=$(get_dir "${SCRIPT_DIR}/../../..")
 
 cd ${BASE_DIR}
 

@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
 # coding: utf-8
 # pylint: disable=unused-argument, import-outside-toplevel
+from pathlib import Path
 from time import sleep
 from typing import Any, cast
 
 from flask.testing import FlaskClient
-from py._path.local import LocalPath
 
 from sapporo.app import create_app
 from sapporo.config import get_config, parse_args
 from sapporo.model import RunLog
 
 
-def get_run_id(client: FlaskClient, run_id: str) -> Any:
+def get_run_id(client: FlaskClient, run_id: str) -> Any:  # type: ignore
     res = client.get(f"/runs/{run_id}")
 
     return res
 
 
-def test_get_run_id(delete_env_vars: None, tmpdir: LocalPath) -> None:
+def test_get_run_id(delete_env_vars: None, tmpdir: Path) -> None:
     args = parse_args(["--run-dir", str(tmpdir)])
     config = get_config(args)
     app = create_app(config)

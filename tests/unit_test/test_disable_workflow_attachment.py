@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 # coding: utf-8
 # pylint: disable=unused-argument, import-outside-toplevel
+from pathlib import Path
+
 import pytest
-from py._path.local import LocalPath
 
 from sapporo.app import create_app
 from sapporo.config import get_config, parse_args
 
 
-def test_disable_workflow_attachment(delete_env_vars: None, tmpdir: LocalPath) -> None:
+def test_disable_workflow_attachment(delete_env_vars: None, tmpdir: Path) -> None:
     args = parse_args(
         ["--disable-workflow-attachment", "--run-dir", str(tmpdir)])
     config = get_config(args)

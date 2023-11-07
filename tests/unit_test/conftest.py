@@ -13,7 +13,7 @@ from time import sleep
 from typing import Generator
 
 import pytest
-from _pytest.monkeypatch import MonkeyPatch
+from pytest import MonkeyPatch
 
 UNIT_TEST_DIR = Path(__file__).parent.resolve()
 ROOT_DIR = UNIT_TEST_DIR.parent.parent.resolve()
@@ -23,10 +23,23 @@ TEST_PORT = "8888"
 
 
 @pytest.fixture()
-def delete_env_vars(monkeypatch: MonkeyPatch) -> None:
-    for key in os.environ:
-        if key.startswith("SAPPORO"):
-            monkeypatch.delenv(key)
+def tmpdir():  # type: ignore
+    with tempfile.TemporaryDirectory() as tempdir:
+        yield Path(tempdir)
+
+
+@pytest.fixture
+def delete_env_vars(monkeypatch: MonkeyPatch):  # type: ignore
+    sapporo_envs = {key: value for key, value in os.environ.items() if key.startswith("SAPPORO")}
+
+    for key in sapporo_envs:
+        monkeypatch.delenv(key, raising=False)
+
+    yield  # execute the test function
+
+    # restore the original environment variables after the test function
+    for key, value in sapporo_envs.items():
+        monkeypatch.setenv(key, value)
 
 
 @pytest.fixture()

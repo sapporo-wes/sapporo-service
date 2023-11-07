@@ -1,3 +1,10 @@
 include LICENSE
-include sapporo-wes-spec.swagger.yml
+include README_ja.md
+include sapporo-wes-1-0-1-openapi-spec.yml
+include sapporo/executable_workflows.json
+include sapporo/executable_workflows.schema.json
+include sapporo/ro-terms.csv
+include sapporo/run.sh
+include sapporo/service-info.json
+include sapporo/service-info.schema.json
 include uwsgi.yml
