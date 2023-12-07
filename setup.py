@@ -16,7 +16,7 @@ setup(
     long_description=LONG_DESCRIPTION.open(mode="r", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
     author="DDBJ(Bioinformatics and DDBJ Center)",
-    author_email="t.ohta@nig.ac.jp",
+    author_email="tazro.ohta@chiba-u.jp",
     url="https://github.com/sapporo-wes/sapporo-service",
     license="Apache2.0",
     python_requires=">=3.8",
