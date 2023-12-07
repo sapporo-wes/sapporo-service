@@ -1,18 +1,20 @@
-FROM python:3.8.17-bullseye
+FROM python:3.8.18-bullseye
 
 RUN apt update && \
     apt install -y --no-install-recommends \
     curl \
     jq \
+    libmagic-dev \
+    libxml2 \
     tini && \
     apt clean && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /tmp
-RUN curl -O https://download.docker.com/linux/static/stable/$(uname -m)/docker-23.0.6.tgz && \
-    tar -xzf docker-23.0.6.tgz && \
+RUN curl -O https://download.docker.com/linux/static/stable/$(uname -m)/docker-24.0.7.tgz && \
+    tar -xzf docker-24.0.7.tgz && \
     mv docker/* /usr/bin/ && \
-    rm -rf docker docker-23.0.6.tgz
+    rm -rf docker docker-24.0.7.tgz
 
 WORKDIR /app
 COPY . .

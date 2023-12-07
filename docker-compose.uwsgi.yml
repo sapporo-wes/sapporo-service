@@ -1,26 +1,21 @@
 version: "3.5"
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile-dev
-    image: sapporo-service-dev
-    container_name: sapporo-service-dev
+    image: ghcr.io/sapporo-wes/sapporo-service:1.5.1
+    container_name: sapporo-service
     volumes:
-      - ${PWD}/sapporo:/app/sapporo
-      - ${PWD}/tests:/app/tests
       # The ones below are mounted for cwltool and DinD.
       - ${PWD}/run:${PWD}/run
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp:/tmp
     environment:
       # Priority: [Command Line Argument] -> [Environment Variable] -> [Default Values]
-      - SAPPORO_HOST=0.0.0.0
-      - SAPPORO_PORT=1122
-      - SAPPORO_DEBUG=True
+      # - SAPPORO_HOST=0.0.0.0 # Not available when using the uwsgi server.
+      # - SAPPORO_PORT=1122 # Not available when using the uwsgi server.
+      - SAPPORO_DEBUG=False
       - SAPPORO_RUN_DIR=${PWD}/run
       # - SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS=30
-      # - SAPPORO_GET_RUNS=True
+      # - SAPPORO_GET_RUNS=False
       # - SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS=False
       # - SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN=*
       # - SAPPORO_URL_PREFIX=/
@@ -28,7 +23,16 @@ services:
       - 127.0.0.1:1122:1122
     restart: on-failure
     working_dir: /app
-    command: [ "sleep", "infinity" ]
+    command:
+      [
+        "uwsgi",
+        "--yaml",
+        "/app/uwsgi.yml",
+        "--http",
+        "0.0.0.0:1122",
+        "--workers",
+        "1" # Number of workers to process http requests
+      ]
     networks:
       - sapporo
 

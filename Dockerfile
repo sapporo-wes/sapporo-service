@@ -1,11 +1,11 @@
-FROM python:3.8.17-bullseye as builder
+FROM python:3.8.18-bullseye as builder
 
 WORKDIR /app
 COPY . .
 RUN python3 -m pip install --no-cache-dir --progress-bar off -U pip setuptools wheel && \
     python3 -m pip install --no-cache-dir --progress-bar off .
 
-FROM python:3.8.17-slim-bullseye
+FROM python:3.8.18-slim-bullseye
 
 LABEL org.opencontainers.image.authors="Bioinformatics and DDBJ Center <t.ohta@nig.ac.jp>"
 LABEL org.opencontainers.image.url="https://github.com/sapporo-wes/sapporo-service"
@@ -25,10 +25,10 @@ RUN apt update && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /tmp
-RUN curl -O https://download.docker.com/linux/static/stable/$(uname -m)/docker-23.0.6.tgz && \
-    tar -xzf docker-23.0.6.tgz && \
+RUN curl -O https://download.docker.com/linux/static/stable/$(uname -m)/docker-24.0.7.tgz && \
+    tar -xzf docker-24.0.7.tgz && \
     mv docker/* /usr/bin/ && \
-    rm -rf docker docker-23.0.6.tgz
+    rm -rf docker docker-24.0.7.tgz
 
 COPY --from=builder /usr/local/lib/python3.8/site-packages /usr/local/lib/python3.8/site-packages
 COPY --from=builder /usr/local/bin/uwsgi /usr/local/bin/uwsgi
@@ -44,4 +44,4 @@ ENV SAPPORO_DEBUG False
 EXPOSE 1122
 
 ENTRYPOINT ["tini", "--"]
-CMD ["uwsgi", "--yaml", "/app/uwsgi.yml", "--http", "0.0.0.0:1122"]
+CMD ["sapporo"]

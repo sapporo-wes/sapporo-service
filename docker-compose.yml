@@ -10,8 +10,8 @@ services:
       - /tmp:/tmp
     environment:
       # Priority: [Command Line Argument] -> [Environment Variable] -> [Default Values]
-      # - SAPPORO_HOST=0.0.0.0 # Not available when using the uwsgi server.
-      # - SAPPORO_PORT=1122 # Not available when using the uwsgi server.
+      - SAPPORO_HOST=0.0.0.0
+      - SAPPORO_PORT=1122
       - SAPPORO_DEBUG=False
       - SAPPORO_RUN_DIR=${PWD}/run
       # - SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS=30
@@ -20,19 +20,10 @@ services:
       # - SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN=*
       # - SAPPORO_URL_PREFIX=/
     ports:
-      - 0.0.0.0:1122:1122
+      - 127.0.0.1:1122:1122
     restart: on-failure
     working_dir: /app
-    command:
-      [
-        "uwsgi",
-        "--yaml",
-        "/app/uwsgi.yml",
-        "--http",
-        "0.0.0.0:1122",
-        "--workers",
-        "1" # Number of workers to process http requests
-      ]
+    command: [ "sapporo" ]
     networks:
       - sapporo
 
