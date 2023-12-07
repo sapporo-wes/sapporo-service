@@ -26,8 +26,6 @@ setup(
         "sapporo": [
             "sapporo/executable_workflows.json",
             "sapporo/executable_workflows.schema.json",
-            "sapporo/ro-terms.csv",
-            "sapporo/wes-ro-terms.csv",
             "sapporo/run.sh",
             "sapporo/service-info.json",
             "sapporo/service-info.schema.json",
