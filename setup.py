@@ -42,7 +42,6 @@ setup(
         "pyyaml",
         "requests",
         "rocrate",
-        "uwsgi",
     ],
     extras_require={
         "tests": [

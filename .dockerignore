@@ -3,9 +3,7 @@
 
 !LICENSE
 !MANIFEST.in
-!README_ja.md
 !README.md
 !sapporo
 !sapporo-wes-1-0-1-openapi-spec.yml
 !setup.py
-!uwsgi.yml

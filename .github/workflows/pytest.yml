@@ -46,7 +46,3 @@ jobs:
       - name: Check with pytest on flask-server
         run: |
           TEST_SERVER_MODE=flask pytest -s ./tests/unit_test
-
-      - name: Check with pytest on uwsgi-server
-        run: |
-          TEST_SERVER_MODE=uwsgi pytest -s ./tests/unit_test

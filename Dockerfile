@@ -31,7 +31,6 @@ RUN curl -O https://download.docker.com/linux/static/stable/$(uname -m)/docker-2
     rm -rf docker docker-24.0.7.tgz
 
 COPY --from=builder /usr/local/lib/python3.8/site-packages /usr/local/lib/python3.8/site-packages
-COPY --from=builder /usr/local/bin/uwsgi /usr/local/bin/uwsgi
 COPY --from=builder /usr/local/bin/sapporo /usr/local/bin/sapporo
 
 WORKDIR /app
