@@ -43,6 +43,6 @@ jobs:
           python3 -m pip install --no-cache-dir --progress-bar off -U pip setuptools wheel
           python3 -m pip install --no-cache-dir --progress-bar off -U .[tests]
 
-      - name: Check with pytest on flask-server
+      - name: Check with pytest
         run: |
-          TEST_SERVER_MODE=flask pytest -s ./tests/unit_test
+          pytest -s ./tests/unit_test

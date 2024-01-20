@@ -69,10 +69,6 @@ $ pytest ./tests/unit_test
 
 # If you want to see the logs
 $ pytest -s ./tests/unit_test
-
-# Specify uwsgi or flask with TEST_SERVER_MODE (default: uwsgi)
-$ TEST_SERVER_MODE=uwsgi pytest ./tests/unit_test
-$ TEST_SERVER_MODE=flask pytest ./tests/unit_test
 ```
 
 ## Linting and Style Checks
