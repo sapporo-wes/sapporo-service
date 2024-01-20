@@ -35,8 +35,8 @@ This feature is useful when building a WES in a shared HPC environment.
 The sapporo-service supports Python 3.7 or newer.
 
 ```bash
-$ pip3 install sapporo
-$ sapporo
+pip3 install sapporo
+sapporo
 ```
 
 ### Docker
@@ -236,8 +236,8 @@ Please see, [ro-crate-metadata-example.json](./tests/ro-crate-metadata-example.j
 You can start the development environment as follows:
 
 ```bash
-$ docker compose -f docker-compose.dev.yml up -d --build
-$ docker compose -f docker-compose.dev.yml exec app bash
+$ docker compose -f compose.dev.yml up -d --build
+$ docker compose -f compose.dev.yml exec app bash
 # inside container
 $ sapporo
 ```
@@ -245,17 +245,17 @@ $ sapporo
 We use [flake8](https://pypi.org/project/flake8/), [isort](https://github.com/timothycrosley/isort), and [mypy](http://mypy-lang.org) as a linter.
 
 ```bash
-$ bash ./tests/lint_and_style_check/flake8.sh
-$ bash ./tests/lint_and_style_check/isort.sh
-$ bash ./tests/lint_and_style_check/mypy.sh
+bash ./tests/lint_and_style_check/flake8.sh
+bash ./tests/lint_and_style_check/isort.sh
+bash ./tests/lint_and_style_check/mypy.sh
 
-$ bash ./tests/lint_and_style_check/run_all.sh
+bash ./tests/lint_and_style_check/run_all.sh
 ```
 
 We use [pytest](https://docs.pytest.org/en/latest/) as a tester.
 
 ```bash
-$ pytest .
+pytest .
 ```
 
 ## Add new Workflow Engines to Sapporo Service

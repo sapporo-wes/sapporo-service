@@ -49,6 +49,8 @@ setup(
             "isort",
             "mypy",
             "pytest",
+            "types-jsonschema",
+            "types-Flask-Cors",
             "types-Flask",
             "types-PyYAML",
             "types-requests",

@@ -7,8 +7,7 @@ from flask import Flask, Response, current_app, jsonify
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
 
-from sapporo.config import (Config, TypedNamespace, get_config, parse_args,
-                            validate_config)
+from sapporo.config import Config, get_config, parse_args, validate_config
 from sapporo.controller import app_bp
 from sapporo.model import ErrorResponse
 
@@ -43,33 +42,34 @@ def fix_errorhandler(app: Flask) -> Flask:
 
 def create_app(config: Config) -> Flask:
     validate_config(config)
-    app: Flask = Flask(__name__)
+    app = Flask(__name__)
     app.register_blueprint(app_bp, url_prefix=config["url_prefix"])
     fix_errorhandler(app)
-    CORS(app, resources={
-         r"/*": {"origins": config["access_control_allow_origin"]}})
-    app.config["RUN_DIR"] = config["run_dir"]
-    app.config["SAPPORO_VERSION"] = config["sapporo_version"]
-    app.config["GET_RUNS"] = config["get_runs"]
-    app.config["WORKFLOW_ATTACHMENT"] = config["workflow_attachment"]
-    app.config["REGISTERED_ONLY_MODE"] = config["registered_only_mode"]
-    app.config["SERVICE_INFO"] = config["service_info"]
-    app.config["EXECUTABLE_WORKFLOWS"] = config["executable_workflows"]
-    app.config["RUN_SH"] = config["run_sh"]
-    app.config["URL_PREFIX"] = config["url_prefix"]
+    CORS(app, resources={r"/*": {"origins": config["access_control_allow_origin"]}})
+    app.config.update({
+        "RUN_DIR": config["run_dir"],
+        "SAPPORO_VERSION": config["sapporo_version"],
+        "GET_RUNS": config["get_runs"],
+        "WORKFLOW_ATTACHMENT": config["workflow_attachment"],
+        "REGISTERED_ONLY_MODE": config["registered_only_mode"],
+        "SERVICE_INFO": config["service_info"],
+        "EXECUTABLE_WORKFLOWS": config["executable_workflows"],
+        "RUN_SH": config["run_sh"],
+        "URL_PREFIX": config["url_prefix"],
+        "FLASK_ENV": "development" if config["debug"] else "production",
+        "DEBUG": config["debug"],
+        "TESTING": config["debug"],
+    })
     if config["debug"]:
-        app.config["FLASK_ENV"] = "development"
-        app.config["DEBUG"] = True
-        app.config["TESTING"] = True
-        app.logger.debug(f"config: {config}")
+        app.logger.debug("config: %s", config)
 
     return app
 
 
 def main() -> None:
-    args: TypedNamespace = parse_args(sys.argv[1:])
-    config: Config = get_config(args)
-    app: Flask = create_app(config)
+    args = parse_args(sys.argv[1:])
+    config = get_config(args)
+    app = create_app(config)
     app.run(
         host=config["host"],
         port=config["port"],

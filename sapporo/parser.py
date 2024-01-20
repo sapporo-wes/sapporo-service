@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # coding: utf-8
-# pylint: disable=no-else-return
 import re
 import tempfile
 from pathlib import Path
@@ -26,8 +25,7 @@ def parse_workflows(parse_request: ParseRequest) -> ParseResult:
     else:
         wf_content = parse_request["workflow_content"]
     wf_location = parse_request["workflow_location"] or "."
-    types_of_parsing = parse_request["types_of_parsing"] or [
-        "workflow_type", "workflow_type_version"]
+    types_of_parsing = parse_request["types_of_parsing"] or ["workflow_type", "workflow_type_version"]
 
     wf_type = inspect_wf_type(wf_content, wf_location)
     wf_version = inspect_wf_version(wf_content, wf_type)
@@ -45,8 +43,7 @@ def parse_workflows(parse_request: ParseRequest) -> ParseResult:
                     inputs = cwl_make_template(wf_content, wf_location)
     else:
         if "inputs" in types_of_parsing or "make_template" in types_of_parsing:
-            abort(
-                400, f"Workflow type: `{wf_type}` is not supported parsing inputs or make template")
+            abort(400, f"Workflow type: `{wf_type}` is not supported parsing inputs or make template")
 
     parse_result: ParseResult = {
         "workflow_type": wf_type,  # type: ignore
@@ -81,13 +78,13 @@ def check_by_shebang(wf_content: str) -> WF_TYPES:
     if first_line.startswith("#!"):
         if "cwl" in first_line:
             return "CWL"
-        elif "nextflow" in first_line:
+        if "nextflow" in first_line:
             return "NFL"
-        elif "snakemake" in first_line:
+        if "snakemake" in first_line:
             return "SMK"
-        elif "cromwell" in first_line:
+        if "cromwell" in first_line:
             return "WDL"
-        elif "streamflow" in first_line:
+        if "streamflow" in first_line:
             return "StreamFlow"
 
     return "unknown"
@@ -110,9 +107,9 @@ def check_by_regexp(wf_content: str) -> WF_TYPES:
     for line in wf_content.split("\n"):
         if PATTERN_WDL.match(line):
             return "WDL"
-        elif PATTERN_SMK.match(line):
+        if PATTERN_SMK.match(line):
             return "SMK"
-        elif PATTERN_NFL.match(line):
+        if PATTERN_NFL.match(line):
             return "NFL"
 
     return "unknown"
@@ -122,20 +119,20 @@ def inspect_wf_version(wf_content: str, wf_type: WF_TYPES) -> str:
     wf_version = "unknown"
     if wf_type == "CWL":
         wf_version = inspect_cwl_version(wf_content)
-    elif wf_type == "WDL":
+    if wf_type == "WDL":
         wf_version = inspect_wdl_version(wf_content)
-    elif wf_type == "NFL":
+    if wf_type == "NFL":
         wf_version = inspect_nfl_version(wf_content)
-    elif wf_type == "SMK":
+    if wf_type == "SMK":
         wf_version = inspect_smk_version()
-    elif wf_type == "StreamFlow":
+    if wf_type == "StreamFlow":
         wf_version = inspect_streamflow_version(wf_content)
 
     return wf_version
 
 
 def inspect_cwl_version(wf_content: str) -> str:
-    """
+    """\
     https://www.commonwl.org/v1.2/CommandLineTool.html#CWLVersion
     """
     default_cwl_version = "v1.0"

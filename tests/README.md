@@ -158,10 +158,10 @@ For instance, to execute post_runs with cwltool, you can follow the example belo
 
 ```bash
 # Start the container for sapporo-dev
-$ docker compose -f docker-compose.dev.yml up -d
+$ docker compose -f compose.dev.yml up -d
 
 # Start Sapporo
-$ docker compose -f docker-compose.dev.yml exec app sapporo
+$ docker compose -f compose.dev.yml exec app sapporo
 ...
  * Running on all addresses (0.0.0.0)
  * Running on http://127.0.0.1:1122

@@ -21,8 +21,8 @@ Run the following commands to initiate the tests:
 ```bash
 # Setup and start Sapporo (Execute from the root directory of the library)
 $ cd ../../
-$ docker compose -f docker-compose.dev.yml up -d
-$ docker compose -f docker-compose.dev.yml exec app sapporo
+$ docker compose -f compose.dev.yml up -d
+$ docker compose -f compose.dev.yml exec app sapporo
 
 # Run the RO-Crate tests
 $ cd tests/ro-crate

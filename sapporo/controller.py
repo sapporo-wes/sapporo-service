@@ -115,16 +115,12 @@ def get_runs_id_data(run_id: str, subpath: str = "") -> Response:
     if not requested_path.exists():
         abort(404, f"`{subpath}` is not found.")
     if requested_path.is_file():
-        return send_file(requested_path, as_attachment=True)  # type: ignore
+        return send_file(requested_path, as_attachment=True)
     if str2bool(request.args.get("download", False)):
         with NamedTemporaryFile() as f:
-            archive = make_archive(f.name, "zip",
-                                   root_dir=requested_path.parent,
-                                   base_dir=requested_path.name)
-            return send_file(archive, as_attachment=True,  # type: ignore
-                             download_name=f"{requested_path.name}.zip")
+            archive = make_archive(f.name, "zip", root_dir=requested_path.parent, base_dir=requested_path.name)
+            return send_file(archive, as_attachment=True, download_name=f"{requested_path.name}.zip")  # type: ignore
     else:
-        response: Response = \
-            jsonify(path_hierarchy(requested_path, requested_path))
+        response: Response = jsonify(path_hierarchy(requested_path, requested_path))
         response.status_code = GET_STATUS_CODE
         return response

@@ -9,7 +9,7 @@ import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple, TypedDict
+from typing import Any, Dict, List, Optional, Tuple, TypedDict
 from urllib.parse import urlsplit
 
 import magic
@@ -32,51 +32,6 @@ from sapporo.model import AttachedFile, RunRequest
 
 SAPPORO_EXTRA_CONTEXT = "https://w3id.org/ro/terms/sapporo"
 WF_RUN_CRATE_CONTEXT = "https://w3id.org/ro/terms/workflow-run"
-
-
-class YevisAuthor(TypedDict):
-    github_account: str
-    name: str
-    affiliation: str
-    orcid: Optional[str]
-
-
-class YevisLanguage(TypedDict):
-    type: str
-    version: str
-
-
-class YevisFile(TypedDict):
-    url: str
-    target: str
-    type: Literal["primary", "secondary"]
-
-
-class YevisTestFile(TypedDict):
-    url: str
-    target: str
-    type: Literal["wf_params", "wf_engine_params", "other"]
-
-
-class YevisTest(TypedDict):
-    id: str
-    files: List[YevisTestFile]
-
-
-class YevisWorkflow(TypedDict):
-    name: str
-    readme: str
-    language: YevisLanguage
-    files: List[YevisFile]
-    testing: List[YevisTest]
-
-
-class YevisMetadata(TypedDict):
-    id: str
-    version: str
-    license: str
-    authors: List[YevisAuthor]
-    workflow: YevisWorkflow
 
 
 class EDAM(TypedDict):
@@ -151,6 +106,7 @@ EDAM_MAPPING: Dict[str, EDAM] = {
     },
 }
 
+
 # === functions ===
 
 
@@ -171,7 +127,6 @@ def generate_ro_crate(inputted_run_dir: str) -> None:
     crate = ROCrate(init=False, gen_preview=False)
 
     run_request: RunRequest = read_file(run_dir, "run_request")
-    # yevis_metadata: Optional[YevisMetadata] = read_file(run_dir, "yevis_metadata")
     run_id = run_dir.name
 
     add_crate_metadata(crate)
@@ -207,7 +162,7 @@ def read_file(run_dir: Path, file_type: RUN_DIR_STRUCTURE_KEYS, one_line: bool =
             return f.read()
         try:
             return yaml.load(f, Loader=yaml.SafeLoader)
-        except Exception:
+        except yaml.YAMLError:
             return f.read()
 
 
@@ -249,7 +204,7 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest) -> None
     """
     wf_url: str = run_request["workflow_url"]  # type: ignore
     wf_url_parts = urlsplit(wf_url)
-    if wf_url_parts.scheme == "http" or wf_url_parts.scheme == "https":
+    if wf_url_parts.scheme in ["http", "https"]:
         wf_ins = ComputationalWorkflow(crate, wf_url)
     else:
         wf_file_path = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], wf_url).resolve(strict=True)
@@ -303,7 +258,7 @@ def update_local_file_stat(file_ins: File, file_path: Path, include_content: boo
         file_ins.append_to("encodingFormat", edam["url"], compact=True)
     else:
         # https://pypi.org/project/python-magic/
-        file_ins["encodingFormat"] = magic.from_file(str(file_path), mime=True)
+        file_ins["encodingFormat"] = magic.from_file(str(file_path), mime=True)  # type: ignore
 
 
 def append_exe_dir_dataset(crate: ROCrate, ins: DataEntity) -> None:
@@ -519,7 +474,6 @@ def add_file_stats(crate: ROCrate, file_ins: File) -> None:
     ".vcf": "http://edamontology.org/format_3016",
       -> quay.io/biocontainers/vcftools:0.1.16--pl5321h9a82719_6
     """
-    # TODO: use docker or local command?
     if shutil.which("docker") is None:
         return
 
@@ -555,7 +509,7 @@ def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
         "json",
         source.name,
     ]))
-    proc = subprocess.run(cmd, capture_output=True)
+    proc = subprocess.run(cmd, capture_output=True, check=False)
     if proc.returncode != 0:
         return
     try:
@@ -600,7 +554,7 @@ def add_vcftools_stats(crate: ROCrate, file_ins: File) -> None:
         "vcf-stats",
         source.name,
     ]))
-    proc = subprocess.run(cmd, capture_output=True)
+    proc = subprocess.run(cmd, capture_output=True, check=False)
     if proc.returncode != 0:
         return
     try:
@@ -651,6 +605,7 @@ def extract_exe_dir_file_ids(crate: ROCrate) -> List[str]:
             if str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['exe_dir']}/":
                 return get_norm_value(entity, "hasPart")  # type: ignore
     return []
+
 
 # === main ===
 

@@ -40,24 +40,21 @@ def read_state(run_id: str) -> State:
         with resolve_content_path(run_id, "state").open(mode="r") as f:
             state: State = f.readline().strip()  # type: ignore
             return state
-    except Exception:
+    except FileNotFoundError:
         return "UNKNOWN"
 
 
 def count_system_state() -> Dict[State, int]:
     run_ids: List[str] = glob_all_run_ids()
-    count: Dict[State, int] = dict(collections.Counter(
-        [read_state(run_id) for run_id in run_ids]))
+    count: Dict[State, int] = dict(collections.Counter([read_state(run_id) for run_id in run_ids]))
 
     return count
 
 
 def glob_all_run_ids() -> List[str]:
     run_base_dir: Path = current_app.config["RUN_DIR"]
-    run_requests: List[Path] = \
-        list(run_base_dir.glob(f"**/{RUN_DIR_STRUCTURE['run_request']}"))
-    run_ids: List[str] = \
-        [run_request.parent.name for run_request in run_requests]
+    run_requests: List[Path] = list(run_base_dir.glob(f"**/{RUN_DIR_STRUCTURE['run_request']}"))
+    run_ids: List[str] = [run_request.parent.name for run_request in run_requests]
 
     return run_ids
 
@@ -77,17 +74,17 @@ def read_file(run_id: str, file_type: RUN_DIR_STRUCTURE_KEYS) -> Any:
 
 
 def secure_filepath(filepath: str) -> Path:
-    """
-    We know `werkzeug.secure_filename()`.
-    However, this function cannot represent the dir structure,
+    """\
+    We're aware of werkzeug.secure_filename().
+    However, this function doesn't preserve directory structures, as shown below:
 
     >>> secure_filename("../../../etc/passwd")
     'etc_passwd'
 
-    Thus, it is incompatible with workflow engines such as snakemake.
-    Therefore, We implemented this by referring to `werkzeug.secure_filename()`
+    This lack of structure preservation makes it incompatible with workflow engines like Snakemake.
+    As a result, we've created our own implementation, drawing inspiration from werkzeug.secure_filename().
 
-    Please check `tests/unit_test/test_secure_filepath.py`
+    For more details, please refer to tests/unit_test/test_secure_filepath.py.
 
     Reference of `PurePath.parts`:
     >> > PurePath("/").parts
@@ -107,8 +104,7 @@ def secure_filepath(filepath: str) -> Path:
     >> > PurePath("/../.../foo/bar//").parts
     ('/', '..', '...', 'foo', 'bar')
     """
-    ascii_filepath = normalize("NFKD", filepath).encode(
-        "ascii", "ignore").decode("ascii")
+    ascii_filepath = normalize("NFKD", filepath).encode("ascii", "ignore").decode("ascii")
     pure_path = PurePath(ascii_filepath)
     nodes = []
     for node in pure_path.parts:
@@ -154,8 +150,7 @@ def prepare_run_dir(run_id: str, run_request: RunRequest) -> None:
     write_file(run_id, "sapporo_config", dump_sapporo_config())
     write_file(run_id, "run_request", run_request)
     write_file(run_id, "wf_params", run_request["workflow_params"])
-    write_file(run_id, "wf_engine_params",
-               convert_wf_engine_params_str(run_request))
+    write_file(run_id, "wf_engine_params", convert_wf_engine_params_str(run_request))
 
     write_file(run_id, "service_info", generate_service_info())
     write_file(run_id, "executable_workflows", generate_executable_workflows())
@@ -167,7 +162,7 @@ def prepare_run_dir(run_id: str, run_request: RunRequest) -> None:
     if yevis_metadata is not None:
         write_file(run_id, "yevis_metadata", yevis_metadata)
 
-    write_workflow_attachment(run_id, run_request)
+    write_workflow_attachment(run_id)
 
 
 def dump_sapporo_config() -> Dict[str, Any]:
@@ -207,7 +202,7 @@ def convert_wf_engine_params_str(run_request: RunRequest) -> str:
     return " ".join(params)
 
 
-def write_workflow_attachment(run_id: str, run_request: RunRequest) -> None:
+def write_workflow_attachment(run_id: str) -> None:
     exe_dir = resolve_content_path(run_id, "exe_dir")
     if current_app.config["WORKFLOW_ATTACHMENT"]:
         workflow_attachment = request.files.getlist("workflow_attachment")
@@ -238,7 +233,7 @@ def download_workflow_attachment(inputted_run_dir: str) -> None:
         if parsed_url.scheme in ["http", "https"] and not url.startswith(endpoint):
             file_path = exe_dir.joinpath(secure_filepath(name)).resolve()
             file_path.parent.mkdir(parents=True, exist_ok=True)
-            with requests.get(url, stream=True, headers={"User-Agent": "Sapporo-service"}) as res:
+            with requests.get(url, stream=True, headers={"User-Agent": "Sapporo-service"}, timeout=10) as res:
                 if res.status_code == 200:
                     with file_path.open(mode="wb") as f:
                         res.raw.decode_content = True
@@ -251,8 +246,7 @@ def fork_run(run_id: str) -> None:
     stderr: Path = resolve_content_path(run_id, "stderr")
     cmd: str = f"/bin/bash {current_app.config['RUN_SH']} {run_dir}"
     write_file(run_id, "state", "QUEUED")
-    with stdout.open(mode="w", encoding="utf-8") as f_stdout, \
-            stderr.open(mode="w", encoding="utf-8") as f_stderr:
+    with stdout.open(mode="w", encoding="utf-8") as f_stdout, stderr.open(mode="w", encoding="utf-8") as f_stderr:
         process = Popen(shlex.split(cmd),  # pylint: disable=consider-using-with
                         cwd=str(run_dir),
                         env=os.environ.copy(),
@@ -273,8 +267,7 @@ def cancel_run(run_id: str) -> None:
 
 def resolve_requested_file_path(run_id: str, subpath: str) -> Path:
     if Path(subpath).name[0] == ".":
-        requested_path = secure_filepath(
-            str(Path(subpath).parent)).joinpath(Path(subpath).name)
+        requested_path = secure_filepath(str(Path(subpath).parent)).joinpath(Path(subpath).name)
     else:
         requested_path = secure_filepath(subpath)
     run_dir_path = resolve_run_dir_path(run_id)
@@ -290,11 +283,8 @@ def path_hierarchy(original_path: Path, dir_path: Path) -> Any:
     }
 
     try:
-        hierarchy["children"] = [
-            path_hierarchy(original_path, dir_path.joinpath(child))
-            for child in dir_path.iterdir()
-        ]
-    except Exception:
+        hierarchy["children"] = [path_hierarchy(original_path, dir_path.joinpath(child)) for child in dir_path.iterdir()]
+    except NotADirectoryError:
         hierarchy["type"] = "file"
 
     return hierarchy
@@ -307,16 +297,14 @@ def dump_outputs_list(inputted_run_dir: str) -> None:
     config_path = run_dir.joinpath(RUN_DIR_STRUCTURE["sapporo_config"])
     with config_path.open(mode="r", encoding="utf-8") as f:
         sapporo_config = json.load(f)
-    base_remote_url = \
-        f"{sapporo_config['sapporo_endpoint']}/runs/{run_id}/data/"
+    base_remote_url = f"{sapporo_config['sapporo_endpoint']}/runs/{run_id}/data/"
     outdir_path: Path = run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"])
     output_files: List[Path] = sorted(list(walk_all_files(outdir_path)))
     outputs = []
     for output_file in output_files:
         outputs.append({
             "file_name": str(output_file.relative_to(outdir_path)),
-            "file_url":
-                f"{base_remote_url}{str(output_file.relative_to(run_dir))}"
+            "file_url": f"{base_remote_url}{str(output_file.relative_to(run_dir))}"
         })
     output_path = run_dir.joinpath(RUN_DIR_STRUCTURE["outputs"])
     with output_path.open(mode="w", encoding="utf-8") as f:
