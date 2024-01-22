@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-set -eu
-SCRIPT_DIR=$(
-    cd $(dirname $0)
-    pwd
-)
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+run_check() {
+    echo "--- $1 check ---"
+    /bin/bash "${SCRIPT_DIR}/$1.sh"
+}
 
 echo "Start lint and style check..."
 
-echo "--- flake8 check ---"
-/bin/bash ${SCRIPT_DIR}/flake8.sh
-echo "--- isort check ---"
-/bin/bash ${SCRIPT_DIR}/isort.sh
-echo "--- mypy check ---"
-/bin/bash ${SCRIPT_DIR}/mypy.sh
+run_check "flake8"
+run_check "isort"
+run_check "mypy"
 
 echo "Finish lint and style check..."

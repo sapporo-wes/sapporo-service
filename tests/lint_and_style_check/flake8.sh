@@ -1,17 +1,15 @@
 #!/usr/bin/env bash
-set -eu
+set -euo pipefail
 
-get_dir() {
-    cd $(dirname $1)
-    pwd
-}
+PACKAGE_ROOT="$(cd "$(dirname "$0")" && pwd)"
+while [[ "${PACKAGE_ROOT}" != "/" && ! -f "${PACKAGE_ROOT}/setup.py" ]]; do
+    PACKAGE_ROOT="$(dirname "${PACKAGE_ROOT}")"
+done
 
-SCRIPT_DIR=$(get_dir $0)
-BASE_DIR=$(get_dir "${SCRIPT_DIR}/../../..")
+cd "${PACKAGE_ROOT}"
 
-cd ${BASE_DIR}
-
-flake8 ${BASE_DIR} \
+flake8 "${PACKAGE_ROOT}" \
     --extend-ignore=E501 \
-    --exclude "${BASE_DIR}/tests/resources" \
+    --exclude "${PACKAGE_ROOT}/tests/resources" \
+    --exclude "${PACKAGE_ROOT}/run" \
     --count --show-source --statistics

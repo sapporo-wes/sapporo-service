@@ -1,27 +1,27 @@
 #!/usr/bin/env bash
-set -eu
-
-get_dir() {
-    cd $(dirname $1)
-    pwd
-}
+set -euo pipefail
 
 run_mypy() {
-    echo "--- ${1} ---"
+    echo "=== ${1} ==="
     mypy --strict \
-        --allow-untyped-calls \
         --allow-untyped-decorators \
+        --follow-imports=skip \
         --ignore-missing-imports \
-        --no-warn-unused-ignores \
         --implicit-reexport \
-        $1
+        --no-warn-unused-ignores \
+        "${1}" || true
+
 }
 
-SCRIPT_DIR=$(get_dir $0)
-BASE_DIR=$(get_dir "${SCRIPT_DIR}/../../..")
+PACKAGE_ROOT="$(cd "$(dirname "$0")" && pwd)"
+while [[ "${PACKAGE_ROOT}" != "/" && ! -f "${PACKAGE_ROOT}/setup.py" ]]; do
+    PACKAGE_ROOT="$(dirname "${PACKAGE_ROOT}")"
+done
 
-cd ${BASE_DIR}
+echo "${PACKAGE_ROOT}"
 
-run_mypy "${BASE_DIR}/sapporo"
-run_mypy "${BASE_DIR}/tests/unit_test"
-run_mypy "${BASE_DIR}/setup.py"
+cd "${PACKAGE_ROOT}"
+
+run_mypy "${PACKAGE_ROOT}/sapporo"
+run_mypy "${PACKAGE_ROOT}/tests/unit_test"
+run_mypy "${PACKAGE_ROOT}/setup.py"

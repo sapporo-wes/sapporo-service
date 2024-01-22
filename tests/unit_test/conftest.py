@@ -74,7 +74,7 @@ def default_config(tmpdir: Path) -> Config:
 def setup_test_client(config: Config) -> FlaskClient:  # type: ignore
     app = create_app(config)
     client = app.test_client()
-    return client
+    return client  # type: ignore
 
 
 @pytest.fixture()
