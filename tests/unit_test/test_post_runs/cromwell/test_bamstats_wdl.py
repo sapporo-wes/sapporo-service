@@ -1,66 +1,49 @@
-#!/usr/bin/env python3
 # coding: utf-8
-# pylint: disable=subprocess-run-check, unused-argument, import-outside-toplevel
+# pylint: disable=unused-argument, import-outside-toplevel, subprocess-run-check
 import json
-import shlex
-import subprocess
-from time import sleep
-from typing import cast
+from pathlib import Path
+from typing import Dict
 
-from sapporo.model import RunId
+from flask.testing import FlaskClient
 
-from . import SCRIPT_DIR, TEST_HOST, TEST_PORT
+from .conftest import wait_for_run_to_complete
 
 
-def post_runs_bamstats_wdl() -> RunId:
-    script_path = \
-        SCRIPT_DIR.joinpath("bamstats_wdl/post_runs.sh")
-    proc = subprocess.run(shlex.split(f"/bin/bash {str(script_path)}"),
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE,
-                          encoding="utf-8",
-                          env={"SAPPORO_HOST": TEST_HOST,
-                               "SAPPORO_PORT": TEST_PORT})
-    assert proc.returncode == 0
-    res_data: RunId = json.loads(proc.stdout)
-
-    return res_data
-
-
-def test_bamstats_wdl(setup_test_server: None) -> None:
-    res_data = post_runs_bamstats_wdl()
+def test_bamstats_wdl(delete_env_vars: None, test_client: FlaskClient, resources: Dict[str, Path]) -> None:  # type: ignore
+    res = test_client.post("/runs", data={
+        "workflow_params": resources["WDL_PARAMS"].read_text(),
+        "workflow_type": "WDL",
+        "workflow_type_version": "1.0",
+        "workflow_url": f"./{resources['WDL_WF'].name}",
+        "workflow_engine_name": "cromwell",
+        "tags": json.dumps({
+            "workflow_name": "dockstore-tool-bamstats-wdl"
+        }),
+        "workflow_attachment": [
+            (resources["WDL_WF"].open(mode="rb"), resources["WDL_WF"].name),
+            (resources["DATA"].open(mode="rb"), resources["DATA"].name)
+        ],
+    }, content_type="multipart/form-data")
+    res_data = res.get_json()
     assert "run_id" in res_data
     run_id = res_data["run_id"]
 
-    from .. import get_run_id_status
-    count = 0
-    while count <= 120:
-        sleep(3)
-        get_status_data = get_run_id_status(run_id)
-        if str(get_status_data["state"]) in \
-                ["COMPLETE", "EXECUTOR_ERROR", "SYSTEM_ERROR", "CANCELED"]:
-            break
-        count += 1
-    assert str(get_status_data["state"]) == "COMPLETE"
+    wait_for_run_to_complete(test_client, run_id)
 
-    from .. import get_run_id
-    data = get_run_id(run_id)
+    res = test_client.get(f"/runs/{run_id}")
+    res_data = res.get_json()
 
-    assert len(data["outputs"]) == 1
-    assert data["request"]["tags"] == "{\n  \"workflow_name\": \"dockstore-tool-bamstats-wdl\"\n}\n"
-    wf_attachment = \
-        json.loads(data["request"]["workflow_attachment"])  # type: ignore
-    assert len(wf_attachment) == 2
-    assert data["request"]["workflow_engine_name"] == "cromwell"
-    assert data["request"]["workflow_engine_parameters"] is None
-    assert data["request"]["workflow_name"] is None
-    assert data["request"]["workflow_type"] == "WDL"
-    assert data["request"]["workflow_type_version"] == "1.0"
-    assert data["request"]["workflow_url"] == "./Dockstore.wdl"
-    assert data["run_id"] == run_id
-    assert data["run_log"]["exit_code"] == 0
-    assert data["run_log"]["name"] is None
-    stdout = cast(str, data["run_log"]["stdout"])
-    assert "Workflow bamstatsWorkflow complete." in stdout
-    assert str(data["state"]) == "COMPLETE"
-    assert data["task_logs"] is None
+    assert len(res_data["outputs"]) == 1
+    assert len(json.loads(res_data["request"]["workflow_attachment"])) == 2
+    assert res_data["request"]["workflow_engine_name"] == "cromwell"
+    assert res_data["request"]["workflow_engine_parameters"] is None
+    assert res_data["request"]["workflow_name"] is None
+    assert res_data["request"]["workflow_type"] == "WDL"
+    assert res_data["request"]["workflow_type_version"] == "1.0"
+    assert res_data["request"]["workflow_url"] == f"./{resources['WDL_WF'].name}"
+    assert res_data["run_id"] == run_id
+    assert res_data["run_log"]["exit_code"] == 0
+    assert res_data["run_log"]["name"] is None
+    assert "Workflow bamstatsWorkflow complete." in res_data["run_log"]["stdout"]
+    assert str(res_data["state"]) == "COMPLETE"
+    assert res_data["task_logs"] is None

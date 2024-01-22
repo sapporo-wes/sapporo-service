@@ -1,26 +1,20 @@
-#!/usr/bin/env python3
 # coding: utf-8
-# pylint: disable=unused-argument, import-outside-toplevel
+# pylint: disable=unused-argument
 from pathlib import Path
-from typing import cast
 
-from sapporo.app import create_app
-from sapporo.config import get_config, parse_args
-from sapporo.model import ErrorResponse
+from .conftest import get_default_config, setup_test_client
 
 
 def test_disable_get_runs(delete_env_vars: None, tmpdir: Path) -> None:
-    args = parse_args(["--disable-get-runs", "--run-dir", str(tmpdir)])
-    config = get_config(args)
-    app = create_app(config)
-    app.debug = config["debug"]
-    app.testing = True
-    client = app.test_client()
-    from .test_get_runs import get_runs
-    get_runs_res = get_runs(client)
-    get_runs_data = cast(ErrorResponse, get_runs_res.get_json())
+    config = get_default_config(tmpdir)
+    config.update({
+        "get_runs": False,
+    })
+    client = setup_test_client(config)
+    res = client.get("/runs")
+    res_data = res.get_json()
 
-    assert get_runs_res.status_code == 403
-    assert "status_code" in get_runs_data
-    assert get_runs_data["status_code"] == 403
-    assert "msg" in get_runs_data
+    assert res.status_code == 403
+    assert "status_code" in res_data
+    assert res_data["status_code"] == 403
+    assert "msg" in res_data

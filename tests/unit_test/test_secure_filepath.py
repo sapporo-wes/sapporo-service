@@ -1,60 +1,29 @@
-#!/usr/bin/env python3
 # coding: utf-8
 # pylint: disable=redundant-u-string-prefix
 from pathlib import Path, PosixPath
 
+import pytest
+
 from sapporo.run import secure_filepath
 
-
-def test_contain_space() -> None:
-    assert secure_filepath("My cool movie.mov") == Path("My_cool_movie.mov")
-
-
-def test_prev_dir() -> None:
-    assert secure_filepath("../../../etc/passwd") == Path("etc/passwd")
-
-
-def test_root_dir() -> None:
-    assert secure_filepath("/foo/bar") == Path("foo/bar")
-
-
-def test_contain_umlauts() -> None:
-    assert secure_filepath(
-        u"i contain cool \xfcml\xe4uts.txt") == \
-        Path("i_contain_cool_umlauts.txt")
-
-
-def test_japanese_filename() -> None:
-    assert secure_filepath("/フーfoo/バーbar") == Path("foo/bar")
+# Test cases and expected results list
+test_cases = [
+    ("My cool movie.mov", Path("My_cool_movie.mov")),  # Filename with spaces
+    ("../../../etc/passwd", Path("etc/passwd")),  # Relative path
+    ("/foo/bar", Path("foo/bar")),  # Absolute path
+    (u"i contain cool \xfcml\xe4uts.txt", Path("i_contain_cool_umlauts.txt")),  # Filename with umlauts
+    ("/フーfoo/バーbar", Path("foo/bar")),  # Filename in Japanese
+    ("/||/|foo/bar", Path("foo/bar")),  # Filename with pipe characters
+    ("/&&/&foo/bar", Path("foo/bar")),  # Filename with ampersands
+    ("/＆foo/bar", Path("foo/bar")),  # Filename with full-width ampersands
+    (".", Path("")),  # Filename with only a dot
+    ("..", Path("")),  # Filename with only two dots
+    ("/", Path("")),  # Root directory
+    (".foo", PosixPath(".foo")),  # Hidden file
+    ("._.DS_STORE", PosixPath("._.DS_STORE"))  # DS_STORE file
+]
 
 
-def test_contain_pipe() -> None:
-    assert secure_filepath("/||/|foo/bar") == Path("foo/bar")
-
-
-def test_contain_ampersand() -> None:
-    assert secure_filepath("/&&/&foo/bar") == Path("foo/bar")
-
-
-def test_contain_fullsize_ampersand() -> None:
-    assert secure_filepath("/＆foo/bar") == Path("foo/bar")
-
-
-def test_only_dot() -> None:
-    assert secure_filepath(".") == Path("")
-
-
-def test_only_double_dot() -> None:
-    assert secure_filepath("..") == Path("")
-
-
-def test_only_root() -> None:
-    assert secure_filepath("/") == Path("")
-
-
-def test_hidden_file() -> None:
-    assert secure_filepath(".foo") == PosixPath(".foo")
-
-
-def test_ds_store() -> None:
-    assert secure_filepath("._.DS_STORE") == PosixPath("._.DS_STORE")
+@pytest.mark.parametrize("test_input,expected", test_cases)
+def test_secure_filepath(test_input: str, expected: Path) -> None:
+    assert secure_filepath(test_input) == expected

@@ -1,64 +1,53 @@
-#!/usr/bin/env python3
 # coding: utf-8
 # pylint: disable=unused-argument, import-outside-toplevel, subprocess-run-check
 import json
-import shlex
-import subprocess
-from time import sleep
+from pathlib import Path
+from typing import Dict
 
-from sapporo.model import RunId
+from flask.testing import FlaskClient
 
-from . import RESOURCE_REMOTE, SCRIPT_DIR, TEST_HOST, TEST_PORT
-
-
-def post_runs_workflow_engine_parameters() -> RunId:
-    script_path = \
-        SCRIPT_DIR.joinpath("workflow_engine_parameters/post_runs.sh")
-    proc = subprocess.run(shlex.split(f"/bin/bash {str(script_path)}"),
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE,
-                          encoding="utf-8",
-                          env={"SAPPORO_HOST": TEST_HOST,
-                               "SAPPORO_PORT": TEST_PORT})
-    assert proc.returncode == 0
-    res_data: RunId = json.loads(proc.stdout)
-
-    return res_data
+from .conftest import wait_for_run_to_complete
 
 
-def test_workflow_engine_parameters(setup_test_server: None) -> None:
-    res_data = post_runs_workflow_engine_parameters()
+def test_workflow_engine_parameters(delete_env_vars: None, test_client: FlaskClient, remote_resources: Dict[str, Path]) -> None:  # type: ignore
+    res = test_client.post("/runs", data={
+        "workflow_params": json.dumps({
+            "fastq_1": {
+                "class": "File",
+                "path": remote_resources["FQ_1"],
+            },
+            "fastq_2": {
+                "class": "File",
+                "path": remote_resources["FQ_2"],
+            }}),
+        "workflow_type": "CWL",
+        "workflow_type_version": "v1.0",
+        "workflow_url": remote_resources["WF"],
+        "workflow_engine_name": "cwltool",
+        "workflow_engine_parameters": json.dumps({
+            "--debug": ""
+        })
+    }, content_type="multipart/form-data")
+    res_data = res.get_json()
     assert "run_id" in res_data
     run_id = res_data["run_id"]
 
-    from .. import get_run_id_status
-    count = 0
-    while count <= 120:
-        sleep(3)
-        get_status_data = get_run_id_status(run_id)
-        if str(get_status_data["state"]) in \
-                ["COMPLETE", "EXECUTOR_ERROR", "SYSTEM_ERROR", "CANCELED"]:
-            break
-        count += 1
-    assert str(get_status_data["state"]) == "COMPLETE"
+    wait_for_run_to_complete(test_client, run_id)
 
-    from .. import get_run_id
-    data = get_run_id(run_id)
+    res = test_client.get(f"/runs/{run_id}")
+    res_data = res.get_json()
 
-    assert len(data["outputs"]) == 6
-    assert data["request"]["tags"] is None
-    wf_attachment = \
-        json.loads(data["request"]["workflow_attachment"])  # type: ignore
-    assert len(wf_attachment) == 0
-    assert data["request"]["workflow_engine_name"] == "cwltool"
-    assert data["request"]["workflow_engine_parameters"] == "{\n  \"--debug\": \"\"\n}\n"
-    assert data["request"]["workflow_name"] is None
-    assert data["request"]["workflow_type"] == "CWL"
-    assert data["request"]["workflow_type_version"] == "v1.0"
-    assert data["request"]["workflow_url"] == RESOURCE_REMOTE["WF_REMOTE"]
-    assert data["run_id"] == run_id
-    assert data["run_log"]["exit_code"] == 0
-    assert data["run_log"]["name"] is None
-    assert "Final process status is success" in data["run_log"]["stderr"]
-    assert str(data["state"]) == "COMPLETE"
-    assert data["task_logs"] is None
+    assert len(res_data["outputs"]) == 6
+    assert len(json.loads(res_data["request"]["workflow_attachment"])) == 0
+    assert res_data["request"]["workflow_engine_name"] == "cwltool"
+    assert res_data["request"]["workflow_engine_parameters"] == '{"--debug": ""}'
+    assert res_data["request"]["workflow_name"] is None
+    assert res_data["request"]["workflow_type"] == "CWL"
+    assert res_data["request"]["workflow_type_version"] == "v1.0"
+    assert res_data["request"]["workflow_url"] == remote_resources["WF"]
+    assert res_data["run_id"] == run_id
+    assert res_data["run_log"]["exit_code"] == 0
+    assert res_data["run_log"]["name"] is None
+    assert "Final process status is success" in res_data["run_log"]["stderr"]
+    assert str(res_data["state"]) == "COMPLETE"
+    assert res_data["task_logs"] is None

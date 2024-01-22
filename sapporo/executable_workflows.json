@@ -1,8 +1,5 @@
 {
-  "trs_endpoint": [
-    "https://ddbj.github.io/workflow-registry/",
-    "https://pitagora-network.org/yevis-DAT2-cwl/"
-  ],
+  "trs_endpoint": [],
   "workflow": [
     {
       "workflow_name": "Example workflow - CWL - Trimming and QC",
