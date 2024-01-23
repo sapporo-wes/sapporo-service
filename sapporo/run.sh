@@ -24,7 +24,7 @@ function run_wf() {
 }
 
 function run_cwltool() {
-  local container="quay.io/commonwl/cwltool:3.1.20220628170238"
+  local container="quay.io/commonwl/cwltool:3.1.20240112164112"
   local cmd_txt="${DOCKER_CMD} ${container} --outdir ${outputs_dir} ${wf_engine_params} ${wf_url} ${wf_params} 1>${stdout} 2>${stderr}"
   echo ${cmd_txt} >${cmd}
   eval ${cmd_txt} || executor_error
