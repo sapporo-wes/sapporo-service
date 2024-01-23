@@ -37,8 +37,7 @@ $ bash ./tests/lint_and_style_check/run_all.sh
 
 ## Curl Examples
 
-[./curl_example](./curl_example) contains examples of executing each WES API request with curl.
-**Notably, [./curl_example/post_runs](./curl_example/post_runs) provides examples for each workflow engine and serves as a valuable reference.**
+The [./curl_example](./curl_example) directory contains examples of using `curl`` to send workflow execution requests to the WES API.
 
 For instance, to execute post_runs with cwltool, follow the example below:
 
@@ -55,13 +54,19 @@ $ docker compose -f compose.dev.yml exec app sapporo
 Press CTRL+C to quit
 
 # Execute the post_runs script
-$ SAPPORO_HOST=0.0.0.0 SAPPORO_PORT=1122 bash ./tests/curl_examples/post_runs/cwltool/attach_all_files/post_runs.sh
+$ bash ./tests/curl_example/cwltool_attach_all_files.sh
+$ bash ./tests/curl_example/cwltool_attach_all_files.sh
+POST /runs is succeeded:
 {
-  "run_id": "0b0a0b0a-0b0a-0b0a-0b0a-0b0a0b0a0b0a"
+  "run_id": "72516758-ea36-4e9d-b74c-8af5e28b19bd"
 }
 
-# Additionally, since `${PWD}/runs` is set as run_dir, you can check the actual run files
-$ ls ./runs/0b/0a/0b0a0b0a-0b0a-0b0a-0b0a-0b0a0b0a0b0a
+Please access to the following URL to get the run status:
+
+curl -fsSL -X GET http://127.0.0.1:1122/runs/72516758-ea36-4e9d-b74c-8af5e28b19bd
+
+# Then
+$ curl -fsSL -X GET http://127.0.0.1:1122/runs/72516758-ea36-4e9d-b74c-8af5e28b19bd
 ```
 
 ## RO-Crate

@@ -14,7 +14,7 @@ The tests aim to verify that RO-Crate metadata files are correctly generated acr
 
 ## Running the Tests
 
-To execute the tests, various workflows located in the ../curl_example/post_runs directory are run, followed by verification of the generated RO-Crates.
+To execute the tests, various workflows located in the [../curl_example](../curl_example) directory are run, followed by verification of the generated RO-Crates.
 
 Run the following commands to initiate the tests:
 
@@ -61,7 +61,7 @@ $ cp test-logs/ro-crate-metadata_c13b6e27-a4ee-426f-8bdb-8cf5c4310bad_1.0.0_test
 You can also copy the complete run directory to the ro-crate_dir for further inspection:
 
 ```bash
-$ cp -r ../../run/27/27469c13-2f6d-47af-9623-39cdee5f1a04 ./ro-crate_dir
+cp -r ../../run/27/27469c13-2f6d-47af-9623-39cdee5f1a04 ./ro-crate_dir
 ```
 
 ### License Considerations

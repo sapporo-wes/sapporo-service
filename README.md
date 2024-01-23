@@ -164,7 +164,7 @@ $ tree run
 So, you can initialize and delete each run by physical deletion with `rm`.
 
 The execution of `POST /runs` is very complex.
-Examples using `curl` are provided in [GitHub - sapporo/tests/curl](https://github.com/sapporo-wes/sapporo-service/tree/main/tests/curl_example/post_runs).
+Examples using `curl` are provided in [./tests/curl_example](https://github.com/sapporo-wes/sapporo-service/tree/main/tests/curl_example).
 Please use these as references.
 
 ### `run.sh`

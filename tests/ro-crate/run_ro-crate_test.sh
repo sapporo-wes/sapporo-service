@@ -1,20 +1,24 @@
 #!/usr/bin/env bash
 
 # This is a test runner for sapporo/ro-crate.py. It executes workflow runs
-# under tests/curl_example/post_runs and checks the RO-Crate generated for each run.
+# under tests/curl_example and checks the RO-Crate generated for each run.
 # Assumptions:
 #   - run_dir exists at ../../run (library root)
-#   - sapporo is running at 0.0.0.0:1122
+#   - sapporo is running at 127.0.0.1:1122
 #   - this script is executed from the Host OS
 
 set -euo pipefail
 
+# set -x
+
 # Define constants for readability and maintenance
-readonly HERE=$(cd $(dirname $0) && pwd)
-readonly ROOT_DIR=$(cd ${HERE}/../.. && pwd)
-readonly RUN_DIR=${ROOT_DIR}/run
-readonly WF_DIR=${ROOT_DIR}/tests/curl_example/post_runs
-SAPPORO_HOST="0.0.0.0"
+PACKAGE_ROOT="$(cd "$(dirname "$0")" && pwd)"
+while [[ "${PACKAGE_ROOT}" != "/" && ! -f "${PACKAGE_ROOT}/setup.py" ]]; do
+  PACKAGE_ROOT="$(dirname "${PACKAGE_ROOT}")"
+done
+readonly RUN_DIR=${PACKAGE_ROOT}/run
+readonly WF_DIR=${PACKAGE_ROOT}/tests/curl_example
+SAPPORO_HOST="127.0.0.1"
 SAPPORO_PORT=1122
 readonly RUNNING_STATUS=("QUEUED" "INITIALIZING" "RUNNING")
 
@@ -32,13 +36,11 @@ function check_sapporo() {
 
 # Run workflow
 function run_workflow() {
-  local wf_dir=$1
-  local wf_name=$(sed -e "s|${WF_DIR}/||g" <<<${wf_dir})
-  local post_script=${wf_dir}/post_runs.sh
-
-  echo "Running workflow: ${wf_name}"
-  local response=$(SAPPORO_HOST=${SAPPORO_HOST} SAPPORO_PORT=${SAPPORO_PORT} bash ${post_script})
-  local run_id=$(jq -r .run_id <<<${response})
+  local wf_script=$1
+  local wf_name=$(basename ${wf_script} .sh)
+  local response=$(bash ${wf_script})
+  local json_response=$(echo "${response}" | awk '/{/,/}/')
+  local run_id=$(echo "${json_response}" | jq -r .run_id)
   echo "Run ID: ${run_id}"
   wf_name_to_run_id[${wf_name}]=${run_id}
 }
@@ -52,9 +54,8 @@ function is_run_still_running() {
 # Execute all workflows
 function execute_all_workflows() {
   echo "=== Run all workflows... ==="
-  local wf_dirs=$(find ${WF_DIR} -maxdepth 2 -mindepth 2 -type d | grep -v with_docker)
-  for wf_dir in ${wf_dirs}; do
-    run_workflow ${wf_dir}
+  for wf_script in $(ls ${WF_DIR}/*.sh); do
+    run_workflow ${wf_script}
   done
 }
 
