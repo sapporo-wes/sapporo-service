@@ -37,6 +37,7 @@ setup(
         "flask-cors",
         "flask",
         "jsonschema",
+        "multiqc",
         "psutil",
         "python-magic",
         "pyyaml",

@@ -41,6 +41,7 @@ RUN_DIR_STRUCTURE: Dict[str, str] = {
     "executable_workflows": "executable_workflows.json",
     "run_sh": "run.sh",
     "yevis_metadata": "yevis-metadata.yml",
+    "multiqc_stats": "multiqc_general_stats.json",
 }
 
 RUN_DIR_STRUCTURE_KEYS = Literal[
@@ -64,4 +65,5 @@ RUN_DIR_STRUCTURE_KEYS = Literal[
     "executable_workflows",
     "run_sh",
     "yevis_metadata",
+    "multiqc_stats",
 ]

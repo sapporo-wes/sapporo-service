@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
 # coding: utf-8
+import contextlib
 import gc
 import hashlib
+import io
 import json
 import re
 import shlex
 import shutil
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, TypedDict
 from urllib.parse import urlsplit
 
 import magic
+import multiqc
 import yaml
 from rocrate.model.computationalworkflow import ComputationalWorkflow
 from rocrate.model.computerlanguage import ComputerLanguage
@@ -219,7 +223,7 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequest) -> None
         wf_ins["name"] = run_request["workflow_name"]
 
 
-def update_local_file_stat(file_ins: File, file_path: Path, include_content: bool = True) -> None:
+def update_local_file_stat(file_ins: File, file_path: Path, include_content: bool = True, include_force: bool = False) -> None:
     """\
     Add file stat such as `contentSize` and `sha512` to the file instance given as an argument.
     The instance itself is updated.
@@ -247,7 +251,7 @@ def update_local_file_stat(file_ins: File, file_path: Path, include_content: boo
 
     if include_content:
         # under 10kb, attach as text
-        if file_ins["contentSize"] < 10 * 1024:
+        if include_force or file_ins["contentSize"] < 10 * 1024:
             try:
                 file_ins["text"] = file_path.read_text()
             except UnicodeDecodeError:
@@ -462,6 +466,40 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequest, run
         update_local_file_stat(file_ins, source)
         create_action_ins.append_to("subjectOf", file_ins)
         crate.add(file_ins)
+
+    # MultiQC stats
+    add_multiqc_stats(crate, run_dir, create_action_ins)
+
+
+def add_multiqc_stats(crate: ROCrate, run_dir: Path, create_action_ins: ContextEntity) -> None:
+    """\
+    Run multiqc and add multiqc stats to crate
+    """
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            multiqc.run(str(run_dir), outdir=str(run_dir), data_format="json", no_report=True, quiet=True)
+    except Exception:  # pylint: disable=broad-except
+        print(stderr.getvalue(), file=sys.stderr)
+        return
+
+    multiqc_data_dir = run_dir.joinpath("multiqc_data")
+    multiqc_stats = run_dir.joinpath(RUN_DIR_STRUCTURE["multiqc_stats"])
+    if multiqc_data_dir.exists() and multiqc_data_dir.joinpath("multiqc_general_stats.json").exists():
+        shutil.move(str(multiqc_data_dir.joinpath("multiqc_general_stats.json")), str(multiqc_stats))
+        shutil.rmtree(str(multiqc_data_dir))
+
+    if multiqc_stats.exists() is False:
+        # Do nothing, TODO: logging or not?
+        return
+
+    file_ins = File(crate, multiqc_stats, multiqc_stats.relative_to(run_dir), properties={
+        "name": "MultiQC stats",
+    })
+    update_local_file_stat(file_ins, multiqc_stats, include_content=True, include_force=True)
+    create_action_ins.append_to("multiqcStats", file_ins)
+    crate.add(file_ins)
 
 
 def add_file_stats(crate: ROCrate, file_ins: File) -> None:
