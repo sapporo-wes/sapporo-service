@@ -9,15 +9,13 @@
 
 <img src="https://raw.githubusercontent.com/sapporo-wes/sapporo/main/logo/sapporo-service.svg" width="400" style="display: block; margin-left: auto; margin-right: auto; margin-top: 30px; margin-bottom: 30px;" alt="sapporo-service logo">
 
-[Japanese Document](https://github.com/sapporo-wes/sapporo-service/blob/main/README_ja.md)
-
 The sapporo-service is a standard implementation conforming to the [Global Alliance for Genomics and Health](https://www.ga4gh.org) (GA4GH) [Workflow Execution Service](https://github.com/ga4gh/workflow-execution-service-schemas) (WES) API specification.
 
-Also, we have extended the API specification.
-Please check [SwaggerHub - sapporo-wes](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.1-oas3).
+We have also extended the API specification.
+For more details, please refer to [`./sapporo-wes-1-0-1-openapi-spec.yml`](./sapporo-wes-1-0-1-openapi-spec.yml) for more details.
 
-One of sapporo-service's features is the abstraction of workflow engines, making it easy to convert various workflow engines into WES.
-Currently, the following workflow engines have been confirmed to work.
+One of the key features of the sapporo-service is its ability to abstract workflow engines, making it easy to adapt various workflow engines to the WES standard.
+Currently, we have verified compatibility with the following workflow engines:
 
 - [cwltool](https://github.com/common-workflow-language/cwltool)
 - [nextflow](https://www.nextflow.io)
@@ -27,106 +25,108 @@ Currently, the following workflow engines have been confirmed to work.
 - [ep3 (experimental)](https://github.com/tom-tan/ep3)
 - [StreamFlow (experimental)](https://github.com/alpha-unito/streamflow)
 
-Another feature of the sapporo-service is the mode that can only execute workflows registered by the system administrator.
-This feature is useful when building a WES in a shared HPC environment.
+Another unique feature of the sapporo-service is a mode that permits only workflows registered by the system administrator to be executed.
+This feature is particularly beneficial when setting up a WES in a shared HPC environment.
 
-## Install and Run
+## Installation and Startup
 
-The sapporo-service supports Python 3.7 or newer.
+The sapporo-service is compatible with Python 3.8 or later versions.
+
+You can install it using pip:
 
 ```bash
 pip3 install sapporo
+```
+
+To start the sapporo-service, run the following command:
+
+```bash
 sapporo
 ```
 
-### Docker
+### Using Docker
 
-You can also launch the sapporo-service with Docker.
-To use Docker-in-Docker (DinD), you must mount `docker.sock`, `/tmp`, etc.
+Alternatively, you can run the sapporo-service using Docker.
+If you want to use Docker-in-Docker (DinD), make sure to mount `docker.sock`, `/tmp`, and other necessary directories.
+
+To start the sapporo-service using Docker, run the following command:
 
 ```bash
-# Launch
-$ docker compose up -d
-
-# Launch confirmation
-$ docker compose logs
+docker compose up -d
 ```
 
 ## Usage
 
-The help for the sapporo-service startup command is as follows:
+You can view the help for the sapporo-service as follows:
 
 ```bash
 $ sapporo --help
 usage: sapporo [-h] [--host] [-p] [--debug] [-r] [--disable-get-runs]
-               [--disable-workflow-attachment]
-               [--run-only-registered-workflows] [--service-info]
-               [--executable-workflows] [--run-sh] [--url-prefix]
+               [--disable-workflow-attachment] [--run-only-registered-workflows]
+               [--service-info] [--executable-workflows] [--run-sh]
+               [--url-prefix] [--auth-config]
 
-Implementation of a GA4GH workflow execution service that can easily support
-various workflow runners.
+This is an implementation of a GA4GH workflow execution service that can easily
+support various workflow runners.
 
 optional arguments:
   -h, --help            show this help message and exit
-  --host                Host address of Flask. (default: 127.0.0.1)
-  -p , --port           Port of Flask. (default: 1122)
-  --debug               Enable debug mode of Flask.
-  -r , --run-dir        Specify the run dir. (default: ./run)
-  --disable-get-runs    Disable endpoint of `GET /runs`.
+  --host                Specify the host address for Flask. (default: 127.0.0.1)
+  -p , --port           Specify the port for Flask. (default: 1122)
+  --debug               Enable Flask's debug mode.
+  -r , --run-dir        Specify the run directory. (default: ./run)
+  --disable-get-runs    Disable the `GET /runs` endpoint.
   --disable-workflow-attachment
-                        Disable `workflow_attachment` on endpoint `Post
-                        /runs`.
+                        Disable the `workflow_attachment` feature on the `Post
+                        /runs` endpoint.
   --run-only-registered-workflows
-                        Run only registered workflows. Check the registered
-                        workflows using `GET /service-info`, and specify
-                        `workflow_name` in the `POST /run`.
-  --service-info        Specify `service-info.json`. The
-                        supported_wes_versions, system_state_counts and
-                        workflows are overwritten in the application.
-  --executable-workflows
-                        Specify `executable-workflows.json`.
-  --run-sh              Specify `run.sh`.
-  --url-prefix          Specify the prefix of the url (e.g. --url-prefix /foo
-                        -> /foo/service-info).
+                        Only run registered workflows. Check the registered
+                        workflows using `GET /executable-workflows`, and specify
+                        the `workflow_name` in the `POST /run` request.
+  --service-info        Specify the `service-info.json` file. The
+                        `supported_wes_versions` and `system_state_counts` will
+                        be overwritten by the application.
+  --executable-workflows 
+                        Specify the `executable-workflows.json` file.
+  --run-sh              Specify the `run.sh` file.
+  --url-prefix          Specify the prefix of the URL (e.g., --url-prefix /foo
+                        will result in /foo/service-info).
+  --auth-config         Specify the `auth-config.json` file.
 ```
 
 ### Operating Mode
 
-There are two startup modes in the sapporo-service.
+The sapporo-service can be started in one of the following two modes:
 
 - Standard WES mode (Default)
 - Execute only registered workflows mode
 
-These are switched with the startup argument `--run-only-registered-workflows`.
-It can also be switched by giving `True` or `False` to the environment variable `SAPPORO_ONLY_REGISTERED_WORKFLOWS`.
-**Startup arguments take priority over environment variables.**
+You can switch between these modes using the `--run-only-registered-workflows` startup argument or by setting the `SAPPORO_ONLY_REGISTERED_WORKFLOWS` environment variable to `True` or `False`.
+Note that startup arguments take precedence over environment variables.
 
-#### Standard WES mode
+#### Standard WES Mode
 
-As the API specifications, please check [SwaggerHub - sapporo-wes - RunWorkflow](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.1-oas3#/default/RunWorkflow).
+In this mode, the sapporo-service conforms to the standard WES API specification.
+However, it's important to note that when using the sapporo-service, there is a deviation from the standard WES API specification: **you are required to specify `workflow_engine_name` in the request parameter of `POST /runs`.** This is due to the sapporo-service's ability to abstract workflow engines, as mentioned above.
 
-**When using the sapporo-service, It is different from the standard WES API specification; you must specify `workflow_engine_name` in the request parameter of `POST /runs`.**
-We think this part is a standard WES API specification mistake, so we request fixing it.
+#### Execute Only Registered Workflows Mode
 
-#### Execute only registered workflows mode
+In this mode, the sapporo-service only allows workflows registered by the system administrator to be executed.
 
-As the API specifications for executing only registered workflows mode, please check [SwaggerHub - sapporo-wes](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.0):
+The key changes in this mode are:
 
-It conforms to the standard WES API.
-The changes are as follows:
+- `GET /executable_workflows` returns the list of executable workflows.
+- `POST /runs`, use `workflow_name` instead of `workflow_url`.
 
-- Executable workflows are returned by `GET /executable_workflows`.
-- Specify `workflow_name` instead of `workflow_url` in `POST /runs`.
+The list of executable workflows is managed in [`executable_workflows.json`](./sapporo/executable_workflows.json).
+By default, this file is located in the application directory of the sapporo-service.
+However, you can override it using the startup argument `--executable-workflows` or the environment variable `SAPPORO_EXECUTABLE_WORKFLOWS`.
 
-The executable workflows are managed at [`executable_workflows.json`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/executable_workflows.json).
-Also, the schema for this definition is [`executable_workflows.schema.json`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/executable_workflows.schema.json). The default location of these files is under the application directory of the sapporo-service. You can override them using the startup argument `--executable-workflows` or the environment variable `SAPPORO_EXECUTABLE_WORKFLOWS`.
+### Run Directory
 
-For more information, see [SwaggerUI - sapporo-wes - GetExecutableWorkflows](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.1-oas3#/default/GetExecutableWorkflows).
-
-### Run Dir
-
-The sapporo-service manages the submitted workflows, workflow parameters, output files, etc., on the file system.
-You can override the location of run dir by using the startup argument `--run-dir` or the environment variable `SAPPORO_RUN_DIR`.
+The sapporo-service organizes all submitted workflows, workflow parameters, output files, and related data within a specific directory on the file system.
+This directory, known as the "run directory".
+To specify a different location for the run directory, use the startup argument `--run-dir` or set the environment variable `SAPPORO_RUN_DIR`.
 
 The run dir structure is as follows:
 
@@ -141,12 +141,7 @@ $ tree run
         │   └── workflow_params.json
         ├── exit_code.txt
         ├── outputs
-        │   ├── ERR034597_1.small.fq.trimmed.1P.fq
-        │   ├── ERR034597_1.small.fq.trimmed.1U.fq
-        │   ├── ERR034597_1.small.fq.trimmed.2P.fq
-        │   ├── ERR034597_1.small.fq.trimmed.2U.fq
-        │   ├── ERR034597_1.small_fastqc.html
-        │   └── ERR034597_2.small_fastqc.html
+        │   ├── <output_file>
         ├── outputs.json
         ├── run.pid
         ├── run_request.json
@@ -161,63 +156,55 @@ $ tree run
     └── ...
 ```
 
-So, you can initialize and delete each run by physical deletion with `rm`.
+You can manage each run by physically deleting it using the `rm` command.
 
-The execution of `POST /runs` is very complex.
-Examples using `curl` are provided in [./tests/curl_example](https://github.com/sapporo-wes/sapporo-service/tree/main/tests/curl_example).
-Please use these as references.
+Executing `POST /runs` can be quite complex.
+For your convenience, we've provided examples using `curl` in the [`./tests/curl_example`](./tests/curl_example) directory.
+Please refer to these examples as a guide.
 
 ### `run.sh`
 
-We use [`run.sh`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/run.sh) to abstract the workflow engine.
-When `POST /runs` is called, the sapporo-service fork the execution of `run.sh` after dumping the necessary files to run dir. Therefore, you can apply various workflow engines to WES by editing `run.sh`.
+The [`run.sh`](./sapporo/run.sh) script is used to abstract the workflow engine.
+When `POST /runs` is invoked, the sapporo-service forks the execution of `run.sh` after preparing the necessary files in the run directory.
+This allows you to adapt various workflow engines to WES by modifying `run.sh`.
 
-The default position of `run.sh` is under the application directory of the sapporo-service. You can override it using the startup argument `--run-sh` or the environment variable `SAPPORO_RUN_SH`.
+By default, `run.sh` is located in the application directory of the sapporo-service.
+You can override this location using the startup argument `--run-sh` or the environment variable `SAPPORO_RUN_SH`.
 
 ### Other Startup Arguments
 
-You can change the host and port used by the application by using the startup arguments (`--host` and `--port`) or the environment variables `SAPPORO_HOST` and `SAPPORO_PORT`.
+You can modify the host and port used by the application using the startup arguments `--host` and `--port` or the environment variables `SAPPORO_HOST` and `SAPPORO_PORT`.
 
-The following three startup arguments and environment variables limit the WES.
+The following three startup arguments and corresponding environment variables can be used to limit the WES:
 
-- `--disable-get-runs`
-  - `SAPPORO_GET_RUNS`: `True` or `False`.
-  - Disable `GET /runs`.
-    - When using WES with an unspecified number of people, by knowing the run_id, you can see the run's contents and cancel the run of other people.
-      It is difficult to know it in brute force because run_id itself is automatically generated using `uuid4`.
-- `--disable-workflow-attachment`
-  - `SAPPORO_WORKFLOW_ATTACHMENT`: `True` or `False`.
-  - Disable `workflow_attachment` in `POST /runs`.
-    - The `workflow_attachment` field is used to attach files for executing workflows.
-    - There is a security concern because anything can be attached.
-- `--url-prefix`.
-  - `SAPPORO_URL_PREFIX`.
-  - Set the URL PREFIX.
-    - If `--url-prefix /foo/bar` is set, `GET /service-info` becomes `GET /foo/bar/service-info`.
+- `--disable-get-runs` / `SAPPORO_GET_RUNS`: Disables `GET /runs`. This can be useful when using WES with an unspecified number of users, as it prevents users from viewing or cancelling other users' runs by knowing the run_id.
+- `--disable-workflow-attachment` / `SAPPORO_WORKFLOW_ATTACHMENT`: Disables the `workflow_attachment` field in `POST /runs`. This field is used to attach files for executing workflows, and disabling it can address security concerns.
+- `--url-prefix` / `SAPPORO_URL_PREFIX`: Sets the URL prefix. For example, if `--url-prefix /foo/bar` is set, `GET /service-info` becomes `GET /foo/bar/service-info`.
 
-The contents of the response of `GET /service-info` are managed in [`service-info.json`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/service-info.json). The default location of `service-info.json` is under the application directory of the sapporo-service. You can override by using the startup argument `--service-info` or the environment variable `SAPPORO_SERVICE_INFO`.
+The response content of `GET /service-info` is managed in [`service-info.json`](./sapporo/service-info.json).
+By default, this file is located in the application directory of the sapporo-service.
+You can override this location using the startup argument `--service-info` or the environment variable `SAPPORO_SERVICE_INFO`.
 
-### Generate download link
+### Generate Download Link
 
-The sapporo-service provides the file and directory under run_dir as a download link.
+The sapporo-service allows you to generate download links for files and directories located under the `run_dir`.
 
-For more information, see [SwaggerUI - sapporo-wes - GetData](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.1-oas3#/default/GetData).
+For more details, please refer to the `GetData` section in [`./sapporo-wes-1-0-1-openapi-spec.yml`](./sapporo-wes-1-0-1-openapi-spec.yml).
 
-### Parse workflow
+### Parse Workflow
 
-The sapporo-service provides the feature to check the workflow document's type, version, and inputs.
+The sapporo-service offers a feature to inspect the type, version, and inputs of a workflow document.
 
-For more information, see [SwaggerUI - sapporo-wes - GetData](https://app.swaggerhub.com/apis/suecharo/sapporo-wes/sapporo-wes-1.0.1-oas3#/default/GetData).
+For more details, please refer to the `ParseWorkflow` section in [`./sapporo-wes-1-0-1-openapi-spec.yml`](./sapporo-wes-1-0-1-openapi-spec.yml).
 
 ### Generate RO-Crate
 
-The sapporo-service generates RO-Crate from the run_dir after the workflow execution is completed as `ro-crate-metadata.json` in the run_dir.
-You can download the RO-Crate by using `GET /runs/{run_id}/ro-crate/data/ro-crate-metadata.json`.
+Upon completion of workflow execution, the sapporo-service generates an RO-Crate from the `run_dir`, which is saved as `ro-crate-metadata.json` within the same directory. You can download the RO-Crate using the `GET /runs/{run_id}/ro-crate/data/ro-crate-metadata.json` endpoint.
 
-And, you can generate RO-Crate from the run_dir as follows:
+Additionally, you can generate an RO-Crate from the `run_dir` as follows:
 
 ```bash
-# At Sapporo run_dir
+# Inside the Sapporo run_dir
 $ ls
 cmd.txt                     run.sh                      state.txt
 exe/                        run_request.json            stderr.log
@@ -225,15 +212,15 @@ executable_workflows.json   sapporo_config.json         stdout.log
 outputs/                    service_info.json           workflow_engine_params.txt
 run.pid                     start_time.txt              yevis-metadata.yml
 
-# Execute sapporo/ro_crate.py script
+# Execute the sapporo/ro_crate.py script
 $ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:$PWD -w $PWD ghcr.io/sapporo-wes/sapporo-service:latest python3 /app/sapporo/ro_crate.py $PWD
 ```
 
-Please see, [ro-crate-metadata-example.json](./tests/ro-crate-metadata-example.json) as an example.
+For more information on RO-Crate, please also refer to [`./tests/ro-crate`](./tests/ro-crate).
 
 ## Development
 
-You can start the development environment as follows:
+To start the development environment, follow these steps:
 
 ```bash
 $ docker compose -f compose.dev.yml up -d --build
@@ -242,7 +229,7 @@ $ docker compose -f compose.dev.yml exec app bash
 $ sapporo
 ```
 
-We use [flake8](https://pypi.org/project/flake8/), [isort](https://github.com/timothycrosley/isort), and [mypy](http://mypy-lang.org) as a linter.
+We utilize [flake8](https://pypi.org/project/flake8/), [isort](https://github.com/timothycrosley/isort), and [mypy](http://mypy-lang.org) for linting and style checking.
 
 ```bash
 bash ./tests/lint_and_style_check/flake8.sh
@@ -252,23 +239,21 @@ bash ./tests/lint_and_style_check/mypy.sh
 bash ./tests/lint_and_style_check/run_all.sh
 ```
 
-We use [pytest](https://docs.pytest.org/en/latest/) as a tester.
+For testing, we use [pytest](https://docs.pytest.org/en/latest/).
 
 ```bash
 pytest .
 ```
 
-## Add new Workflow Engines to Sapporo Service
+## Adding New Workflow Engines to Sapporo Service
 
-Have a look at the [`run.sh`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/run.sh) script called from Python.
-This shell script will receive a request with Workflow Engine such as `cwltool` and will invoke the `run_cwltool` bash function.
+Take a look at the [`run.sh`](./sapporo/run.sh) script, which is invoked from Python. This shell script receives a request with a Workflow Engine such as cwltool and triggers the `run_cwltool`` bash function.
 
-That function will execute a Bash Shell command to start a Docker container for the Workflow Engine, and monitor its exit status.
-For a complete example, please refer to this pull request: <https://github.com/sapporo-wes/sapporo-service/pull/29>
+This function executes a Bash Shell command to start a Docker container for the Workflow Engine and monitors its exit status. For a comprehensive example, please refer to this pull request: <https://github.com/sapporo-wes/sapporo-service/pull/29>
 
 ## License
 
-[Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0). See the [LICENSE](https://github.com/sapporo-wes/sapporo-service/blob/main/LICENSE).
+This project is licensed under [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0). See the [LICENSE](./LICENSE) file for details.
 
 ## Notice
 
