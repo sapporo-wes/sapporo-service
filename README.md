@@ -218,6 +218,159 @@ $ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:$PWD -w $
 
 For more information on RO-Crate, please also refer to [`./tests/ro-crate`](./tests/ro-crate).
 
+### Authentication
+
+The sapporo-service supports authentication using JWT.
+The configuration for this authentication is managed through [`./sapporo/auth_config.json`](./sapporo/auth_config.json) file.
+By default, the file is set up as follows:
+
+```json
+{
+  "auth_enabled": false,
+  "jwt_secret_key": "spr_secret_key_please_change_this",
+  "users": [
+    {
+      "username": "spr_test_user",
+      "password": "spr_test_password"
+    }
+  ]
+}
+```
+
+You can edit this file directly, or, you can change its location using the startup argument `--auth-config` or the environment variable `SAPPORO_AUTH_CONFIG`.
+
+The file contains the following fields:
+
+- `auth_enabled`: Determines whether JWT authentication is enabled. If set to `true`, JWT authentication is activated.
+- `jwt_secret_key`: The secret key used for signing the JWT. It is strongly recommended to change this value.
+- `users`: A list of users who will perform JWT authentication. Specify `username` and `password`.
+
+When JWT authentication is enabled, the following endpoints require authentication:
+
+- `GET /runs`
+- `POST /runs`
+- `GET /runs/{run_id}`
+- `POST /runs/{run_id}/cancel`
+- `GET /runs/{run_id}/status`
+- `GET /runs/{run_id}/data`
+
+Additionally, each run is associated with a `username`, so that, for example, only the user who created the run can access `GET /runs/{run_id}`.
+
+Let's take a look at how to use JWT authentication.
+First, edit the `auth-config.json` as follows:
+
+```json
+{
+  "auth_enabled": true,
+  "jwt_secret_key": "spr_secret_key_please_change_this",
+  "users": [
+    {
+      "username": "spr_test_user1",
+      "password": "spr_test_password1"
+    },
+    {
+      "username": "spr_test_user2",
+      "password": "spr_test_password2"
+    }
+  ]
+}
+```
+
+With this configuration, if you start the sapporo-service, `GET /service-info` will return a result, but `GET /runs` will require authentication.
+
+```bash
+# Start sapporo-service
+$ sapporo
+
+# GET /service-info
+$ curl -X GET localhost:1122/service-info
+{
+  "auth_instructions_url": "https://github.com/sapporo-wes/sapporo-service",
+  "contact_info_url": "https://github.com/sapporo-wes/sapporo-service",
+...
+
+# GET /runs
+$ curl -X GET localhost:1122/runs
+{
+  "msg": "Missing Authorization Header",
+  "status": 401
+}
+```
+
+Here, you can generate a JWT required for authentication by sending a `POST /auth` request with `username` and `password` as follows:
+
+```bash
+$ curl -X POST \
+    -H "Content-Type: application/json" \
+    -d '{"username":"spr_test_user1", "password":"spr_test_password1"}' \
+    localhost:1122/auth
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNjQyODY2MCwianRpIjoiY2I5ZTU1MDgtN2RlNy00Y2EzLWE4NjYtN2ZlYmRmYTg4YWQ0IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6InNwcl90ZXN0X3VzZXIxIiwibmJmIjoxNzA2NDI4NjYwLCJjc3JmIjoiZjdlZjNhZmYtMTVlZS00OTc2LTkxYzYtOTU2ZDZjZTVjYmQ5IiwiZXhwIjoxNzA2NDI5NTYwfQ.zyD7Ru72eD_9mJj548DS-qDk8Y5yan-rNbklWmfvcEs"
+}
+```
+
+If you attach this generated JWT to the Authorization header and send it to `GET /runs`, the authentication will pass.
+
+```bash
+$ TOKEN1=$(curl -s -X POST \
+    -H "Content-Type: application/json" \
+    -d '{"username":"spr_test_user1", "password":"spr_test_password1"}' \
+    localhost:1122/auth | jq -r '.access_token')
+
+$ curl -X GET -H "Authorization: Bearer $TOKEN1" localhost:1122/runs
+{
+  "runs": []
+}
+```
+
+Let's also confirm that User2 cannot access the run executed by User1.
+
+```bash
+$ TOKEN1=$(curl -s -X POST \
+    -H "Content-Type: application/json" \
+    -d '{"username":"spr_test_user1", "password":"spr_test_password1"}' \
+    localhost:1122/auth | jq -r '.access_token')
+$ TOKEN2=$(curl -s -X POST \
+    -H "Content-Type: application/json" \
+    -d '{"username":"spr_test_user2", "password":"spr_test_password2"}' \
+    localhost:1122/auth | jq -r '.access_token')
+
+# Execute a run with User1
+# Please refer to ./tests/curl_example/cwltool_remote_workflow.sh for example
+# Run ID: af95fd09-8406-4f2c-9280-bca900e07289
+
+# GET /runs with User1
+$ curl -X GET -H "Authorization: Bearer $TOKEN1" localhost:1122/runs
+{
+  "runs": [
+    {
+      "run_id": "af95fd09-8406-4f2c-9280-bca900e07289",
+      "state": "COMPLETE"
+    }
+  ]
+}
+
+# GET /runs/{run_id} with User1
+$ curl -X GET -H "Authorization: Bearer $TOKEN1" localhost:1122/runs/af95fd09-8406-4f2c-9280-bca900e07289
+{
+  "outputs": [
+    {
+      ...
+
+# GET /runs with User2
+$ curl -X GET -H "Authorization: Bearer $TOKEN2" localhost:1122/runs
+{
+  "runs": []
+}
+
+# GET /runs/{run_id} with User2
+$ curl -X GET -H "Authorization: Bearer $TOKEN2" localhost:1122/runs/af95fd09-8406-4f2c-9280-bca900e07289
+{
+  "msg": "You don't have permission to access this run.",
+  "status_code": 403
+}
+```
+
 ## Development
 
 To start the development environment, follow these steps:

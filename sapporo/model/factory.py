@@ -2,7 +2,7 @@
 # coding: utf-8
 # pylint: disable=import-outside-toplevel
 import json
-from typing import List
+from typing import List, Optional
 
 from flask import current_app
 
@@ -45,11 +45,13 @@ def generate_run_status(run_id: str) -> RunStatus:
     }
 
 
-def generate_run_list() -> RunListResponse:
-    from sapporo.run import glob_all_run_ids
-    all_run_ids = glob_all_run_ids()
-    runs: List[RunStatus] = [generate_run_status(
-        run_id) for run_id in all_run_ids]
+def generate_run_list(username: Optional[str] = None) -> RunListResponse:
+    from sapporo.run import glob_all_run_ids, read_username
+    all_run_ids = [
+        run_id for run_id in glob_all_run_ids()
+        if username is None or username == read_username(run_id)
+    ]
+    runs: List[RunStatus] = [generate_run_status(run_id) for run_id in all_run_ids]
 
     return {
         "runs": runs,

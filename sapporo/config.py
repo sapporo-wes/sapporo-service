@@ -10,11 +10,13 @@ from typing import List, Optional, Tuple, TypedDict, Union, cast
 import pkg_resources
 from jsonschema import validate
 
-from sapporo.const import (DEFAULT_ACCESS_CONTROL_ALLOW_ORIGIN,
-                           DEFAULT_EXECUTABLE_WORKFLOWS, DEFAULT_HOST,
-                           DEFAULT_PORT, DEFAULT_RUN_DIR, DEFAULT_RUN_SH,
-                           DEFAULT_SERVICE_INFO, DEFAULT_URL_PREFIX,
-                           EXECUTABLE_WORKFLOWS_SCHEMA, SERVICE_INFO_SCHEMA)
+from sapporo.const import (AUTH_CONFIG_SCHEMA,
+                           DEFAULT_ACCESS_CONTROL_ALLOW_ORIGIN,
+                           DEFAULT_AUTH_CONFIG, DEFAULT_EXECUTABLE_WORKFLOWS,
+                           DEFAULT_HOST, DEFAULT_PORT, DEFAULT_RUN_DIR,
+                           DEFAULT_RUN_SH, DEFAULT_SERVICE_INFO,
+                           DEFAULT_URL_PREFIX, EXECUTABLE_WORKFLOWS_SCHEMA,
+                           SERVICE_INFO_SCHEMA)
 from sapporo.model import Workflow
 
 
@@ -113,6 +115,12 @@ def parse_args(args: Optional[List[str]] = None) -> TypedNamespace:
         metavar="",
         help="Specify the prefix of the URL (e.g., --url-prefix /foo will result in /foo/service-info)."
     )
+    parser.add_argument(
+        "--auth-config",
+        type=Path,
+        metavar="",
+        help="Specify the `auth-config.json` file."
+    )
 
     if args is None:
         return cast(TypedNamespace, parser.parse_args())
@@ -134,6 +142,7 @@ class Config(TypedDict):
     run_sh: Path
     url_prefix: str
     access_control_allow_origin: str
+    auth_config: Path
 
 
 def resolve_path_from_cwd(path: Union[Path, Tuple[Path]]) -> Path:
@@ -166,7 +175,8 @@ def get_config(args: Optional[TypedNamespace] = None) -> Config:
         "executable_workflows": resolve_path_from_cwd(executable_workflows),
         "run_sh": resolve_path_from_cwd(run_sh),
         "url_prefix": args.url_prefix or str(os.environ.get("SAPPORO_URL_PREFIX", DEFAULT_URL_PREFIX)),
-        "access_control_allow_origin": os.environ.get("SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN", DEFAULT_ACCESS_CONTROL_ALLOW_ORIGIN)
+        "access_control_allow_origin": os.environ.get("SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN", DEFAULT_ACCESS_CONTROL_ALLOW_ORIGIN),
+        "auth_config": args.auth_config or Path(os.environ.get("SAPPORO_AUTH_CONFIG", DEFAULT_AUTH_CONFIG))
     }
 
 
@@ -180,6 +190,7 @@ def validate_json_file(file_path: Path, schema_path: Path) -> None:
 def validate_config(config: Config) -> None:
     validate_json_file(config["service_info"], SERVICE_INFO_SCHEMA)
     validate_json_file(config["executable_workflows"], EXECUTABLE_WORKFLOWS_SCHEMA)
+    validate_json_file(config["auth_config"], AUTH_CONFIG_SCHEMA)
 
     # Check uniqueness of workflow_name
     with config["executable_workflows"].open(mode="r", encoding="utf-8") as f_data:

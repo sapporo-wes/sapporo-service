@@ -1,0 +1,10 @@
+{
+  "auth_enabled": false,
+  "jwt_secret_key": "spr_secret_key_please_change_this",
+  "users": [
+    {
+      "username": "spr_test_user",
+      "password": "spr_test_password"
+    }
+  ]
+}

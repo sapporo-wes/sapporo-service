@@ -24,6 +24,8 @@ setup(
     packages=["sapporo", "sapporo.model"],
     package_data={
         "sapporo": [
+            "sapporo/auth_config.json",
+            "sapporo/auth_config.schema.json",
             "sapporo/executable_workflows.json",
             "sapporo/executable_workflows.schema.json",
             "sapporo/run.sh",
@@ -34,6 +36,7 @@ setup(
     include_package_data=True,
     install_requires=[
         "cwl-inputs-parser>=1.0.2",
+        "flask_jwt_extended",
         "flask-cors",
         "flask",
         "jsonschema",

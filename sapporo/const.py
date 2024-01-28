@@ -13,12 +13,15 @@ DEFAULT_HOST: str = "127.0.0.1"
 DEFAULT_PORT: int = 1122
 DEFAULT_ACCESS_CONTROL_ALLOW_ORIGIN: str = "*"
 DEFAULT_URL_PREFIX: str = "/"
+DEFAULT_AUTH_CONFIG: Path = SRC_DIR.joinpath("auth_config.json").resolve()
+
 GET_STATUS_CODE: int = 200
 POST_STATUS_CODE: int = 200
 DATE_FORMAT: str = "%Y-%m-%dT%H:%M:%S"
 
 SERVICE_INFO_SCHEMA: Path = SRC_DIR.joinpath("service-info.schema.json").resolve()
 EXECUTABLE_WORKFLOWS_SCHEMA: Path = SRC_DIR.joinpath("executable_workflows.schema.json").resolve()
+AUTH_CONFIG_SCHEMA: Path = SRC_DIR.joinpath("auth_config.schema.json").resolve()
 
 RUN_DIR_STRUCTURE: Dict[str, str] = {
     "sapporo_config": "sapporo_config.json",
@@ -42,6 +45,7 @@ RUN_DIR_STRUCTURE: Dict[str, str] = {
     "run_sh": "run.sh",
     "yevis_metadata": "yevis-metadata.yml",
     "multiqc_stats": "multiqc_general_stats.json",
+    "username": "username.txt",
 }
 
 RUN_DIR_STRUCTURE_KEYS = Literal[
@@ -66,4 +70,5 @@ RUN_DIR_STRUCTURE_KEYS = Literal[
     "run_sh",
     "yevis_metadata",
     "multiqc_stats",
+    "username",
 ]

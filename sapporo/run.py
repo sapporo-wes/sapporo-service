@@ -44,6 +44,15 @@ def read_state(run_id: str) -> State:
         return "UNKNOWN"
 
 
+def read_username(run_id: str) -> Optional[str]:
+    try:
+        with resolve_content_path(run_id, "username").open(mode="r") as f:
+            username: Optional[str] = f.readline().strip()  # type: ignore
+            return username
+    except FileNotFoundError:
+        return None
+
+
 def count_system_state() -> Dict[State, int]:
     run_ids: List[str] = glob_all_run_ids()
     count: Dict[State, int] = dict(collections.Counter([read_state(run_id) for run_id in run_ids]))
@@ -240,7 +249,7 @@ def download_workflow_attachment(inputted_run_dir: str) -> None:
                         shutil.copyfileobj(res.raw, f, 1024 * 1024)
 
 
-def fork_run(run_id: str) -> None:
+def fork_run(run_id: str, username: Optional[str] = None) -> None:
     run_dir: Path = resolve_run_dir_path(run_id)
     stdout: Path = resolve_content_path(run_id, "stdout")
     stderr: Path = resolve_content_path(run_id, "stderr")
@@ -255,6 +264,8 @@ def fork_run(run_id: str) -> None:
     pid: Optional[int] = process.pid
     if pid is not None:
         write_file(run_id, "pid", str(pid))
+    if username is not None:
+        write_file(run_id, "username", username)
 
 
 def cancel_run(run_id: str) -> None:
