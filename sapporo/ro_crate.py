@@ -515,7 +515,7 @@ def add_file_stats(crate: ROCrate, file_ins: File) -> None:
     if shutil.which("docker") is None:
         return
 
-    formats = get_norm_value(file_ins, "format")
+    formats = get_norm_value(file_ins, "encodingFormat")
     for format_ in formats:
         if format_ == "http://edamontology.org/format_2572" or format_ == "http://edamontology.org/format_2573":
             # bam or sam
