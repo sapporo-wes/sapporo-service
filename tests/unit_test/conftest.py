@@ -8,9 +8,9 @@ from pathlib import Path
 from time import sleep
 from typing import Dict, Generator
 
-import pkg_resources
 import pytest
 from flask.testing import FlaskClient
+from importlib_metadata import version
 from pytest import MonkeyPatch
 
 from sapporo.app import create_app
@@ -53,7 +53,7 @@ def get_default_config(tmpdir: Path) -> Config:
         "port": 8888,
         "debug": True,
         "run_dir": tmpdir,
-        "sapporo_version": pkg_resources.get_distribution("sapporo").version,
+        "sapporo_version": version("sapporo"),
         "get_runs": True,
         "workflow_attachment": True,
         "registered_only_mode": False,
@@ -62,6 +62,7 @@ def get_default_config(tmpdir: Path) -> Config:
         "run_sh": PACKAGE_ROOT.joinpath("sapporo/run.sh").resolve(),
         "url_prefix": "",
         "access_control_allow_origin": "*",
+        "auth_config": PACKAGE_ROOT.joinpath("sapporo/auth_config.json").resolve(),
     }
     return config
 

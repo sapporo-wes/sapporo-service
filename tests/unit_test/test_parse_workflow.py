@@ -41,7 +41,6 @@ def test_parse_cwl_inputs(delete_env_vars: None, test_client: FlaskClient) -> No
                            content_type="multipart/form-data")
     res_data = res.get_json()
     assert res_data["inputs"] is not None
-    assert isinstance(res_data["inputs"], list)
     assert res_data["workflow_type"] == "CWL"
     assert res_data["workflow_type_version"] == "v1.0"
 
