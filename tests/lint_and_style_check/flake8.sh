@@ -10,6 +10,5 @@ cd "${PACKAGE_ROOT}"
 
 flake8 "${PACKAGE_ROOT}" \
     --extend-ignore=E501 \
-    --exclude "${PACKAGE_ROOT}/tests/resources" \
-    --exclude "${PACKAGE_ROOT}/run" \
+    --exclude "${PACKAGE_ROOT}/tests/resources,${PACKAGE_ROOT}/run" \
     --count --show-source --statistics

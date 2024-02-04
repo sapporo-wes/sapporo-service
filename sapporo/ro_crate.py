@@ -649,6 +649,5 @@ def extract_exe_dir_file_ids(crate: ROCrate) -> List[str]:
 
 
 if __name__ == "__main__":
-    import sys
     inputted_dir = Path(sys.argv[1]).resolve(strict=True)
     generate_ro_crate(str(inputted_dir))
