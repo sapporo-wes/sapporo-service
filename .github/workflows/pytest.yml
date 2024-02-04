@@ -17,31 +17,31 @@ on:
 
 jobs:
   pytest:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: 3.8
+      - uses: actions/checkout@v4
 
       - name: Install jq
         run: |
           sudo apt update
           sudo apt install -y jq
 
-      - uses: actions/cache@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.8"
+
+      - uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/setup.py') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Install dependencies
         run: |
-          python3 -m pip install --no-cache-dir --progress-bar off -U pip setuptools wheel
-          python3 -m pip install --no-cache-dir --progress-bar off -U .[tests]
+          python3 -m pip install --progress-bar off -U pip setuptools wheel
+          python3 -m pip install --progress-bar off -U .[tests]
 
       - name: Check with pytest
         run: |
