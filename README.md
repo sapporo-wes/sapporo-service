@@ -1,9 +1,9 @@
 # sapporo-service
 
-[![pytest](https://github.com/sapporo-wes/sapporo-service/workflows/pytest/badge.svg)](https://github.com/sapporo-wes/sapporo-service/actions?query=workflow%3Apytest)
-[![flake8](https://github.com/sapporo-wes/sapporo-service/workflows/flake8/badge.svg)](https://github.com/sapporo-wes/sapporo-service/actions?query=workflow%3Aflake8)
-[![isort](https://github.com/sapporo-wes/sapporo-service/workflows/isort/badge.svg)](https://github.com/sapporo-wes/sapporo-service/actions?query=workflow%3Aisort)
-[![mypy](https://github.com/sapporo-wes/sapporo-service/workflows/mypy/badge.svg)](https://github.com/sapporo-wes/sapporo-service/actions?query=workflow%3Amypy)
+[![pytest](https://github.com/sapporo-wes/sapporo-service/actions/workflows/pytest.yml/badge.svg)](https://github.com/sapporo-wes/sapporo-service/actions/workflows/pytest.yml)
+[![flake8](https://github.com/sapporo-wes/sapporo-service/actions/workflows/flake8.yml/badge.svg)](https://github.com/sapporo-wes/sapporo-service/actions/workflows/flake8.yml)
+[![isort](https://github.com/sapporo-wes/sapporo-service/actions/workflows/isort.yml/badge.svg)](https://github.com/sapporo-wes/sapporo-service/actions/workflows/isort.yml)
+[![mypy](https://github.com/sapporo-wes/sapporo-service/actions/workflows/mypy.yml/badge.svg)](https://github.com/sapporo-wes/sapporo-service/actions/workflows/mypy.yml)
 [![DOI](https://zenodo.org/badge/220937589.svg)](https://zenodo.org/badge/latestdoi/220937589)
 [![Apache License](https://img.shields.io/badge/license-Apache%202.0-orange.svg?style=flat&color=important)](http://www.apache.org/licenses/LICENSE-2.0)
 
