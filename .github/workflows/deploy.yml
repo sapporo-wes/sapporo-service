@@ -16,9 +16,9 @@ jobs:
         with:
           python-version: "3.8"
 
-      - name: "Install Python Build Module"
+      - name: "Install Python Build Module and Twine"
         run: |
-          python3 -m pip install build
+          python3 -m pip install build twine
 
       - name: "Build Binary Wheel and Source Tarball"
         run: |
