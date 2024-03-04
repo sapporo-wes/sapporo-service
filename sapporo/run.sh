@@ -14,11 +14,11 @@ function run_wf() {
   else
     executor_error
   fi
+  generate_ro_crate
   upload
   date +"%Y-%m-%dT%H:%M:%S" >${end_time}
   echo 0 >${exit_code}
   echo "COMPLETE" >${state}
-  generate_ro_crate &
   clean_rundir &
   exit 0
 }
