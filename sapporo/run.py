@@ -62,7 +62,7 @@ def count_system_state() -> Dict[State, int]:
 
 def glob_all_run_ids() -> List[str]:
     run_base_dir: Path = current_app.config["RUN_DIR"]
-    run_requests: List[Path] = list(run_base_dir.glob(f"**/{RUN_DIR_STRUCTURE['run_request']}"))
+    run_requests: List[Path] = list(run_base_dir.glob(f"*/*/{RUN_DIR_STRUCTURE['run_request']}"))
     run_ids: List[str] = [run_request.parent.name for run_request in run_requests]
 
     return run_ids
