@@ -17,7 +17,7 @@ def test_file_input(delete_env_vars: None, test_client: FlaskClient, resources: 
         "workflow_type": "NFL",
         "workflow_type_version": "1.0",
         "workflow_url": f"./{resources['FILE_INPUT'].name}",
-        "workflow_engine_name": "nextflow",
+        "workflow_engine": "nextflow",
         "workflow_attachment": [
             (resources["FILE_INPUT"].open(mode="rb"), resources["FILE_INPUT"].name),
             (resources["NF_TEST_INPUT"].open(mode="rb"), resources["NF_TEST_INPUT"].name),

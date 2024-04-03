@@ -3,7 +3,7 @@ info:
   title: >-
     GA4GH Workflow Execution Service API specification extended for
     the sapporo-service
-  version: sapporo-wes-1.0.1-oas3
+  version: sapporo-wes-1.1.0-oas3
   description: >-
     The Workflow Execution Service (WES) API provides a standard way for users to submit workflow requests to workflow execution systems and monitor their execution.
     This API lets users run a single workflow on multiple different platforms, clouds, and environments.
@@ -712,6 +712,7 @@ components:
         - SYSTEM_ERROR
         - CANCELED
         - CANCELING
+        - PREEMPTED
       default: UNKNOWN
       description: >-
         - UNKNOWN: The state of the task is unknown.
@@ -740,6 +741,10 @@ components:
         - CANCELED: The task was canceled by the user.
 
         - CANCELING: The task was canceled by the user and is in the process of stopping.
+
+        - PREEMPTED: The task is stopped (preempted) by the system. The reasons for this would be tied to
+        the specific system running the job. Generally, this means that the system reclaimed the compute
+        capacity for reallocation.
     RunListResponse:
       type: object
       additionalProperties: false
@@ -750,7 +755,9 @@ components:
           type: array
           additionalProperties: false
           items:
-            $ref: "#/components/schemas/RunStatus"
+            anyOf:
+              - $ref: "#/components/schemas/RunStatus"
+              - $ref: "#/components/schemas/RunSummary"
           description: >-
             A list of workflow runs that the service has executed or is executing.
             The list is filtered to only include runs that the caller has permission to see.
@@ -761,6 +768,9 @@ components:
             An empty string indicates there are no more items to return.
       description: >-
         The service will return a RunListResponse when receiving a successful RunListRequest.
+        DEPRECIATION WARNING: The use of `RunStatus` as the schema for `runs` array items will
+        not be permitted from the next major version of the specification (2.0.0) onwards. We
+        encourage implementers to use `RunSummary` instead.
     RunLog:
       type: object
       additionalProperties: false
@@ -798,7 +808,7 @@ components:
       type: object
       additionalProperties: false
       required:
-        - workflow_engine_name
+        - workflow_engine
       properties:
         workflow_params:
           type: string
@@ -826,10 +836,14 @@ components:
           format: application/json
           description: >-
             A key-value map of arbitrary metadata outside the scope of `workflow_params` but useful to track with this run request
-        workflow_engine_name:
+        workflow_engine:
           type: string
           description: >-
             Specify the name of the workflow engine to run a workflow.
+        workflow_engine_version:
+          type: string
+          description: >-
+            Specify the version of the workflow engine to run a workflow.
         workflow_engine_parameters:
           type: string
           format: application/json
@@ -881,7 +895,7 @@ components:
           type: string
           description: workflow run ID
     RunStatus:
-      type: object
+      type: object, returned by server during listing
       required:
         - run_id
         - state
@@ -890,7 +904,27 @@ components:
           type: string
         state:
           $ref: "#/components/schemas/State"
-      description: Small description of a workflow run, returned by server during listing
+      description: State information of a workflow run
+    RunSummary:
+        title: RunSummary,
+        allOf:
+          - $ref: "#/components/schemas/RunStatus"
+          - type: object
+            properties:
+              start_time:
+                type: string
+                description: When the run started executing, in ISO 8601 format "%Y-%m-%dT%H:%M:%SZ"
+              end_time:
+                type: string
+                description: When the run stopped executing (completed, failed, or cancelled), in ISO 8601 format "%Y-%m-%dT%H:%M:%SZ"
+              tags:
+                type: object,
+                description: Arbitrary key/value tags added by the client during run creation
+                additionalProperties:
+                  type: string
+            required:
+              - tags
+        description: Small description of a workflow run
     WorkflowTypeVersion:
       type: object
       additionalProperties: false

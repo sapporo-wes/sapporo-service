@@ -22,7 +22,7 @@ response=$(curl -fsSL -X POST \
   -F "workflow_type=NFL" \
   -F "workflow_type_version=1.0" \
   -F "workflow_url=./str_input.nf" \
-  -F "workflow_engine_name=nextflow" \
+  -F "workflow_engine=nextflow" \
   -F "workflow_attachment=@${workflow}" \
   http://${SAPPORO_HOST}:${SAPPORO_PORT}/runs)
 

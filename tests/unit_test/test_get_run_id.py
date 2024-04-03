@@ -20,7 +20,7 @@ def test_get_run_id(delete_env_vars: None, test_client: FlaskClient) -> None:  #
     assert "workflow_type" in res_data["request"]
     assert "workflow_type_version" in res_data["request"]
     assert "tags" in res_data["request"]
-    assert "workflow_engine_name" in res_data["request"]
+    assert "workflow_engine" in res_data["request"]
     assert "workflow_engine_parameters" in res_data["request"]
     assert "workflow_url" in res_data["request"]
     assert "state" in res_data

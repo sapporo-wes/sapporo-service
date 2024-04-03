@@ -12,7 +12,7 @@
 The sapporo-service is a standard implementation conforming to the [Global Alliance for Genomics and Health](https://www.ga4gh.org) (GA4GH) [Workflow Execution Service](https://github.com/ga4gh/workflow-execution-service-schemas) (WES) API specification.
 
 We have also extended the API specification.
-For more details, please refer to [`./sapporo-wes-1-0-1-openapi-spec.yml`](./sapporo-wes-1-0-1-openapi-spec.yml) for more details.
+For more details, please refer to [`./sapporo-wes-1-1-0-openapi-spec.yml`](./sapporo-wes-1-1-0-openapi-spec.yml) for more details.
 
 One of the key features of the sapporo-service is its ability to abstract workflow engines, making it easy to adapt various workflow engines to the WES standard.
 Currently, we have verified compatibility with the following workflow engines:
@@ -86,7 +86,7 @@ optional arguments:
   --service-info        Specify the `service-info.json` file. The
                         `supported_wes_versions` and `system_state_counts` will
                         be overwritten by the application.
-  --executable-workflows 
+  --executable-workflows
                         Specify the `executable-workflows.json` file.
   --run-sh              Specify the `run.sh` file.
   --url-prefix          Specify the prefix of the URL (e.g., --url-prefix /foo
@@ -107,7 +107,6 @@ Note that startup arguments take precedence over environment variables.
 #### Standard WES Mode
 
 In this mode, the sapporo-service conforms to the standard WES API specification.
-However, it's important to note that when using the sapporo-service, there is a deviation from the standard WES API specification: **you are required to specify `workflow_engine_name` in the request parameter of `POST /runs`.** This is due to the sapporo-service's ability to abstract workflow engines, as mentioned above.
 
 #### Execute Only Registered Workflows Mode
 
@@ -189,13 +188,13 @@ You can override this location using the startup argument `--service-info` or th
 
 The sapporo-service allows you to generate download links for files and directories located under the `run_dir`.
 
-For more details, please refer to the `GetData` section in [`./sapporo-wes-1-0-1-openapi-spec.yml`](./sapporo-wes-1-0-1-openapi-spec.yml).
+For more details, please refer to the `GetData` section in [`./sapporo-wes-1-1-0-openapi-spec.yml`](./sapporo-wes-1-1-0-openapi-spec.yml).
 
 ### Parse Workflow
 
 The sapporo-service offers a feature to inspect the type, version, and inputs of a workflow document.
 
-For more details, please refer to the `ParseWorkflow` section in [`./sapporo-wes-1-0-1-openapi-spec.yml`](./sapporo-wes-1-0-1-openapi-spec.yml).
+For more details, please refer to the `ParseWorkflow` section in [`./sapporo-wes-1-1-0-openapi-spec.yml`](./sapporo-wes-1-1-0-openapi-spec.yml).
 
 ### Generate RO-Crate
 

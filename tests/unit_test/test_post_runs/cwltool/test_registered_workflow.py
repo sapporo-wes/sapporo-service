@@ -20,7 +20,7 @@ def test_registered_workflow(delete_env_vars: None, test_client: FlaskClient, re
                 "class": "File",
                 "location": remote_resources["FQ_2"]
             }}),
-        "workflow_engine_name": "cwltool",
+        "workflow_engine": "cwltool",
     }, content_type="multipart/form-data")
     res_data = res.get_json()
     assert "run_id" in res_data
@@ -33,7 +33,7 @@ def test_registered_workflow(delete_env_vars: None, test_client: FlaskClient, re
 
     assert len(res_data["outputs"]) == 6
     assert len(json.loads(res_data["request"]["workflow_attachment"])) == 2
-    assert res_data["request"]["workflow_engine_name"] == "cwltool"
+    assert res_data["request"]["workflow_engine"] == "cwltool"
     assert res_data["request"]["workflow_engine_parameters"] is None
     assert res_data["request"]["workflow_name"] == "Example workflow - CWL - Trimming and QC"
     assert res_data["request"]["workflow_type"] == "CWL"

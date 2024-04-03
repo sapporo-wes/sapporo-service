@@ -51,10 +51,10 @@ def validate_run_request(run_id: str) -> RunRequest:
     tags = request.form.get("tags", None)
 
     # Fields: require validation, but not related to the registered mode
-    wf_engine_name = request.form.get("workflow_engine_name", None)
+    wf_engine = request.form.get("workflow_engine", None)
     wf_attachment_str = request.form.get("workflow_attachment", None)
     wf_attachment_files = request.files.getlist("workflow_attachment")
-    wf_engine_name = validate_wf_engine_name(wf_engine_name)
+    wf_engine = validate_wf_engine(wf_engine)
     wf_attachment = validate_wf_attachment(run_id, wf_attachment_str, wf_attachment_files)
 
     # Fields: require validation, related to the registered mode
@@ -95,7 +95,7 @@ def validate_run_request(run_id: str) -> RunRequest:
         "workflow_type": wf_type,
         "workflow_type_version": wf_type_version,
         "tags": tags,
-        "workflow_engine_name": wf_engine_name,
+        "workflow_engine": wf_engine,
         "workflow_engine_parameters": wf_engine_params,
         "workflow_url": wf_url,
         "workflow_name": wf_name,
@@ -103,15 +103,15 @@ def validate_run_request(run_id: str) -> RunRequest:
     }
 
 
-def validate_wf_engine_name(wf_engine_name: Optional[str]) -> str:
-    if wf_engine_name is None:
-        abort(400, "Workflow engine name is required.")
+def validate_wf_engine(wf_engine: Optional[str]) -> str:
+    if wf_engine is None:
+        abort(400, "Workflow engine is required.")
     service_info = generate_service_info()
-    wf_engines_names = list(service_info["workflow_engine_versions"].keys())
-    if wf_engine_name not in wf_engines_names:
-        abort(400, f"Workflow engine name `{wf_engine_name}` is not supported.")
+    wf_enginess = list(service_info["workflow_engine_versions"].keys())
+    if wf_engine not in wf_engines:
+        abort(400, f"Workflow engine `{wf_engine}` is not supported.")
 
-    return wf_engine_name
+    return wf_engine
 
 
 def validate_registered_only_mode() -> None:
@@ -212,14 +212,14 @@ def validate_meta_characters(_type: str, content: str) -> None:
     """\
     This function checks the validity of the string that will be evaluated in the 'eval'
     command within run.sh. The string could be of the type 'workflow_url',
-    'workflow_engine_name', or 'workflow_engine_params'. If any of these strings contain
+    'workflow_engine', or 'workflow_engine_params'. If any of these strings contain
     characters from the list of prohibited characters below, the operation will be aborted.
 
     This function is invoked as shown below in the POST /runs endpoint:
 
     validate_meta_characters("workflow_engine_params", joined_params)
     validate_meta_characters("workflow_url", run_request["workflow_url"])
-    validate_meta_characters("workflow_engine_name", run_request["workflow_engine_name"])
+    validate_meta_characters("workflow_engine", run_request["workflow_engine"])
     """
     prohibited_characters = [";", "!", "?", "(", ")", "[", "]", "{", "}", "*", "\\", "&", r"`", "^", "<", ">", "|", "$"]
     for char in content:

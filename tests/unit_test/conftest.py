@@ -116,7 +116,7 @@ def run_workflow(client: FlaskClient) -> str:  # type: ignore
         "workflow_type": "CWL",
         "workflow_type_version": "v1.0",
         "workflow_url": REMOTE_URL + "trimming_and_qc.cwl",
-        "workflow_engine_name": "cwltool",
+        "workflow_engine": "cwltool",
     }, content_type="multipart/form-data")
 
     res_data = res.get_json()

@@ -24,7 +24,7 @@ def test_get_service_info(delete_env_vars: None, test_client: FlaskClient) -> No
             ]
         },
         "supported_filesystem_protocols": ["http", "https", "file", "s3"],
-        "supported_wes_versions": ["sapporo-wes-1.0.1"],
+        "supported_wes_versions": ["sapporo-wes-1.1.0"],
         "system_state_counts": {},
         "tags": {
             "get_runs": True,

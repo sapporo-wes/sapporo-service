@@ -100,7 +100,7 @@ class RunRequest(TypedDict):
     workflow_type: Optional[WorkflowTypes]
     workflow_type_version: Optional[str]
     tags: Optional[str]
-    workflow_engine_name: str
+    workflow_engine: str
     workflow_engine_parameters: Optional[str]
     workflow_url: Optional[str]
     workflow_name: Optional[str]

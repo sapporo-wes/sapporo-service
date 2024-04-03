@@ -15,7 +15,7 @@ def test_tutorial_wf(delete_env_vars: None, test_client: FlaskClient, resources:
         "workflow_type": "SMK",
         "workflow_type_version": "1.0",
         "workflow_url": f"./{resources['WORKFLOW'].name}",
-        "workflow_engine_name": "snakemake",
+        "workflow_engine": "snakemake",
         "workflow_engine_parameters": json.dumps({
             "--cores": "1",
             "--use-conda": ""
@@ -36,7 +36,7 @@ def test_tutorial_wf(delete_env_vars: None, test_client: FlaskClient, resources:
 
     assert len(res_data["outputs"]) == 3
     assert len(json.loads(res_data["request"]["workflow_attachment"])) == 15
-    assert res_data["request"]["workflow_engine_name"] == "snakemake"
+    assert res_data["request"]["workflow_engine"] == "snakemake"
     assert res_data["request"]["workflow_engine_parameters"] == json.dumps({"--cores": "1", "--use-conda": ""})
     assert res_data["request"]["workflow_name"] is None
     assert res_data["request"]["workflow_type"] == "SMK"

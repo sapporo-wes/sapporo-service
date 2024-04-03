@@ -17,7 +17,7 @@ def test_str_input(delete_env_vars: None, test_client: FlaskClient, resources: D
         "workflow_type": "NFL",
         "workflow_type_version": "1.0",
         "workflow_url": f"./{resources['STR_INPUT'].name}",
-        "workflow_engine_name": "nextflow",
+        "workflow_engine": "nextflow",
         "workflow_attachment": [
             (resources["STR_INPUT"].open(mode="rb"), resources["STR_INPUT"].name)
         ],

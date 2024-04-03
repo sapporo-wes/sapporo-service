@@ -23,7 +23,7 @@ def test_workflow_engine_parameters(delete_env_vars: None, test_client: FlaskCli
         "workflow_type": "CWL",
         "workflow_type_version": "v1.0",
         "workflow_url": remote_resources["WF"],
-        "workflow_engine_name": "cwltool",
+        "workflow_engine": "cwltool",
         "workflow_engine_parameters": json.dumps({
             "--debug": ""
         })
@@ -39,7 +39,7 @@ def test_workflow_engine_parameters(delete_env_vars: None, test_client: FlaskCli
 
     assert len(res_data["outputs"]) == 6
     assert len(json.loads(res_data["request"]["workflow_attachment"])) == 0
-    assert res_data["request"]["workflow_engine_name"] == "cwltool"
+    assert res_data["request"]["workflow_engine"] == "cwltool"
     assert res_data["request"]["workflow_engine_parameters"] == '{"--debug": ""}'
     assert res_data["request"]["workflow_name"] is None
     assert res_data["request"]["workflow_type"] == "CWL"

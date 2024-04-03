@@ -23,7 +23,7 @@ def test_attach_all_files(delete_env_vars: None, test_client: FlaskClient, resou
         "workflow_type": "CWL",
         "workflow_type_version": "v1.0",
         "workflow_url": resources["WF"].name,
-        "workflow_engine_name": "cwltool",
+        "workflow_engine": "cwltool",
         "workflow_attachment": [
             (resources["FQ_1"].open(mode="rb"), resources["FQ_1"].name),
             (resources["FQ_2"].open(mode="rb"), resources["FQ_2"].name),
@@ -43,7 +43,7 @@ def test_attach_all_files(delete_env_vars: None, test_client: FlaskClient, resou
 
     assert len(res_data["outputs"]) == 6
     assert len(json.loads(res_data["request"]["workflow_attachment"])) == 5
-    assert res_data["request"]["workflow_engine_name"] == "cwltool"
+    assert res_data["request"]["workflow_engine"] == "cwltool"
     assert res_data["request"]["workflow_engine_parameters"] is None
     assert res_data["request"]["workflow_name"] is None
     assert res_data["request"]["workflow_type"] == "CWL"

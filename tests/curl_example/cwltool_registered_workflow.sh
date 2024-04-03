@@ -20,7 +20,7 @@ response=$(curl -fsSL -X POST \
   -H "Content-Type: multipart/form-data" \
   -F "workflow_name=Example workflow - CWL - Trimming and QC" \
   -F "workflow_params=${workflow_params}" \
-  -F "workflow_engine_name=cwltool" \
+  -F "workflow_engine=cwltool" \
   http://${SAPPORO_HOST}:${SAPPORO_PORT}/runs)
 
 if [[ $? -ne 0 ]]; then
