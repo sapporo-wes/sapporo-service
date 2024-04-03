@@ -107,7 +107,7 @@ def validate_wf_engine(wf_engine: Optional[str]) -> str:
     if wf_engine is None:
         abort(400, "Workflow engine is required.")
     service_info = generate_service_info()
-    wf_enginess = list(service_info["workflow_engine_versions"].keys())
+    wf_engines = list(service_info["workflow_engine_versions"].keys())
     if wf_engine not in wf_engines:
         abort(400, f"Workflow engine `{wf_engine}` is not supported.")
 
