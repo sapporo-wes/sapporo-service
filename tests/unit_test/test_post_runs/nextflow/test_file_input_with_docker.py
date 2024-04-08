@@ -17,7 +17,7 @@ def test_file_input_with_docker(delete_env_vars: None, test_client: FlaskClient,
         "workflow_type": "NFL",
         "workflow_type_version": "1.0",
         "workflow_url": f"./{resources['FILE_INPUT'].name}",
-        "workflow_engine_name": "nextflow",
+        "workflow_engine": "nextflow",
         "workflow_engine_parameters": json.dumps({
             "-with-docker": "ubuntu:20.04",
             "-dsl1": ""

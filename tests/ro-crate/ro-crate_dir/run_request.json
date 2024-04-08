@@ -3,7 +3,7 @@
   "workflow_type": "CWL",
   "workflow_type_version": "v1.0",
   "tags": null,
-  "workflow_engine_name": "cwltool",
+  "workflow_engine": "cwltool",
   "workflow_engine_parameters": "{}",
   "workflow_url": "https://raw.githubusercontent.com/sapporo-wes/yevis-cli/6411de7d3a823d717d61d29591f59c681e8705be/tests/CWL/wf/trimming_and_qc.cwl",
   "workflow_name": null,

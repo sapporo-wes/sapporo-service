@@ -18,7 +18,7 @@ def test_params_outdir(delete_env_vars: None, test_client: FlaskClient, resource
         "workflow_type": "NFL",
         "workflow_type_version": "1.0",
         "workflow_url": f"./{resources['PARAMS_OUTDIR'].name}",
-        "workflow_engine_name": "nextflow",
+        "workflow_engine": "nextflow",
         "workflow_attachment": [
             (resources["PARAMS_OUTDIR"].open(mode="rb"), resources["PARAMS_OUTDIR"].name),
         ],

@@ -15,7 +15,7 @@ def test_bamstats_wdl(delete_env_vars: None, test_client: FlaskClient, resources
         "workflow_type": "WDL",
         "workflow_type_version": "1.0",
         "workflow_url": f"./{resources['WDL_WF'].name}",
-        "workflow_engine_name": "cromwell",
+        "workflow_engine": "cromwell",
         "tags": json.dumps({
             "workflow_name": "dockstore-tool-bamstats-wdl"
         }),
@@ -35,7 +35,7 @@ def test_bamstats_wdl(delete_env_vars: None, test_client: FlaskClient, resources
 
     assert len(res_data["outputs"]) == 1
     assert len(json.loads(res_data["request"]["workflow_attachment"])) == 2
-    assert res_data["request"]["workflow_engine_name"] == "cromwell"
+    assert res_data["request"]["workflow_engine"] == "cromwell"
     assert res_data["request"]["workflow_engine_parameters"] is None
     assert res_data["request"]["workflow_name"] is None
     assert res_data["request"]["workflow_type"] == "WDL"

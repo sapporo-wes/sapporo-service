@@ -39,7 +39,7 @@ response=$(curl -fsSL -X POST \
   -F "workflow_type=SMK" \
   -F "workflow_type_version=1.0" \
   -F "workflow_url=https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/snakemake/Snakefile" \
-  -F "workflow_engine_name=snakemake" \
+  -F "workflow_engine=snakemake" \
   -F "workflow_engine_parameters=${workflow_engine_parameters}" \
   ${workflow_attachment} \
   http://${SAPPORO_HOST}:${SAPPORO_PORT}/runs)

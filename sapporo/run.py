@@ -195,7 +195,7 @@ def convert_wf_engine_params_str(run_request: RunRequest) -> str:
         service_info = generate_service_info()
         default_wf_engine_dict = service_info["default_workflow_engine_parameters"]
         default_wf_engine_params = default_wf_engine_dict.get(
-            run_request["workflow_engine_name"], [])
+            run_request["workflow_engine"], [])
         for default_wf_engine_param in default_wf_engine_params:
             params.append(default_wf_engine_param.get("name", ""))
             params.append(default_wf_engine_param.get("default_value", ""))

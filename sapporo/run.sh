@@ -6,8 +6,8 @@ function run_wf() {
   download_workflow_attachment
   echo "RUNNING" >${state}
   date +"%Y-%m-%dT%H:%M:%S" >${start_time}
-  # e.g. when wf_engine_name=cwltool, call function run_cwltool
-  local function_name="run_${wf_engine_name}"
+  # e.g. when wf_engine=cwltool, call function run_cwltool
+  local function_name="run_${wf_engine}"
   if [[ "$(type -t ${function_name})" == "function" ]]; then
     ${function_name}
     generate_outputs_list
@@ -127,7 +127,7 @@ function run_streamflow() {
 
 function cancel() {
   # Pre-cancellation procedures
-  if [[ ${wf_engine_name} == "cwltool" ]]; then
+  if [[ ${wf_engine} == "cwltool" ]]; then
     cancel_cwltool
   fi
   cancel_by_request
@@ -217,7 +217,7 @@ cmd="${run_dir}/cmd.txt"
 task_logs="${run_dir}/task.log"
 
 # Meta characters are escaped.
-wf_engine_name=$(jq -r ".workflow_engine_name" ${run_request})
+wf_engine=$(jq -r ".workflow_engine" ${run_request})
 wf_url=$(jq -r ".workflow_url" ${run_request})
 wf_engine_params=$(head -n 1 ${wf_engine_params_file})
 
