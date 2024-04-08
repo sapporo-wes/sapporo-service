@@ -217,7 +217,9 @@ cmd="${run_dir}/cmd.txt"
 task_logs="${run_dir}/task.log"
 
 # Meta characters are escaped.
-wf_engine=$(jq -r ".workflow_engine" ${run_request})
+# wf_engine=$(jq -r ".workflow_engine" ${run_request})
+# for compatibility with the sapporo-wes 1.0.1, will be deprecated in the future (TODO)
+wf_engine=$(jq -r ".workflow_engine // .workflow_engine_name" ${run_request})
 wf_url=$(jq -r ".workflow_url" ${run_request})
 wf_engine_params=$(head -n 1 ${wf_engine_params_file})
 

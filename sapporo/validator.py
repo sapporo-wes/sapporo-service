@@ -52,6 +52,9 @@ def validate_run_request(run_id: str) -> RunRequest:
 
     # Fields: require validation, but not related to the registered mode
     wf_engine = request.form.get("workflow_engine", None)
+    if wf_engine is None:  # for compatibility with the sapporo-wes 1.0.1, will be deprecated in the future (TODO)
+        wf_engine = request.form.get("workflow_engine_name", None)
+    __wf_engine_version = request.form.get("workflow_engine_version", None)  # added in WES 1.1, but not used in current impl.
     wf_attachment_str = request.form.get("workflow_attachment", None)
     wf_attachment_files = request.files.getlist("workflow_attachment")
     wf_engine = validate_wf_engine(wf_engine)
@@ -96,6 +99,7 @@ def validate_run_request(run_id: str) -> RunRequest:
         "workflow_type_version": wf_type_version,
         "tags": tags,
         "workflow_engine": wf_engine,
+        "workflow_engine_version": __wf_engine_version if __wf_engine_version is not None else "",
         "workflow_engine_parameters": wf_engine_params,
         "workflow_url": wf_url,
         "workflow_name": wf_name,
@@ -131,7 +135,7 @@ def validate_wf_attachment(run_id: str, wf_attachment_str: Optional[str], wf_att
                             "file_name": str(attached_file["file_name"]),
                             "file_url": str(attached_file["file_url"]),
                         })
-                except Exception:
+                except KeyError:
                     abort(400, "`workflow_attachment` must be a list of `AttachedFile`.")
             except json.JSONDecodeError:
                 abort(400, "`workflow_attachment` is invalid.")
@@ -184,7 +188,7 @@ def validate_wf_docs_with_no_registered_wf(wf_url: Optional[str], wf_type: Optio
             })
             wf_type = wf_type or parse_result["workflow_type"]
             wf_type_version = wf_type_version or parse_result["workflow_type_version"]
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             abort(400, "`workflow_type` and `workflow_type_version` are required.")
 
     return wf_type, wf_type_version  # type: ignore

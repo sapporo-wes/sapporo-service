@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # coding: utf-8
 # flake8: noqa: F401
-from sapporo.model.sapporo_wes_1_0_1 import (AttachedFile,
+from sapporo.model.sapporo_wes_1_1_0 import (AttachedFile,
                                              DefaultWorkflowEngineParameter,
                                              ErrorResponse, Log, ParseRequest,
                                              ParseResult, RunId,

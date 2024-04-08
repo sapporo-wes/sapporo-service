@@ -17,10 +17,9 @@ from flask import current_app, request
 from werkzeug.utils import _filename_ascii_strip_re  # type: ignore
 
 from sapporo.const import RUN_DIR_STRUCTURE, RUN_DIR_STRUCTURE_KEYS
-from sapporo.model import RunRequest, State
+from sapporo.model import AttachedFile, RunRequest, State
 from sapporo.model.factory import (generate_executable_workflows,
                                    generate_service_info)
-from sapporo.model.sapporo_wes_1_0_1 import AttachedFile
 
 
 def resolve_run_dir_path(run_id: str) -> Path:

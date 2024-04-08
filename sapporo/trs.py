@@ -82,7 +82,7 @@ def get_wfs_via_api(trs_endpoint: str) -> List[Workflow]:
                             })
                     if wf["workflow_url"] != "":
                         wfs.append(wf)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             pass
     return wfs
 
