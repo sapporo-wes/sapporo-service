@@ -8,7 +8,7 @@ from flask import Flask, Response, current_app, jsonify
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
 
-from sapporo.auth import apply_jwt_manager
+from sapporo.auth import apply_jwt_manager, generate_jwt_public_key
 from sapporo.config import Config, get_config, parse_args, validate_config
 from sapporo.controller import app_bp
 from sapporo.model import ErrorResponse
@@ -51,9 +51,22 @@ def create_app(config: Config) -> Flask:
     with config["auth_config"].open(mode="r", encoding="utf-8") as f:
         auth_config = json.load(f)
         auth_enabled = auth_config["auth_enabled"]
-        jwt_secret_key = auth_config["jwt_secret_key"]
-        auth_users = auth_config["users"]
+        auth_provider = auth_config["auth_provider"]
+
     if auth_enabled:
+        if auth_provider == "local":
+            app.config.update({
+                "JWT_SECRET_KEY": auth_config["local_auth"]["jwt_secret_key"],
+                "AUTH_USERS": auth_config["local_auth"]["users"],
+            })
+        elif auth_provider == "oidc":
+            JWT_ALGORITHM = "RS256"
+            jwt_public_key = generate_jwt_public_key(auth_config["oidc_auth"]["realm_url"], JWT_ALGORITHM)
+            app.config.update({
+                "JWT_ALGORITHM": JWT_ALGORITHM,
+                "JWT_PUBLIC_KEY": jwt_public_key,
+                "JWT_IDENTITY_CLAIM": auth_config["oidc_auth"]["username_claim"],
+            })
         apply_jwt_manager(app)
 
     app.config.update({
@@ -67,8 +80,6 @@ def create_app(config: Config) -> Flask:
         "RUN_SH": config["run_sh"],
         "URL_PREFIX": config["url_prefix"],
         "AUTH_ENABLED": auth_enabled,
-        "JWT_SECRET_KEY": jwt_secret_key,
-        "AUTH_USERS": auth_users,
         "FLASK_ENV": "development" if config["debug"] else "production",
         "DEBUG": config["debug"],
         "TESTING": config["debug"],

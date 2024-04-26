@@ -219,32 +219,51 @@ For more information on RO-Crate, please also refer to [`./tests/ro-crate`](./te
 
 ### Authentication
 
-The sapporo-service supports authentication using JWT.
-The configuration for this authentication is managed through [`./sapporo/auth_config.json`](./sapporo/auth_config.json) file.
-By default, the file is set up as follows:
+The sapporo-service supports authentication, configurable via the [`./sapporo/auth_config.json`](./sapporo/auth_config.json).
+By default, this configuration is as follows:
 
 ```json
 {
   "auth_enabled": false,
-  "jwt_secret_key": "spr_secret_key_please_change_this",
-  "users": [
-    {
-      "username": "spr_test_user",
-      "password": "spr_test_password"
-    }
-  ]
+  "auth_provider": "local",
+  "local_auth": {
+    "jwt_secret_key": "spr_secret_key_please_change_this",
+    "users": [
+      {
+        "username": "spr_test_user",
+        "password": "spr_test_password"
+      }
+    ]
+  },
+  "oidc_auth": {
+    "realm_url": "http://localhost:8080/realms/sapporo-dev",
+    "username_claim": "sub"
+  }
 }
 ```
 
-You can edit this file directly, or, you can change its location using the startup argument `--auth-config` or the environment variable `SAPPORO_AUTH_CONFIG`.
+This configuration file can be directly edited or relocated using the `--auth-config` startup argument or the `SAPPORO_AUTH_CONFIG` environment variable.
 
-The file contains the following fields:
+#### Configuration Fields
 
-- `auth_enabled`: Determines whether JWT authentication is enabled. If set to `true`, JWT authentication is activated.
-- `jwt_secret_key`: The secret key used for signing the JWT. It is strongly recommended to change this value.
-- `users`: A list of users who will perform JWT authentication. Specify `username` and `password`.
+- `auth_enabled`: Determines if JWT authentication is activated. If set to `true`, JWT authentication is enabled.
+- `auth_provider`: Specifies the type of authentication provider, supporting:
+  - `local`: Uses a locally managed list of users for authentication.
+    - Tokens are issued by Sapporo.
+    - Usernames and passwords are referenced from the `auth_config.json`.
+  - `oidc`: Uses an OpenID Connect (OIDC) provider like [Keycloak](https://www.keycloak.org).
+    - Tokens are issued by the OIDC provider.
+    - User information is managed by the OIDC provider.
+- `local_auth`: Configuration for local authentication includes:
+  - `jwt_secret_key`: Secret key for signing JWTs. Changing this key is highly recommended.
+  - `users`: List of users eligible for JWT authentication, specifying username and password.
+- `oidc_auth`: Configuration for OIDC authentication includes:
+  - `realm_url`: URL of the OIDC realm.
+  - `username_claim`: JWT claim used as the username.
 
-When JWT authentication is enabled, the following endpoints require authentication:
+#### Authentication Endpoints
+
+When JWT authentication is enabled, endpoints requiring authentication include:
 
 - `GET /runs`
 - `POST /runs`
@@ -253,29 +272,37 @@ When JWT authentication is enabled, the following endpoints require authenticati
 - `GET /runs/{run_id}/status`
 - `GET /runs/{run_id}/data`
 
-Additionally, each run is associated with a `username`, so that, for example, only the user who created the run can access `GET /runs/{run_id}`.
+Each run is associated with a `username`, ensuring that only the user who created a run can access details like `GET /runs/{run_id}`.
 
-Let's take a look at how to use JWT authentication.
-First, edit the `auth-config.json` as follows:
+#### Local Authentication
+
+For local JWT authentication, configure `auth_config.json` as shown:
 
 ```json
 {
   "auth_enabled": true,
-  "jwt_secret_key": "spr_secret_key_please_change_this",
-  "users": [
-    {
-      "username": "spr_test_user1",
-      "password": "spr_test_password1"
-    },
-    {
-      "username": "spr_test_user2",
-      "password": "spr_test_password2"
-    }
-  ]
+  "auth_provider": "local",
+  "local_auth": {
+    "jwt_secret_key": "new_secret_key",
+    "users": [
+      {
+        "username": "user1",
+        "password": "password1"
+      },
+      {
+        "username": "user2",
+        "password": "password2"
+      }
+    ]
+  },
+  "oidc_auth": {
+    "realm_url": "http://localhost:8080/realms/sapporo-dev",
+    "username_claim": "sub"
+  }
 }
 ```
 
-With this configuration, if you start the sapporo-service, `GET /service-info` will return a result, but `GET /runs` will require authentication.
+Starting sapporo-service with this configuration allows access to the `GET /service-info` endpoint, while `GET /runs` will require authentication:
 
 ```bash
 # Start sapporo-service
@@ -288,87 +315,22 @@ $ curl -X GET localhost:1122/service-info
   "contact_info_url": "https://github.com/sapporo-wes/sapporo-service",
 ...
 
-# GET /runs
-$ curl -X GET localhost:1122/runs
-{
-  "msg": "Missing Authorization Header",
-  "status": 401
-}
-```
-
-Here, you can generate a JWT required for authentication by sending a `POST /auth` request with `username` and `password` as follows:
-
-```bash
-$ curl -X POST \
+# Generate JWT for authentication
+$ TOKEN=$(curl -s -X POST \
     -H "Content-Type: application/json" \
-    -d '{"username":"spr_test_user1", "password":"spr_test_password1"}' \
-    localhost:1122/auth
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNjQyODY2MCwianRpIjoiY2I5ZTU1MDgtN2RlNy00Y2EzLWE4NjYtN2ZlYmRmYTg4YWQ0IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6InNwcl90ZXN0X3VzZXIxIiwibmJmIjoxNzA2NDI4NjYwLCJjc3JmIjoiZjdlZjNhZmYtMTVlZS00OTc2LTkxYzYtOTU2ZDZjZTVjYmQ5IiwiZXhwIjoxNzA2NDI5NTYwfQ.zyD7Ru72eD_9mJj548DS-qDk8Y5yan-rNbklWmfvcEs"
-}
-```
-
-If you attach this generated JWT to the Authorization header and send it to `GET /runs`, the authentication will pass.
-
-```bash
-$ TOKEN1=$(curl -s -X POST \
-    -H "Content-Type: application/json" \
-    -d '{"username":"spr_test_user1", "password":"spr_test_password1"}' \
+    -d '{"username":"user1", "password":"password1"}' \
     localhost:1122/auth | jq -r '.access_token')
 
-$ curl -X GET -H "Authorization: Bearer $TOKEN1" localhost:1122/runs
+# Authenticate and access runs
+$ curl -X GET -H "Authorization: Bearer $TOKEN" localhost:1122/runs
 {
   "runs": []
 }
 ```
 
-Let's also confirm that User2 cannot access the run executed by User1.
+#### OpenID Connect (OIDC) Authentication
 
-```bash
-$ TOKEN1=$(curl -s -X POST \
-    -H "Content-Type: application/json" \
-    -d '{"username":"spr_test_user1", "password":"spr_test_password1"}' \
-    localhost:1122/auth | jq -r '.access_token')
-$ TOKEN2=$(curl -s -X POST \
-    -H "Content-Type: application/json" \
-    -d '{"username":"spr_test_user2", "password":"spr_test_password2"}' \
-    localhost:1122/auth | jq -r '.access_token')
-
-# Execute a run with User1
-# Please refer to ./tests/curl_example/cwltool_remote_workflow.sh for example
-# Run ID: af95fd09-8406-4f2c-9280-bca900e07289
-
-# GET /runs with User1
-$ curl -X GET -H "Authorization: Bearer $TOKEN1" localhost:1122/runs
-{
-  "runs": [
-    {
-      "run_id": "af95fd09-8406-4f2c-9280-bca900e07289",
-      "state": "COMPLETE"
-    }
-  ]
-}
-
-# GET /runs/{run_id} with User1
-$ curl -X GET -H "Authorization: Bearer $TOKEN1" localhost:1122/runs/af95fd09-8406-4f2c-9280-bca900e07289
-{
-  "outputs": [
-    {
-      ...
-
-# GET /runs with User2
-$ curl -X GET -H "Authorization: Bearer $TOKEN2" localhost:1122/runs
-{
-  "runs": []
-}
-
-# GET /runs/{run_id} with User2
-$ curl -X GET -H "Authorization: Bearer $TOKEN2" localhost:1122/runs/af95fd09-8406-4f2c-9280-bca900e07289
-{
-  "msg": "You don't have permission to access this run.",
-  "status_code": 403
-}
-```
+For OIDC authentication, ensure the `auth_provider` is set to `oidc` and appropriate configurations are specified under `oidc_auth`. Users must obtain a token from the OIDC provider and attach it to the Authorization header for authentication.
 
 ## Development
 

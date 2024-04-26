@@ -36,7 +36,6 @@ def post_auth() -> Response:
         abort(401, "username and password are required.")
 
     auth = False
-    print(current_app.config["AUTH_USERS"])
     for user in current_app.config["AUTH_USERS"]:
         if user["username"] == username and user["password"] == password:
             auth = True

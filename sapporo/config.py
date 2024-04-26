@@ -47,6 +47,7 @@ class TypedNamespace(Namespace):
     executable_workflows: Optional[Path]
     run_sh: Optional[Path]
     url_prefix: Optional[str]
+    auth_config: Optional[Path]
 
 
 def parse_args(args: Optional[List[str]] = None) -> TypedNamespace:

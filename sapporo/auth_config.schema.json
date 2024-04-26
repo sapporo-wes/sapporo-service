@@ -4,36 +4,86 @@
   "type": "object",
   "properties": {
     "auth_enabled": {
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Enable or disable the authentication"
     },
-    "jwt_secret_key": {
-      "type": "string"
+    "auth_provider": {
+      "type": "string",
+      "description": "Specifies the type of authentication provider to use",
+      "enum": [
+        "local",
+        "oidc"
+      ]
     },
-    "users": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "username": {
-            "type": "string"
-          },
-          "password": {
-            "type": "string"
-          }
+    "local_auth": {
+      "type": "object",
+      "description": "Settings for local authentication using JWT",
+      "properties": {
+        "jwt_secret_key": {
+          "type": "string",
+          "description": "The secret key used to sign JWTs"
         },
-        "additionalProperties": false,
-        "required": [
-          "username",
-          "password"
-        ]
+        "users": {
+          "type": "array",
+          "description": "List of users allowed to authenticate",
+          "items": {
+            "type": "object",
+            "properties": {
+              "username": {
+                "type": "string"
+              },
+              "password": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "username",
+              "password"
+            ]
+          },
+          "additionalItems": false
+        }
       },
-      "additionalItems": true
+      "additionalProperties": false,
+      "required": [
+        "jwt_secret_key",
+        "users"
+      ]
+    },
+    "oidc_auth": {
+      "type": "object",
+      "description": "Settings for OpenID Connect authentication",
+      "properties": {
+        "realm_url": {
+          "type": "string",
+          "description": "URL to the OIDC realm"
+        },
+        "username_claim": {
+          "type": "string",
+          "description": "JWT claim used as the username"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "realm_url",
+        "username_claim"
+      ]
     }
   },
   "additionalProperties": false,
   "required": [
     "auth_enabled",
-    "jwt_secret_key",
-    "users"
-  ]
+    "auth_provider"
+  ],
+  "dependencies": {
+    "auth_provider": {
+      "local": [
+        "local_auth"
+      ],
+      "ordc": [
+        "oidc_auth"
+      ]
+    }
+  }
 }

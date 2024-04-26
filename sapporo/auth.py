@@ -1,9 +1,11 @@
 from functools import wraps
 from typing import Any, Callable
 
+import requests
 from flask import Flask, current_app, jsonify
 from flask.typing import ResponseReturnValue
 from flask_jwt_extended import JWTManager, jwt_required
+from jwt.algorithms import RSAAlgorithm
 
 
 def conditional_jwt_required(fn: Callable[..., Any]) -> Callable[..., Any]:
@@ -66,3 +68,24 @@ def apply_jwt_manager(app: Flask) -> None:
     jwt.needs_fresh_token_loader(needs_fresh_token_callback)
     jwt.revoked_token_loader(revoked_token_callback)
     jwt.token_verification_failed_loader(token_verification_failed_callback)
+
+
+def urljoin(*args: str) -> str:
+    return "/".join(map(lambda x: str(x).rstrip("/"), args))
+
+
+def generate_jwt_public_key(realm_url: str, jwt_algorithm: str = "RS256") -> RSAAlgorithm:
+    if jwt_algorithm != "RS256":
+        raise ValueError(f"Unsupported JWT algorithm: {jwt_algorithm}")
+        # TODO: Support other algorithms
+    ordc_config = requests.get(
+        urljoin(realm_url, ".well-known/openid-configuration"),
+        timeout=5
+    ).json()
+    oidc_jwks = requests.get(ordc_config["jwks_uri"], timeout=5).json()
+    try:
+        oidc_jwk = next(key for key in oidc_jwks["keys"] if key["alg"] == jwt_algorithm)
+    except StopIteration as e:
+        raise ValueError(f"JWK for {jwt_algorithm} not found") from e
+
+    return RSAAlgorithm.from_jwk(oidc_jwk)  # type: ignore

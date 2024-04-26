@@ -35,6 +35,7 @@ setup(
     },
     include_package_data=True,
     install_requires=[
+        "cryptography",
         "cwl-inputs-parser>=1.0.2",
         "flask_jwt_extended",
         "flask-cors",
