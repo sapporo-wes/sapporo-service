@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sapporo"
+version = "2.0.0"
+authors = [
+    { name = "DDBJ (Bioinfomatics and DDBJ Center)", email = "tazro.ohta@chiba-u.jp" },
+]
+description = "The sapporo-service is a standard implementation conforming to the Global Alliance for Genomics and Health (GA4GH) Workflow Execution Service (WES) API specification."
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.8"
+keywords = ["workflow", "WES", "GA4GH-WES", "bioinformatics"]
+license = { text = "Apache-2.0" }
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+dependencies = [
+    "fastapi",
+    "httpx",
+    "pydantic",
+    "pyjwt",
+    "python-multipart",
+    "pyyaml",
+    "uvicorn[standard]",
+]
+
+[project.urls]
+Homepage = "https://github.com/sapporo-wes/sapporo-service"
+Documentation = "https://github.com/sapporo-wes/sapporo-service/blob/main/README.md"
+Repository = "https://github.com/sapporo-wes/sapporo-service.git"
+
+[project.optional-dependencies]
+tests = []
+
+[project.scripts]
+sapporo = "sapporo.app:main"
+
+[tool.setuptools]
+packages = ["sapporo"]
+
+[tool.setuptools.package-data]
+sapporo = []

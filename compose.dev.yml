@@ -1,4 +1,3 @@
-version: "3.5"
 services:
   app:
     build:
@@ -13,25 +12,14 @@ services:
       - ${PWD}/run:${PWD}/run
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp:/tmp
-    environment:
-      # Priority: [Command Line Argument] -> [Environment Variable] -> [Default Values]
-      - SAPPORO_HOST=0.0.0.0
-      - SAPPORO_PORT=1122
-      - SAPPORO_DEBUG=True
-      - SAPPORO_RUN_DIR=${PWD}/run
-      # - SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS=30
-      # - SAPPORO_GET_RUNS=True
-      # - SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS=False
-      # - SAPPORO_ACCESS_CONTROL_ALLOW_ORIGIN=*
-      # - SAPPORO_URL_PREFIX=/
     ports:
       - 127.0.0.1:1122:1122
     restart: on-failure
     working_dir: /app
-    command: [ "sleep", "infinity" ]
+    command: ["sleep", "infinity"]
     networks:
-      - sapporo
+      - sapporo-dev-network
 
 networks:
-  sapporo:
-    name: sapporo-network
+  sapporo-dev-network:
+    name: sapporo-dev-network

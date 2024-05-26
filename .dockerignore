@@ -2,8 +2,6 @@
 **
 
 !LICENSE
-!MANIFEST.in
+!pyproject.toml
 !README.md
 !sapporo
-!sapporo-wes-1-1-0-openapi-spec.yml
-!setup.py

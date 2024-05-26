@@ -1,31 +1,11 @@
-FROM python:3.8.18-bullseye
-
-RUN apt update && \
-    apt install -y --no-install-recommends \
-    curl \
-    jq \
-    libmagic-dev \
-    libxml2 \
-    tini && \
-    apt clean && \
-    rm -rf /var/lib/apt/lists/*
-
-WORKDIR /tmp
-RUN curl -O https://download.docker.com/linux/static/stable/$(uname -m)/docker-24.0.7.tgz && \
-    tar -xzf docker-24.0.7.tgz && \
-    mv docker/* /usr/bin/ && \
-    rm -rf docker docker-24.0.7.tgz
+FROM python:3.10.14-bookworm
 
 WORKDIR /app
 COPY . .
-RUN python3 -m pip install --no-cache-dir --progress-bar off -U pip setuptools wheel && \
+RUN python3 -m pip install --no-cache-dir --progress-bar off -U pip && \
     python3 -m pip install --no-cache-dir --progress-bar off -e .[tests]
-
-ENV SAPPORO_HOST 0.0.0.0
-ENV SAPPORO_PORT 1122
-ENV SAPPORO_DEBUG True
 
 EXPOSE 1122
 
-ENTRYPOINT ["tini", "--"]
+ENTRYPOINT []
 CMD ["sleep", "infinity"]
