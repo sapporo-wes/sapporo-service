@@ -150,8 +150,12 @@ class DefaultWorkflowEngineParameter(BaseModel):
     }
 
 
+# Changes as sapporo-wes-2.0.0:
+# - default_workflow_engine_parameters:
+#   - original wes-1.1.0: List[DefaultWorkflowEngineParameter]
+#   - sapporo-wes-2.0.0: Dict[str, List[DefaultWorkflowEngineParameter]]
 class ServiceInfo(Service):
-    workflow_type_version: WorkflowTypeVersion = Field(...)
+    workflow_type_versions: Dict[str, WorkflowTypeVersion] = Field(...)
     supported_wes_versions: List[str] = Field(
         ...,
         description=GA4GH_WES_SCHEMAS["ServiceInfo"]["allOf"][1]["properties"]["supported_wes_versions"]["description"],
@@ -161,7 +165,7 @@ class ServiceInfo(Service):
         description=GA4GH_WES_SCHEMAS["ServiceInfo"]["allOf"][1]["properties"]["supported_filesystem_protocols"]["description"],
     )
     workflow_engine_versions: Dict[str, WorkflowEngineVersion] = Field(...)
-    default_workflow_engine_parameters: List[DefaultWorkflowEngineParameter] = Field(
+    default_workflow_engine_parameters: Dict[str, List[DefaultWorkflowEngineParameter]] = Field(
         ...,
         description=GA4GH_WES_SCHEMAS["ServiceInfo"]["allOf"][1]["properties"]["default_workflow_engine_parameters"]["description"],
     )

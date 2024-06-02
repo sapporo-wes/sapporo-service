@@ -1,0 +1,96 @@
+{
+  "workflow_type_versions": {
+    "CWL": {
+      "workflow_type_version": [
+        "v1.0",
+        "v1.1",
+        "v1.2"
+      ]
+    },
+    "WDL": {
+      "workflow_type_version": [
+        "1.0"
+      ]
+    },
+    "NFL": {
+      "workflow_type_version": [
+        "1.0",
+        "DSL2"
+      ]
+    },
+    "SMK": {
+      "workflow_type_version": [
+        "1.0"
+      ]
+    },
+    "StreamFlow": {
+      "workflow_type_version": [
+        "v1.0"
+      ]
+    }
+  },
+  "supported_filesystem_protocols": [
+    "file",
+    "http",
+    "https",
+    "s3"
+  ],
+  "workflow_engine_versions": {
+    "cwltool": {
+      "workflow_engine_version": [
+        "3.1.20240112164112"
+      ]
+    },
+    "nextflow": {
+      "workflow_engine_version": [
+        "22.04.4"
+      ]
+    },
+    "toil (experimental)": {
+      "workflow_engine_version": [
+        "4.1.0"
+      ]
+    },
+    "cromwell": {
+      "workflow_engine_version": [
+        "80"
+      ]
+    },
+    "snakemake": {
+      "workflow_engine_version": [
+        "v7.8.3"
+      ]
+    },
+    "ep3 (experimental)": {
+      "workflow_engine_version": [
+        "v1.7.0"
+      ]
+    },
+    "streamflow": {
+      "workflow_engine_version": [
+        "0.1.3"
+      ]
+    }
+  },
+  "default_workflow_engine_parameters": {
+    "nextflow": [
+      {
+        "name": "-dsl1",
+        "type": "str",
+        "default_value": ""
+      }
+    ],
+    "snakemake": [
+      {
+        "name": "--cores",
+        "type": "int",
+        "default_value": "1"
+      },
+      {
+        "name": "--use-conda",
+        "type": "str",
+        "default_value": ""
+      }
+    ]
+  }
+}

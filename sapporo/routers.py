@@ -3,6 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Form, Query, UploadFile
 
 from sapporo.config import GA4GH_WES_SPEC
+from sapporo.factory import create_service_info
 from sapporo.schemas import (RunId, RunListResponse, RunLog, RunStatus,
                              ServiceInfo, TaskListResponse, TaskLog)
 
@@ -16,7 +17,9 @@ router = APIRouter()
     response_model=ServiceInfo
 )
 async def service_info() -> ServiceInfo:
-    raise NotImplementedError("Not implemented")
+    service_info = create_service_info()
+    # TODO update system_state_count
+    return service_info
 
 
 @router.get(
