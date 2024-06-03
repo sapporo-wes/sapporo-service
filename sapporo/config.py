@@ -1,9 +1,10 @@
+import logging
 import os
 import sys
 from argparse import ArgumentParser, Namespace
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import yaml
 from pydantic import BaseModel
@@ -158,3 +159,35 @@ def get_config() -> AppConfig:
     )
 
 # === Logging ===
+
+
+# Ref.: https://github.com/encode/uvicorn/blob/master/uvicorn/config.py
+def logging_config(debug: bool = False) -> Dict[str, Any]:
+    return {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {
+                "()": "uvicorn.logging.DefaultFormatter",
+                "fmt": "%(levelprefix)s %(message)s",
+                "use_colors": True,
+            }
+        },
+        "handlers": {
+            "default": {
+                "formatter": "default",
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stderr",
+            }
+        },
+        "loggers": {
+            "sapporo": {
+                "handlers": ["default"],
+                "level": "DEBUG" if debug else "INFO",
+                "propagate": False
+            }
+        }
+    }
+
+
+LOGGER = logging.getLogger("sapporo")

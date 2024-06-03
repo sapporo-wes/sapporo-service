@@ -12,6 +12,12 @@ services:
       - ${PWD}/run:${PWD}/run
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp:/tmp
+    environment:
+      # Priority: [CLI Args] -> [Env Vals] -> [Defaults]
+      - SAPPORO_HOST=0.0.0.0
+      - SAPPORO_PORT=1122
+      - SAPPORO_DEBUG=True
+      - SAPPORO_RUN_DIR=${PWD}/run
     ports:
       - 127.0.0.1:1122:1122
     restart: on-failure

@@ -1,7 +1,11 @@
+import logging.config
+
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from sapporo.config import PKG_DIR, AppConfig, get_config
+from sapporo.config import (LOGGER, PKG_DIR, AppConfig, get_config,
+                            logging_config)
 from sapporo.factory import create_service_info
 from sapporo.routers import router
 
@@ -25,14 +29,22 @@ def validate_initial_state(app_config: AppConfig) -> None:
 def create_app() -> FastAPI:
     app = FastAPI()
     app.include_router(router)
-    _app_config = get_config()
+    app_config = get_config()
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[app_config.allow_origin],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     return app
 
 
 def main() -> None:
     app_config = get_config()  # Cache the config
-    # TODO logging app_config
+    logging.config.dictConfig(logging_config(app_config.debug))
+    LOGGER.debug("App config: %s", app_config)
     validate_initial_state(app_config)
     uvicorn.run(
         "sapporo.app:create_app",

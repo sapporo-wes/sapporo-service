@@ -51,4 +51,4 @@ sapporo = "sapporo.app:main"
 packages = ["sapporo"]
 
 [tool.setuptools.package-data]
-sapporo = []
+sapporo = ["sapporo/service_info.json"] # TODO: check

@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Form, Query, UploadFile
 
-from sapporo.config import GA4GH_WES_SPEC
+from sapporo.config import GA4GH_WES_SPEC, LOGGER
 from sapporo.factory import create_service_info
 from sapporo.schemas import (RunId, RunListResponse, RunLog, RunStatus,
                              ServiceInfo, TaskListResponse, TaskLog)
@@ -16,7 +16,7 @@ router = APIRouter()
     description=GA4GH_WES_SPEC["paths"]["/service-info"]["get"]["description"],
     response_model=ServiceInfo
 )
-async def service_info() -> ServiceInfo:
+async def get_service_info() -> ServiceInfo:
     service_info = create_service_info()
     # TODO update system_state_count
     return service_info
@@ -64,7 +64,7 @@ async def run_workflow(
     summary=GA4GH_WES_SPEC["paths"]["/runs/{run_id}"]["get"]["summary"],
     description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}"]["get"]["description"],
 )
-async def get_run(
+async def get_run_log(
     run_id: str
 ) -> RunLog:
     raise NotImplementedError("Not implemented")
@@ -86,7 +86,7 @@ async def get_run_status(
     summary=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/tasks"]["get"]["summary"],
     description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/tasks"]["get"]["description"],
 )
-async def get_run_tasks(
+async def list_tasks(
     run_id: str,
     page_size: Optional[int] = Query(
         None,
@@ -105,7 +105,7 @@ async def get_run_tasks(
     summary=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/tasks/{task_id}"]["get"]["summary"],
     description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/tasks/{task_id}"]["get"]["description"],
 )
-async def get_run_task(
+async def get_task(
     run_id: str,
     task_id: str
 ) -> TaskLog:
