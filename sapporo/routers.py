@@ -1,11 +1,13 @@
 from typing import List, Optional
+from uuid import uuid4
 
-from fastapi import APIRouter, Form, Query, UploadFile
+from fastapi import APIRouter, File, Form, Query, UploadFile
 
 from sapporo.config import GA4GH_WES_SPEC, LOGGER
 from sapporo.factory import create_service_info
 from sapporo.schemas import (RunId, RunListResponse, RunLog, RunStatus,
                              ServiceInfo, TaskListResponse, TaskLog)
+from sapporo.validator import validate_run_request
 
 router = APIRouter()
 
@@ -47,16 +49,39 @@ async def list_runs(
 )
 async def run_workflow(
     workflow_params: Optional[str] = Form(None),
-    workflow_type: Optional[str] = Form(None),
+    workflow_type: str = Form(
+        ...,
+        description="Optional in original WES 1.1.0, but required in sapporo-wes-2.0.0.",
+    ),
     workflow_type_version: Optional[str] = Form(None),
     tags: Optional[str] = Form(None),
-    workflow_engine: Optional[str] = Form(None),
+    workflow_engine: str = Form(
+        ...,
+        description="Optional in original WES 1.1.0, but required in sapporo-wes-2.0.0.",
+    ),
     workflow_engine_version: Optional[str] = Form(None),
     workflow_engine_parameters: Optional[str] = Form(None),
     workflow_url: Optional[str] = Form(None),
-    workflow_attachment: Optional[List[UploadFile]] = Form(None),
+    workflow_attachment: List[UploadFile] = File(default_factory=list),
+    workflow_attachment_obj: Optional[str] = Form(
+        None,
+        description='Extension specific to sapporo-wes-2.0.0: e.g., [{ "file_name": "path/to/file", "file_url": "https://example.com/path/to/file" }]',
+    ),
 ) -> RunId:
-    raise NotImplementedError("Not implemented")
+    run_id = str(uuid4())
+    run_request = validate_run_request(
+        workflow_params,
+        workflow_type,
+        workflow_type_version,
+        tags,
+        workflow_engine,
+        workflow_engine_version,
+        workflow_engine_parameters,
+        workflow_url,
+        workflow_attachment,
+        workflow_attachment_obj,
+    )
+    return RunId(run_id=run_id)
 
 
 @router.get(

@@ -1,11 +1,10 @@
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
+from fastapi import UploadFile
 from pydantic import BaseModel, Field, HttpUrl
 
 from sapporo.config import GA4GH_WES_SPEC
-
-# === Schemas from https://raw.githubusercontent.com/ga4gh-discovery/ga4gh-service-info/v1.0.0/service-info.yaml ===
 
 
 class ServiceType(BaseModel):
@@ -260,7 +259,6 @@ class RunRequest(BaseModel):
         description=GA4GH_WES_SCHEMAS["RunRequest"]["properties"]["workflow_type_version"]["description"],
     )
     tags: Optional[Dict[str, str]] = Field(None)
-    workflow_engine_parameters: Optional[Dict[str, str]] = Field(None)
     workflow_engine: Optional[str] = Field(
         None,
         description=GA4GH_WES_SCHEMAS["RunRequest"]["properties"]["workflow_engine"]["description"],
@@ -269,6 +267,7 @@ class RunRequest(BaseModel):
         None,
         description=GA4GH_WES_SCHEMAS["RunRequest"]["properties"]["workflow_engine_version"]["description"],
     )
+    workflow_engine_parameters: Optional[Dict[str, str]] = Field(None)
     workflow_url: str = Field(
         ...,
         description=GA4GH_WES_SCHEMAS["RunRequest"]["properties"]["workflow_url"]["description"],
@@ -391,3 +390,42 @@ class TaskListResponse(BaseModel):
             "description": GA4GH_WES_SCHEMAS["TaskListResponse"]["description"],
         }
     }
+
+
+class ErrorResponse(BaseModel):
+    msg: str = Field(
+        ...,
+        description=GA4GH_WES_SCHEMAS["ErrorResponse"]["properties"]["msg"]["description"],
+    )
+    status_code: int = Field(
+        ...,
+        description=GA4GH_WES_SCHEMAS["ErrorResponse"]["properties"]["status_code"]["description"],
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "description": GA4GH_WES_SCHEMAS["ErrorResponse"]["description"],
+        }
+    }
+
+
+# === Schemas convenient for implementation ===
+
+
+class WorkflowAttachment(BaseModel):
+    file_name: str
+    file_url: str
+
+
+class RunRequestForm(BaseModel):
+    """
+    Schema for internal use as an intermediate representation of form data received by POST /runs.
+
+    The schema of the form data sent to POST /runs and the schema of RunRequest used internally in the app are slightly different.
+    Therefore, the form data is first converted to this intermediate RunRequestForm schema by sapporo.validator.validate_run_request before being transformed into RunRequest.
+    """
+    workflow_attachment: List[UploadFile]
+    workflow_attachment_obj: List[WorkflowAttachment]
+
+
+# === Schema extensions specific to sapporo-wes-2.0.0

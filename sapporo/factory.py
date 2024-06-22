@@ -1,7 +1,6 @@
 import json
 from functools import lru_cache
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from pydantic import TypeAdapter
 
@@ -13,7 +12,7 @@ from sapporo.utils import now_str, sapporo_version
 
 
 @lru_cache(maxsize=None)
-def create_service_info(service_info_path: Optional[Path] = None) -> ServiceInfo:
+def create_service_info() -> ServiceInfo:
     """\
     Create ServiceInfo object from service_info file and default values.
 
@@ -22,8 +21,7 @@ def create_service_info(service_info_path: Optional[Path] = None) -> ServiceInfo
 
     To enable caching, `system_state_counts` is set to an empty dict.
     """
-    if service_info_path is None:
-        service_info_path = get_config().service_info
+    service_info_path = get_config().service_info
     with service_info_path.open(mode="r", encoding="utf-8") as f:
         file_obj: Dict[str, Any] = json.load(f)
 
