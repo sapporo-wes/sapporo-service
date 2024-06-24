@@ -8,7 +8,7 @@ function run_wf() {
     local function_name="run_${wf_engine}"
     if [[ "$(type -t ${function_name})" == "function" ]]; then
         ${function_name}
-        generate_output_list
+        generate_outputs_list
     else
         executor_error
     fi
@@ -22,14 +22,14 @@ function run_wf() {
 
 function run_cwltool() {
     local container="quay.io/commonwl/cwltool:3.1.20240112164112"
-    local cmd_txt="${DOCKER_CMD} ${container} --outdir ${output_dir} ${wf_engine_params} ${wf_url} ${wf_params} 1>${stdout} 2>${stderr}"
+    local cmd_txt="${DOCKER_CMD} ${container} --outdir ${outputs_dir} ${wf_engine_params} ${wf_url} ${wf_params} 1>${stdout} 2>${stderr}"
     echo ${cmd_txt} >${cmd}
     eval ${cmd_txt} || executor_error
 }
 
 function run_nextflow() {
     local container="nextflow/nextflow:22.04.4"
-    local cmd_txt="docker run --rm ${D_SOCK} -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} nextflow -dockerize run ${wf_url} ${wf_engine_params} -params-file ${wf_params} --outdir ${output_dir} -work-dir ${exe_dir} 1>${stdout} 2>${stderr}"
+    local cmd_txt="docker run --rm ${D_SOCK} -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} nextflow -dockerize run ${wf_url} ${wf_engine_params} -params-file ${wf_params} --outdir ${outputs_dir} -work-dir ${exe_dir} 1>${stdout} 2>${stderr}"
     find ${exe_dir} -type f -exec chmod 777 {} \;
     echo ${cmd_txt} >${cmd}
     eval ${cmd_txt} || executor_error
@@ -50,11 +50,11 @@ function run_cromwell() {
     eval ${cmd_txt} || executor_error
     if [[ ${wf_type} == "CWL" ]]; then
         jq -r ".outputs[].location" "${exe_dir}/metadata.json" | while read output_file; do
-            cp ${output_file} ${output_dir}/ || true
+            cp ${output_file} ${outputs_dir}/ || true
         done
     elif [[ ${wf_type} == "WDL" ]]; then
         jq -r ".outputs | to_entries[] | .value" "${exe_dir}/metadata.json" | while read output_file; do
-            cp ${output_file} ${output_dir}/ || true
+            cp ${output_file} ${outputs_dir}/ || true
         done
     fi
 }
@@ -91,14 +91,14 @@ function run_snakemake() {
         snakemake --configfile ${wf_params} --snakefile ${wf_url_local} --summary 2>/dev/null | tail -n +2 | cut -f 1 |
         while read file_path; do
             dir_path=$(dirname ${file_path})
-            mkdir -p "${output_dir}/${dir_path}"
-            cp "${exe_dir}/${file_path}" "${output_dir}/${file_path}" 2>/dev/null || true
+            mkdir -p "${outputs_dir}/${dir_path}"
+            cp "${exe_dir}/${file_path}" "${outputs_dir}/${file_path}" 2>/dev/null || true
         done
 }
 
 function run_ep3() {
     local container="ghcr.io/tom-tan/ep3:v1.7.0"
-    local cmd_txt="${DOCKER_CMD} ${container} ep3-runner --verbose --outdir ${output_dir} ${wf_engine_params} ${wf_url} ${wf_params} 1>${stdout} 2>${stderr}"
+    local cmd_txt="${DOCKER_CMD} ${container} ep3-runner --verbose --outdir ${outputs_dir} ${wf_engine_params} ${wf_url} ${wf_params} 1>${stdout} 2>${stderr}"
     echo ${cmd_txt} >${cmd}
     eval ${cmd_txt} || executor_error
 }
@@ -117,7 +117,7 @@ function run_streamflow() {
         fi
     fi
     local container="alphaunito/streamflow:0.1.3-base"
-    local cmd_txt="docker run --mount type=bind,source=${run_dir},target=/streamflow/project --mount type=bind,source=${output_dir},target=/streamflow/results ${container} run /streamflow/project/exe/$(basename ${wf_url_local}) 1>${stdout} 2>${stderr}"
+    local cmd_txt="docker run --mount type=bind,source=${run_dir},target=/streamflow/project --mount type=bind,source=${outputs_dir},target=/streamflow/results ${container} run /streamflow/project/exe/$(basename ${wf_url_local}) 1>${stdout} 2>${stderr}"
     echo ${cmd_txt} >${cmd}
     eval ${cmd_txt} || executor_error
 }
@@ -134,8 +134,8 @@ function cancel_cwltool() {
     :
 }
 
-function generate_output_list() {
-    python3 -c "from sapporo.run import dump_output_list; dump_output_list('${run_dir}')" || executor_error
+function generate_outputs_list() {
+    python3 -c "from sapporo.run import dump_outputs_list; dump_outputs_list('${run_dir}')" || executor_error
 }
 
 function generate_ro_crate() {
@@ -168,7 +168,7 @@ aws configure set aws_secret_access_key ${secret_access_key}; \
 aws configure set default.region us-west-2; \
 aws configure set default.s3.signature_version s3v4; \
 aws --endpoint-url ${endpoint} s3api head-bucket --bucket ${bucket_name} || aws --endpoint-url ${endpoint} s3 mb s3://${bucket_name}; \
-aws --endpoint-url ${endpoint} s3 cp ${output_dir} s3://${bucket_name}/${dirname} --recursive
+aws --endpoint-url ${endpoint} s3 cp ${outputs_dir} s3://${bucket_name}/${dirname} --recursive
 " >>${export_script}
 
     local up_stdout="${run_dir}/upload.stdout.log"
@@ -198,7 +198,7 @@ run_dir=$1
 run_request="${run_dir}/run_request.json"
 state="${run_dir}/state.txt"
 exe_dir="${run_dir}/exe"
-output_dir="${run_dir}/outputs"
+outputs_dir="${run_dir}/outputs"
 outputs="${run_dir}/outputs.json"
 wf_params="${run_dir}/exe/workflow_params.json"
 start_time="${run_dir}/start_time.txt"

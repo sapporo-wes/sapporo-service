@@ -21,8 +21,8 @@ def prepare_run_dir(run_id: str, run_request: RunRequestForm) -> None:
     run_dir.mkdir(parents=True, exist_ok=True)
     exe_dir = resolve_content_path(run_id, "exe_dir")
     exe_dir.mkdir(mode=0o777, parents=True, exist_ok=True)
-    output_dir = resolve_content_path(run_id, "output_dir")
-    output_dir.mkdir(mode=0o777, parents=True, exist_ok=True)
+    outputs_dir = resolve_content_path(run_id, "outputs_dir")
+    outputs_dir.mkdir(mode=0o777, parents=True, exist_ok=True)
 
     print(run_request)
 

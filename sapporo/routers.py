@@ -96,6 +96,7 @@ async def run_workflow(
 async def get_run_log(
     run_id: str
 ) -> RunLog:
+
     raise NotImplementedError("Not implemented")
 
 

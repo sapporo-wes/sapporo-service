@@ -6,8 +6,8 @@ from pydantic import TypeAdapter
 
 from sapporo.config import get_config
 from sapporo.schemas import (DefaultWorkflowEngineParameter, Organization,
-                             ServiceInfo, ServiceType, WorkflowEngineVersion,
-                             WorkflowTypeVersion)
+                             RunLog, ServiceInfo, ServiceType,
+                             WorkflowEngineVersion, WorkflowTypeVersion)
 from sapporo.utils import now_str, sapporo_version
 
 
@@ -59,4 +59,16 @@ def create_service_info() -> ServiceInfo:
         system_state_counts={},  # Empty dict to enable caching
         auth_instructions_url=file_obj.get("auth_instructions_url", "https://github.com/sapporo-wes/sapporo-service/blob/main/README.md#authentication"),
         tags=file_obj.get("tags", {}),
+    )
+
+
+def create_run_log(run_id: str) -> RunLog:
+    return RunLog(
+        run_id=run_id,
+        request=None,
+        state=None,
+        run_log=None,
+        task_logs_url=None,
+        task_logs=None,
+        outputs=None,
     )
