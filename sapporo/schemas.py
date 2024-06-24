@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
 from fastapi import UploadFile
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, field_serializer
 
 from sapporo.config import GA4GH_WES_SPEC
 
@@ -417,7 +417,7 @@ class WorkflowAttachment(BaseModel):
     file_url: str
 
 
-class RunRequestForm(BaseModel):
+class RunRequestForm(RunRequest):
     """
     Schema for internal use as an intermediate representation of form data received by POST /runs.
 
@@ -426,6 +426,15 @@ class RunRequestForm(BaseModel):
     """
     workflow_attachment: List[UploadFile]
     workflow_attachment_obj: List[WorkflowAttachment]
+
+    @field_serializer("workflow_attachment")
+    def serialize_workflow_attachment(self, value: List[UploadFile]) -> List[Dict[str, Any]]:
+        return [{
+            "filename": file.filename,
+            "size": file.size,
+            "headers": dict(file.headers.items()),
+            "content_type": file.content_type,
+        } for file in value]
 
 
 # === Schema extensions specific to sapporo-wes-2.0.0

@@ -4,7 +4,7 @@ import sys
 from argparse import ArgumentParser, Namespace
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import yaml
 from pydantic import BaseModel
@@ -26,8 +26,6 @@ class AppConfig(BaseModel):
     port: int = 1122
     debug: bool = False
     run_dir: Path = Path.cwd().joinpath("runs")
-    get_runs: bool = True
-    workflow_attachment: bool = True
     registered_only_mode: bool = False
     service_info: Path = PKG_DIR.joinpath("service_info.json")
     executable_workflows: Path = PKG_DIR.joinpath("executable_workflows.json")
@@ -49,13 +47,13 @@ def parse_args(args: Optional[List[str]] = None) -> Namespace:
         "--host",
         type=str,
         metavar="",
-        help="The host address for the service. (default: 127.0.0.1)"
+        help="Host address for the service. (default: 127.0.0.1)"
     )
     parser.add_argument(
         "--port",
         type=int,
         metavar="",
-        help="The port number for the service. (default: 1122)"
+        help="Port number for the service. (default: 1122)"
     )
     parser.add_argument(
         "--debug",
@@ -67,16 +65,6 @@ def parse_args(args: Optional[List[str]] = None) -> Namespace:
         type=Path,
         metavar="",
         help="Directory where the runs are stored. (default: ./runs)"
-    )
-    parser.add_argument(
-        "--disable-get-runs",
-        action="store_true",
-        help="Disable the GET /runs endpoint."
-    )
-    parser.add_argument(
-        "--disable-workflow-attachment",
-        action="store_true",
-        help="Disable workflow attachment handling on the POST /runs endpoint."
     )
     parser.add_argument(
         "--run-only-registered-workflows",
@@ -145,9 +133,6 @@ def get_config() -> AppConfig:
         port=args.port or int(os.environ.get("SAPPORO_PORT", default_config.port)),
         debug=args.debug or str2bool(os.environ.get("SAPPORO_DEBUG", default_config.debug)),
         run_dir=args.run_dir or Path(os.environ.get("SAPPORO_RUN_DIR", default_config.run_dir)),
-        get_runs=False if args.disable_get_runs else str2bool(os.environ.get("SAPPORO_GET_RUNS", default_config.get_runs)),
-        workflow_attachment=False if args.disable_workflow_attachment else str2bool(
-            os.environ.get("SAPPORO_WORKFLOW_ATTACHMENT", default_config.workflow_attachment)),
         registered_only_mode=True if args.run_only_registered_workflows else str2bool(
             os.environ.get("SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS", default_config.registered_only_mode)),
         service_info=args.service_info or Path(os.environ.get("SAPPORO_SERVICE_INFO", default_config.service_info)),
@@ -157,6 +142,7 @@ def get_config() -> AppConfig:
         allow_origin=args.allow_origin or os.environ.get("SAPPORO_ALLOW_ORIGIN", default_config.allow_origin),
         auth_config=args.auth_config or Path(os.environ.get("SAPPORO_AUTH_CONFIG", default_config.auth_config)),
     )
+
 
 # === Logging ===
 
@@ -191,3 +177,42 @@ def logging_config(debug: bool = False) -> Dict[str, Any]:
 
 
 LOGGER = logging.getLogger("sapporo")
+
+
+# === Const ===
+
+
+RUN_DIR_STRUCTURE: Dict[str, str] = {
+    "run_request": "run_request.json",
+    "state": "state.txt",
+    "exe_dir": "exe",
+    "output_dir": "output",
+    "output": "output.json",
+    "wf_params": "exe/workflow_params.json",
+    "start_time": "start_time.txt",
+    "end_time": "end_time.txt",
+    "exit_code": "exit_code.txt",
+    "stdout": "stdout.log",
+    "stderr": "stderr.log",
+    "pid": "run.pid",
+    "wf_engine_params": "workflow_engine_params.txt",
+    "cmd": "cmd.txt",
+}
+
+
+RUN_DIR_STRUCTURE_KEYS = Literal[
+    "run_request",
+    "state",
+    "exe_dir",
+    "output_dir",
+    "output",
+    "wf_params",
+    "start_time",
+    "end_time",
+    "exit_code",
+    "stdout",
+    "stderr",
+    "pid",
+    "wf_engine_params",
+    "cmd",
+]

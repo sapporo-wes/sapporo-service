@@ -1,10 +1,11 @@
 from typing import List, Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, File, Form, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, Query, UploadFile
 
-from sapporo.config import GA4GH_WES_SPEC, LOGGER
+from sapporo.config import GA4GH_WES_SPEC
 from sapporo.factory import create_service_info
+from sapporo.run import post_run_task, prepare_run_dir
 from sapporo.schemas import (RunId, RunListResponse, RunLog, RunStatus,
                              ServiceInfo, TaskListResponse, TaskLog)
 from sapporo.validator import validate_run_request
@@ -48,6 +49,7 @@ async def list_runs(
     description=GA4GH_WES_SPEC["paths"]["/runs"]["post"]["description"],
 )
 async def run_workflow(
+    background_tasks: BackgroundTasks,
     workflow_params: Optional[str] = Form(None),
     workflow_type: str = Form(
         ...,
@@ -81,6 +83,8 @@ async def run_workflow(
         workflow_attachment,
         workflow_attachment_obj,
     )
+    prepare_run_dir(run_id, run_request)
+    background_tasks.add_task(post_run_task, run_id, run_request)
     return RunId(run_id=run_id)
 
 

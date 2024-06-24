@@ -1,8 +1,9 @@
+import importlib.metadata
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Union
-
-import pkg_resources
+from unicodedata import normalize
 
 
 def str2bool(val: Union[str, bool]) -> bool:
@@ -28,4 +29,49 @@ def now_str() -> str:
 
 
 def sapporo_version() -> str:
-    return pkg_resources.get_distribution("sapporo").version
+    return importlib.metadata.version("sapporo")
+
+
+_filename_char_whitelist_re = re.compile(r"[^A-Za-z0-9_.-]+")
+
+
+def secure_filepath(filepath: str) -> Path:
+    """
+    Creates a safe file path that preserves directory structures while filtering out potentially harmful or unsupported characters.
+    This function is designed to be more suitable for workflows that need to preserve directory hierarchies unlike
+    werkzeug.secure_filename(), which does not preserve directory structures, as shown below:
+
+    >>> secure_filename("../../../etc/passwd")
+    'etc_passwd'
+
+    Reference usage of `Path.parts` for understanding how parts are handled:
+
+    >>> Path("/").parts
+    ('/',)
+    >>> Path("//").parts
+    ('//',)
+    >>> Path("/foo/bar").parts
+    ('/', 'foo', 'bar')
+    >>> Path("foo/bar").parts
+    ('foo', 'bar')
+    >>> Path("/foo/bar/").parts
+    ('/', 'foo', 'bar')
+    >>> Path("./foo/bar/").parts
+    ('foo', 'bar')
+    >>> Path("/../../foo/bar//").parts
+    ('/', '..', '..', 'foo', 'bar')
+    >>> Path("/../.../foo/bar//").parts
+    ('/', '..', '...', 'foo', 'bar')
+    """
+    ascii_filepath = normalize("NFKD", filepath).encode("ascii", "ignore").decode("ascii")
+    pure_path = Path(ascii_filepath)
+    sanitized_parts = []
+    for part in pure_path.parts:
+        part = part.replace(" ", "_")
+        part = re.sub(r"\.{3,}", "", part)
+        part = _filename_char_whitelist_re.sub("", part)
+        if part not in ("", ".", ".."):
+            sanitized_parts.append(part)
+    safe_path = Path(*sanitized_parts)
+
+    return safe_path

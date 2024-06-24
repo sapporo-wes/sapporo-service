@@ -1,8 +1,8 @@
+import json
 from functools import lru_cache
 from typing import List, Optional, Tuple
 
-from fastapi import UploadFile
-from fastapi.exceptions import RequestValidationError
+from fastapi import HTTPException, UploadFile
 
 from sapporo.factory import create_service_info
 from sapporo.schemas import RunRequestForm
@@ -26,34 +26,62 @@ def validate_run_request(
     The form data is validated and converted into an intermediate RunRequestForm schema,
     which is then used to create the final RunRequest schema for internal use.
     """
-    # wf_params = json.loads(workflow_params) if workflow_params else {}
-    # if workflow_type is None:
+    _wf_params = json.loads(wf_params) if wf_params is not None else {}
+    wf_type, wf_type_version = validate_wf_type_and_version(wf_type, wf_type_version)
+    _tags = json.loads(tags) if tags is not None else {}
+    wf_engine, wf_engine_version = validate_wf_engine_type_and_version(wf_engine, wf_engine_version)
+    wf_engine_parameters = json.loads(wf_engine_parameters) if wf_engine_parameters is not None else None
+    wf_url = wf_url if wf_url is not None else ""
+    _wf_attachment_obj = json.loads(wf_attachment_obj) if wf_attachment_obj is not None else []
 
-    raise NotImplementedError("Not implemented")
-    # return RunRequestForm(
-    #     workflow_params=
-
-
-# @lru_cache(maxsize=None)
-# def validate_wf_type_and_version(
-#     wf_type: str,
-#     wf_type_version: Optional[str] = None,
-# ) -> Tuple[str, str]:
-#     """\
-#     Validate the wf_type and wf_type_version.
-#     If wf_type_version is None, get the first item from service-info.
-#     """
-#     service_info = create_service_info()
-#     wf_types = service_info.workflow_type_versions.keys()
-#     if wf_type not in wf_types:
-#         raise RequestValidationError(errors=[f"Invalid workflow_type: {wf_type}"])
-#     if wf_type_version is None:
-#         wf_type_version = service_info.workflow_type_versions[wf_type][0]
-
-#     return wf_type, wf_type_version
+    return RunRequestForm(
+        workflow_params=_wf_params,
+        workflow_type=wf_type,
+        workflow_type_version=wf_type_version,
+        tags=_tags,
+        workflow_engine=wf_engine,
+        workflow_engine_version=wf_engine_version,
+        workflow_engine_parameters=wf_engine_parameters,
+        workflow_url=wf_url,
+        workflow_attachment=wf_attachment,
+        workflow_attachment_obj=_wf_attachment_obj,
+    )
 
 
-# [{'input': None,
-#   'loc': ('body', 'workflow_engine'),
-#   'msg': 'Field required',
-#   'type': 'missing'}]
+@lru_cache(maxsize=None)
+def validate_wf_type_and_version(
+    wf_type: str,
+    wf_type_version: Optional[str] = None,
+) -> Tuple[str, str]:
+    """\
+    Validate the wf_type and wf_type_version.
+    If wf_type_version is None, get the first item from service-info.
+    """
+    service_info = create_service_info()
+    wf_types = service_info.workflow_type_versions.keys()  # pylint: disable=E1101
+
+    if wf_type not in wf_types:
+        raise HTTPException(status_code=400, detail=f"Invalid workflow_type: {wf_type}, please select from {wf_types}")
+    if wf_type_version is None:
+        wf_type_version = service_info.workflow_type_versions[wf_type].workflow_type_version[0]  # type: ignore # pylint: disable=E1136
+
+    return wf_type, wf_type_version
+
+
+@lru_cache(maxsize=None)
+def validate_wf_engine_type_and_version(
+    wf_engine: str,
+    wf_engine_version: Optional[str] = None,
+) -> Tuple[str, str]:
+    """\
+    Validate the wf_engine and wf_engine_version.
+    If wf_engine_version is None, get the first item from service-info.
+    """
+    service_info = create_service_info()
+    wf_engines = service_info.workflow_engine_versions.keys()  # pylint: disable=E1101
+    if wf_engine not in wf_engines:
+        raise HTTPException(status_code=400, detail=f"Invalid workflow_engine: {wf_engine}, please select from {wf_engines}")
+    if wf_engine_version is None:
+        wf_engine_version = service_info.workflow_engine_versions[wf_engine].workflow_engine_version[0]  # type: ignore # pylint: disable=E1136
+
+    return wf_engine, wf_engine_version
