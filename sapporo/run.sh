@@ -209,6 +209,7 @@ stderr="${run_dir}/stderr.log"
 wf_engine_params_file="${run_dir}/workflow_engine_params.txt"
 cmd="${run_dir}/cmd.txt"
 task_logs="${run_dir}/task.log"
+# TODO system_logs
 
 # Meta characters are escaped.
 # wf_engine=$(jq -r ".workflow_engine" ${run_request})

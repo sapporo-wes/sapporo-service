@@ -1,4 +1,3 @@
-import json
 import logging.config
 
 import uvicorn
@@ -66,7 +65,7 @@ def create_app() -> FastAPI:
     app_config = get_config()
     logging.config.dictConfig(logging_config(app_config.debug))
 
-    app = FastAPI()
+    app = FastAPI(root_path=app_config.url_prefix)
     app.include_router(router)
     app.add_middleware(
         CORSMiddleware,

@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 from pydantic import TypeAdapter
 
 from sapporo.config import get_config
-from sapporo.schemas import (DefaultWorkflowEngineParameter, Organization,
+from sapporo.schemas import (DefaultWorkflowEngineParameter, Log, Organization,
                              RunLog, ServiceInfo, ServiceType,
                              WorkflowEngineVersion, WorkflowTypeVersion)
 from sapporo.utils import now_str, sapporo_version
@@ -63,12 +63,31 @@ def create_service_info() -> ServiceInfo:
 
 
 def create_run_log(run_id: str) -> RunLog:
+    # Avoid circular import
+    from sapporo.run import read_file, read_state  # pylint: disable=C0415
+
     return RunLog(
         run_id=run_id,
-        request=None,
-        state=None,
-        run_log=None,
-        task_logs_url=None,
-        task_logs=None,
-        outputs=None,
+        request=read_file(run_id, "run_request"),
+        state=read_state(run_id),
+        run_log=create_log(run_id),
+        task_logs_url=None,  # not used
+        task_logs=None,  # not used
+        outputs=read_file(run_id, "outputs"),
+    )
+
+
+def create_log(run_id: str) -> Log:
+    # Avoid circular import
+    from sapporo.run import read_file  # pylint: disable=C0415
+
+    return Log(
+        name=None,  # not used
+        cmd=read_file(run_id, "cmd"),
+        start_time=read_file(run_id, "start_time"),
+        end_time=read_file(run_id, "end_time"),
+        stdout=read_file(run_id, "stdout"),
+        stderr=read_file(run_id, "stderr"),
+        exit_code=read_file(run_id, "exit_code"),
+        system_logs=read_file(run_id, "system_logs"),
     )

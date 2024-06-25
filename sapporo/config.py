@@ -30,7 +30,8 @@ class AppConfig(BaseModel):
     service_info: Path = PKG_DIR.joinpath("service_info.json")
     executable_workflows: Path = PKG_DIR.joinpath("executable_workflows.json")
     run_sh: Path = PKG_DIR.joinpath("run.sh")
-    url_prefix: str = "/"
+    url_prefix: str = ""
+    base_url: str = f"http://{'0.0.0.0' if inside_docker() else '127.0.0.1'}:1122"
     allow_origin: str = "*"
     auth_config: Path = PKG_DIR.joinpath("auth_config.json")
 
@@ -93,7 +94,13 @@ def parse_args(args: Optional[List[str]] = None) -> Namespace:
         "--url-prefix",
         type=str,
         metavar="",
-        help="URL prefix for the service endpoints. (default: /)"
+        help="URL prefix for the service endpoints. (default: '', e.g., /sapporo/api)"
+    )
+    parser.add_argument(
+        "--base-url",
+        type=str,
+        metavar="",
+        help="Base URL for downloading the output files of the executed runs. The files can be downloaded using the format: {base_url}/runs/{run_id}/outputs/{path}. (default: http://{host}:{port}{url_prefix})"
     )
     parser.add_argument(
         "--allow-origin",
@@ -128,9 +135,14 @@ def get_config() -> AppConfig:
     """
     args = parse_args(sys.argv[1:])
 
+    host = args.host or os.environ.get("SAPPORO_HOST", default_config.host)
+    port = args.port or int(os.environ.get("SAPPORO_PORT", default_config.port))
+    url_prefix = args.url_prefix or os.environ.get("SAPPORO_URL_PREFIX", default_config.url_prefix)
+    base_url = args.base_url or os.environ.get("SAPPORO_BASE_URL", f"http://{host}:{port}{url_prefix}")
+
     return AppConfig(
-        host=args.host or os.environ.get("SAPPORO_HOST", default_config.host),
-        port=args.port or int(os.environ.get("SAPPORO_PORT", default_config.port)),
+        host=host,
+        port=port,
         debug=args.debug or str2bool(os.environ.get("SAPPORO_DEBUG", default_config.debug)),
         run_dir=args.run_dir or Path(os.environ.get("SAPPORO_RUN_DIR", default_config.run_dir)),
         registered_only_mode=True if args.run_only_registered_workflows else str2bool(
@@ -138,7 +150,8 @@ def get_config() -> AppConfig:
         service_info=args.service_info or Path(os.environ.get("SAPPORO_SERVICE_INFO", default_config.service_info)),
         executable_workflows=args.executable_workflows or Path(os.environ.get("SAPPORO_EXECUTABLE_WORKFLOWS", default_config.executable_workflows)),
         run_sh=args.run_sh or Path(os.environ.get("SAPPORO_RUN_SH", default_config.run_sh)),
-        url_prefix=args.url_prefix or os.environ.get("SAPPORO_URL_PREFIX", default_config.url_prefix),
+        url_prefix=url_prefix,
+        base_url=base_url,
         allow_origin=args.allow_origin or os.environ.get("SAPPORO_ALLOW_ORIGIN", default_config.allow_origin),
         auth_config=args.auth_config or Path(os.environ.get("SAPPORO_AUTH_CONFIG", default_config.auth_config)),
     )
@@ -183,6 +196,7 @@ LOGGER = logging.getLogger("sapporo")
 
 
 RUN_DIR_STRUCTURE: Dict[str, str] = {
+    "runtime_info": "runtime_info.json",
     "run_request": "run_request.json",
     "state": "state.txt",
     "exe_dir": "exe",
@@ -197,10 +211,12 @@ RUN_DIR_STRUCTURE: Dict[str, str] = {
     "pid": "run.pid",
     "wf_engine_params": "workflow_engine_params.txt",
     "cmd": "cmd.txt",
+    "system_logs": "system_logs.json",
 }
 
 
-RUN_DIR_STRUCTURE_KEYS = Literal[
+RunDirStructureKeys = Literal[
+    "runtime_info",
     "run_request",
     "state",
     "exe_dir",
@@ -215,4 +231,5 @@ RUN_DIR_STRUCTURE_KEYS = Literal[
     "pid",
     "wf_engine_params",
     "cmd",
+    "system_logs"
 ]

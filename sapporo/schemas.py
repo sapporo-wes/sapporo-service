@@ -353,6 +353,10 @@ class TaskLog(Log):
     }
 
 
+# Changes as sapporo-wes-2.0.0:
+# - outputs:
+#   - original wes-1.1.0: Optional[Dict[str, Any]]
+#   - sapporo-wes-2.0.0: Optional[List[Dict[str, Any]]]
 class RunLog(BaseModel):
     run_id: Optional[str] = Field(
         None,
@@ -369,7 +373,7 @@ class RunLog(BaseModel):
         None,
         description=GA4GH_WES_SCHEMAS["RunLog"]["properties"]["task_logs"]["description"],
     )
-    outputs: Optional[Dict[str, Any]] = Field(
+    outputs: Optional[List[Dict[str, Any]]] = Field(
         None,
         description=GA4GH_WES_SCHEMAS["RunLog"]["properties"]["outputs"]["description"],
     )

@@ -4,7 +4,7 @@ from uuid import uuid4
 from fastapi import APIRouter, BackgroundTasks, File, Form, Query, UploadFile
 
 from sapporo.config import GA4GH_WES_SPEC
-from sapporo.factory import create_service_info
+from sapporo.factory import create_run_log, create_service_info
 from sapporo.run import post_run_task, prepare_run_dir
 from sapporo.schemas import (RunId, RunListResponse, RunLog, RunStatus,
                              ServiceInfo, TaskListResponse, TaskLog)
@@ -96,8 +96,8 @@ async def run_workflow(
 async def get_run_log(
     run_id: str
 ) -> RunLog:
-
-    raise NotImplementedError("Not implemented")
+    # TODO check run id exists
+    return create_run_log(run_id)
 
 
 @router.get(
