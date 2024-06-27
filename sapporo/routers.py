@@ -1,19 +1,23 @@
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Union
 from uuid import uuid4
 
 from fastapi import (APIRouter, BackgroundTasks, Depends, File, Form,
                      HTTPException, Query, UploadFile)
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlmodel import Session
 
 from sapporo.config import GA4GH_WES_SPEC
 from sapporo.database import (add_run_db, db_runs_to_run_summaries,
                               get_session, list_runs_db, system_state_counts)
-from sapporo.factory import (create_run_log, create_run_status,
-                             create_run_summary, create_service_info)
+from sapporo.factory import (create_outputs_list_response, create_run_log,
+                             create_run_status, create_run_summary,
+                             create_service_info)
 from sapporo.run import (cancel_run_task, delete_run_task, post_run_task,
-                         prepare_run_dir)
-from sapporo.schemas import (RunId, RunListResponse, RunLog, RunStatus,
-                             ServiceInfo, State, TaskListResponse, TaskLog)
+                         prepare_run_dir, resolve_content_path, zip_stream)
+from sapporo.schemas import (OutputsListResponse, RunId, RunListResponse,
+                             RunLog, RunStatus, ServiceInfo, State,
+                             TaskListResponse, TaskLog)
+from sapporo.utils import secure_filepath
 from sapporo.validator import validate_run_id, validate_run_request
 
 router = APIRouter()
@@ -75,7 +79,11 @@ async def list_runs(
 @router.post(
     "/runs",
     summary=GA4GH_WES_SPEC["paths"]["/runs"]["post"]["summary"],
-    description=GA4GH_WES_SPEC["paths"]["/runs"]["post"]["description"],
+    description=GA4GH_WES_SPEC["paths"]["/runs"]["post"]["description"] + """\n
+**sapporo-wes-2.0.0 extension:**
+
+- Added a field `workflow_attachment_obj`. With this field, download files from remote locations directly to the execution directory.
+""",
     response_model=RunId,
 )
 async def run_workflow(
@@ -217,9 +225,10 @@ async def cancel_run(
     "/runs/{run_id}",
     summary="DeleteRun",
     description="""\
+**sapporo-wes-2.0.0 extension:**
 Delete the run and associated files.
 If the run is in progress, it will be canceled first.
-Then, the contents of the run_dir will be deleted, but state.txt, start_time.txt, and end_time.txt will not be deleted.
+Then, the contents of the run_dir will be deleted, but `state.txt`, `start_time.txt`, and `end_time.txt` will not be deleted.
 This is because the information that the run has been deleted should be retained.
 """,
     response_model=RunId,
@@ -231,3 +240,45 @@ async def delete_run(
     validate_run_id(run_id)
     background_tasks.add_task(delete_run_task, run_id)
     return RunId(run_id=run_id)
+
+
+@router.get(
+    "/runs/{run_id}/outputs",
+    summary="ListRunOutputs",
+    description="**sapporo-wes-2.0.0 extension:** List the files in the outputs directory. If the download option is specified, download all outputs as a zip file.",
+    response_model=None,  # Union[OutputsListResponse, FileResponse],
+)
+async def get_run_outputs_list(
+    run_id: str,
+    download: bool = Query(
+        False,
+        description="Download all outputs as a zip file.",
+    ),
+) -> Union[OutputsListResponse, StreamingResponse]:
+    validate_run_id(run_id)
+    if download:
+        return StreamingResponse(
+            zip_stream(run_id),
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": f"attachment; filename=sapporo_{run_id}_outputs.zip"
+            }
+        )
+    return create_outputs_list_response(run_id)
+
+
+@router.get(
+    "/runs/{run_id}/outputs/{path:path}",
+    summary="DownloadRunOutput",
+    description="**sapporo-wes-2.0.0 extension:** Download a file in the outputs directory.",
+    response_model=None,  # FileResponse,
+)
+async def get_run_outputs(
+    run_id: str,
+    path: str
+) -> FileResponse:
+    validate_run_id(run_id)
+    file_path = resolve_content_path(run_id, "outputs_dir").joinpath(secure_filepath(path))
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"File {path} is not found.")
+    return FileResponse(file_path)

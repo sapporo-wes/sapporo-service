@@ -5,9 +5,10 @@ from typing import Any, Dict, List, Optional
 from pydantic import TypeAdapter
 
 from sapporo.config import get_config
-from sapporo.schemas import (DefaultWorkflowEngineParameter, Log, Organization,
-                             RunLog, RunRequest, RunStatus, RunSummary,
-                             ServiceInfo, ServiceType, WorkflowEngineVersion,
+from sapporo.schemas import (DefaultWorkflowEngineParameter, FileObject, Log,
+                             Organization, OutputsListResponse, RunLog,
+                             RunRequest, RunStatus, RunSummary, ServiceInfo,
+                             ServiceType, WorkflowEngineVersion,
                              WorkflowTypeVersion)
 from sapporo.utils import now_str, sapporo_version
 
@@ -69,7 +70,7 @@ def create_run_log(run_id: str) -> RunLog:
 
     # Use local var. for type hint
     request: Optional[RunRequest] = read_file(run_id, "run_request")
-    outputs: Optional[List[Dict[str, Any]]] = read_file(run_id, "outputs")
+    outputs: Optional[List[FileObject]] = read_file(run_id, "outputs")
 
     return RunLog(
         run_id=run_id,
@@ -125,11 +126,30 @@ def create_run_summary(run_id: str) -> RunSummary:
     start_time: Optional[str] = read_file(run_id, "start_time")
     end_time: Optional[str] = read_file(run_id, "end_time")
     run_request: Optional[RunRequest] = read_file(run_id, "run_request")
+    if run_request is None:
+        tags: Dict[str, str] = {}
+    else:
+        if run_request.tags is None:
+            tags = {}
+        else:
+            tags = run_request.tags
 
     return RunSummary(
         run_id=run_id,
         state=read_state(run_id),
         start_time=start_time,
         end_time=end_time,
-        tags=run_request.get("tags", {}) if run_request is not None else {},
+        tags=tags,
+    )
+
+
+def create_outputs_list_response(run_id: str) -> OutputsListResponse:
+    # Avoid circular import
+    from sapporo.run import read_file  # pylint: disable=C0415
+
+    # Use local var. for type hint
+    outputs: Optional[List[FileObject]] = read_file(run_id, "outputs")
+
+    return OutputsListResponse(
+        outputs=outputs or [],
     )

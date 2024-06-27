@@ -6,6 +6,38 @@ from pydantic import BaseModel, Field, HttpUrl, field_serializer
 
 from sapporo.config import GA4GH_WES_SPEC
 
+# === Schema extensions specific to sapporo-wes-2.0.0
+
+
+class FileObject(BaseModel):
+    file_name: str = Field(
+        ...,
+        description="File name. It is a relative path from the certain directory. That is, if the file is ./some_dir/some_file, this field is 'some_dir/some_file'.",
+    )
+    file_url: str = Field(
+        ...,
+        description="Download URL of the file.",
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "description": "**sapporo-wes-2.0.0 extension:** File object used in Workflow Attachment and Output files, etc.",
+        }
+    }
+
+
+class OutputsListResponse(BaseModel):
+    outputs: List[FileObject]
+
+    model_config = {
+        "json_schema_extra": {
+            "description": "**sapporo-wes-2.0.0 extension:** Response schema for GET /runs/{run_id}/outputs.",
+        }
+    }
+
+
+# === Schemas from https://raw.githubusercontent.com/ga4gh-discovery/ga4gh-service-info/v1.0.0/service-info.yaml ===
+
 
 class ServiceType(BaseModel):
     group: str = Field(
@@ -372,13 +404,13 @@ class RunLog(BaseModel):
         None,
         description=GA4GH_WES_SCHEMAS["RunLog"]["properties"]["task_logs"]["description"],
     )
-    outputs: Optional[List[Dict[str, Any]]] = Field(
+    outputs: Optional[List[FileObject]] = Field(
         None,
         description=GA4GH_WES_SCHEMAS["RunLog"]["properties"]["outputs"]["description"] + """\n
 **sapporo-wes-2.0.0 extension:**
 
 - original wes-1.1.0: Optional[Dict[str, Any]]
-- sapporo-wes-2.0.0: Optional[List[Dict[str, Any]]]
+- sapporo-wes-2.0.0: Optional[List[FileObject]]
 """,
     )
 
@@ -420,11 +452,6 @@ class ErrorResponse(BaseModel):
 # === Schemas convenient for implementation ===
 
 
-class WorkflowAttachment(BaseModel):
-    file_name: str
-    file_url: str
-
-
 class RunRequestForm(RunRequest):
     """
     Schema for internal use as an intermediate representation of form data received by POST /runs.
@@ -433,7 +460,7 @@ class RunRequestForm(RunRequest):
     Therefore, the form data is first converted to this intermediate RunRequestForm schema by sapporo.validator.validate_run_request before being transformed into RunRequest.
     """
     workflow_attachment: List[UploadFile]
-    workflow_attachment_obj: List[WorkflowAttachment]
+    workflow_attachment_obj: List[FileObject]
 
     @field_serializer("workflow_attachment")
     def serialize_workflow_attachment(self, value: List[UploadFile]) -> List[Dict[str, Any]]:
@@ -443,6 +470,3 @@ class RunRequestForm(RunRequest):
             "headers": dict(file.headers.items()),
             "content_type": file.content_type,
         } for file in value]
-
-
-# === Schema extensions specific to sapporo-wes-2.0.0
