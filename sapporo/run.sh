@@ -3,7 +3,7 @@ set -e
 
 function run_wf() {
     echo "RUNNING" >${state}
-    date +"%Y-%m-%dT%H:%M:%S" >${start_time}
+    # date +"%Y-%m-%dT%H:%M:%S" >${start_time}  TODO: move to prepare_run_dir
     # e.g. when wf_engine=cwltool, call function run_cwltool
     local function_name="run_${wf_engine}"
     if [[ "$(type -t ${function_name})" == "function" ]]; then
@@ -13,6 +13,7 @@ function run_wf() {
         executor_error
     fi
     upload
+    # TODO date command using utc timezone
     date +"%Y-%m-%dT%H:%M:%S" >${end_time}
     echo 0 >${exit_code}
     echo "COMPLETE" >${state}

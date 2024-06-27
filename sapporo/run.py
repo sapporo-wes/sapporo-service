@@ -13,7 +13,7 @@ import httpx
 from sapporo.config import RUN_DIR_STRUCTURE, RunDirStructureKeys, get_config
 from sapporo.factory import create_service_info
 from sapporo.schemas import RunRequest, RunRequestForm, State
-from sapporo.utils import sapporo_version, secure_filepath
+from sapporo.utils import now_str, sapporo_version, secure_filepath
 
 
 def prepare_run_dir(run_id: str, run_request: RunRequestForm) -> None:
@@ -24,6 +24,8 @@ def prepare_run_dir(run_id: str, run_request: RunRequestForm) -> None:
     outputs_dir = resolve_content_path(run_id, "outputs_dir")
     outputs_dir.mkdir(mode=0o777, parents=True, exist_ok=True)
 
+    write_file(run_id, "state", State.INITIALIZING)
+    write_file(run_id, "start_time", now_str())
     write_file(run_id, "runtime_info", dump_runtime_info())
     write_file(run_id, "run_request", run_request.model_dump())
     write_file(run_id, "wf_params", run_request.workflow_params)
@@ -110,7 +112,7 @@ def fork_run(run_id: str) -> None:
     stdout = resolve_content_path(run_id, "stdout")
     stderr = resolve_content_path(run_id, "stderr")
     cmd = ["/bin/bash", str(get_config().run_sh), str(run_dir)]
-    write_file(run_id, "state", "QUEUED")
+    write_file(run_id, "state", State.QUEUED)
     with stdout.open(mode="w", encoding="utf-8") as f_stdout, stderr.open(mode="w", encoding="utf-8") as f_stderr:
         process = Popen(cmd,  # pylint: disable=R1732
                         cwd=str(run_dir),
@@ -126,12 +128,12 @@ def post_run_task(run_id: str, run_request: RunRequestForm) -> None:
     """\
     A function that runs in the background after issuing a run_id in POST /runs.
     """
-    write_file(run_id, "state", "INITIALIZING")
     try:
         download_wf_attachment(run_id, run_request)
         fork_run(run_id)
     except Exception as e:  # pylint: disable=W0718
-        write_file(run_id, "state", "EXECUTOR_ERROR")
+        write_file(run_id, "state", State.EXECUTOR_ERROR)
+        write_file(run_id, "end_time", now_str())
         error_msg = "".join(traceback.TracebackException.from_exception(e).format())
         append_system_logs(run_id, error_msg)
 
@@ -200,3 +202,7 @@ def list_files(dir_: Path) -> Iterable[Path]:
     for root, _, files in os.walk(dir_):
         for file in files:
             yield Path(root).joinpath(file)
+
+
+def glob_all_run_ids() -> List[str]:
+    return [run_dir.parent.name for run_dir in get_config().run_dir.glob(f"*/*/{RUN_DIR_STRUCTURE['run_request']}")]

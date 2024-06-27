@@ -4,6 +4,7 @@ from typing import List, Optional, Tuple
 
 from fastapi import HTTPException, UploadFile
 
+from sapporo.config import get_config
 from sapporo.factory import create_service_info
 from sapporo.schemas import RunRequestForm
 
@@ -85,3 +86,9 @@ def validate_wf_engine_type_and_version(
         wf_engine_version = service_info.workflow_engine_versions[wf_engine].workflow_engine_version[0]  # type: ignore # pylint: disable=E1136
 
     return wf_engine, wf_engine_version
+
+
+def validate_run_id(run_id: str) -> None:
+    specific_run_dir = get_config().run_dir.joinpath(run_id[:2]).joinpath(run_id)
+    if not specific_run_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Run ID {run_id} not found.")

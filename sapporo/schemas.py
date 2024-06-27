@@ -149,10 +149,6 @@ class DefaultWorkflowEngineParameter(BaseModel):
     }
 
 
-# Changes as sapporo-wes-2.0.0:
-# - default_workflow_engine_parameters:
-#   - original wes-1.1.0: List[DefaultWorkflowEngineParameter]
-#   - sapporo-wes-2.0.0: Dict[str, List[DefaultWorkflowEngineParameter]]
 class ServiceInfo(Service):
     workflow_type_versions: Dict[str, WorkflowTypeVersion] = Field(...)
     supported_wes_versions: List[str] = Field(
@@ -166,7 +162,12 @@ class ServiceInfo(Service):
     workflow_engine_versions: Dict[str, WorkflowEngineVersion] = Field(...)
     default_workflow_engine_parameters: Dict[str, List[DefaultWorkflowEngineParameter]] = Field(
         ...,
-        description=GA4GH_WES_SCHEMAS["ServiceInfo"]["allOf"][1]["properties"]["default_workflow_engine_parameters"]["description"],
+        description=GA4GH_WES_SCHEMAS["ServiceInfo"]["allOf"][1]["properties"]["default_workflow_engine_parameters"]["description"] + """\n
+**sapporo-wes-2.0.0 extension:**
+
+- original wes-1.1.0: List[DefaultWorkflowEngineParameter]
+- sapporo-wes-2.0.0: Dict[str, List[DefaultWorkflowEngineParameter]]
+""",
     )
     system_state_counts: Dict[str, int] = Field(...)
     auth_instructions_url: HttpUrl = Field(
@@ -191,6 +192,9 @@ class State(str, Enum):
     CANCELED = "CANCELED"
     CANCELING = "CANCELING"
     PREEMPTED = "PREEMPTED"
+
+    def __str__(self) -> str:
+        return self.name
 
 
 class RunStatus(BaseModel):
@@ -353,10 +357,6 @@ class TaskLog(Log):
     }
 
 
-# Changes as sapporo-wes-2.0.0:
-# - outputs:
-#   - original wes-1.1.0: Optional[Dict[str, Any]]
-#   - sapporo-wes-2.0.0: Optional[List[Dict[str, Any]]]
 class RunLog(BaseModel):
     run_id: Optional[str] = Field(
         None,
@@ -375,7 +375,12 @@ class RunLog(BaseModel):
     )
     outputs: Optional[List[Dict[str, Any]]] = Field(
         None,
-        description=GA4GH_WES_SCHEMAS["RunLog"]["properties"]["outputs"]["description"],
+        description=GA4GH_WES_SCHEMAS["RunLog"]["properties"]["outputs"]["description"] + """\n
+**sapporo-wes-2.0.0 extension:**
+
+- original wes-1.1.0: Optional[Dict[str, Any]]
+- sapporo-wes-2.0.0: Optional[List[Dict[str, Any]]]
+""",
     )
 
 

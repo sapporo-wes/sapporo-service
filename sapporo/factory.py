@@ -6,8 +6,9 @@ from pydantic import TypeAdapter
 
 from sapporo.config import get_config
 from sapporo.schemas import (DefaultWorkflowEngineParameter, Log, Organization,
-                             RunLog, ServiceInfo, ServiceType,
-                             WorkflowEngineVersion, WorkflowTypeVersion)
+                             RunLog, RunStatus, RunSummary, ServiceInfo,
+                             ServiceType, WorkflowEngineVersion,
+                             WorkflowTypeVersion)
 from sapporo.utils import now_str, sapporo_version
 
 
@@ -90,4 +91,27 @@ def create_log(run_id: str) -> Log:
         stderr=read_file(run_id, "stderr"),
         exit_code=read_file(run_id, "exit_code"),
         system_logs=read_file(run_id, "system_logs"),
+    )
+
+
+def create_run_status(run_id: str) -> RunStatus:
+    # Avoid circular import
+    from sapporo.run import read_state  # pylint: disable=C0415
+
+    return RunStatus(
+        run_id=run_id,
+        state=read_state(run_id)
+    )
+
+
+def create_run_summary(run_id: str) -> RunSummary:
+    # Avoid circular import
+    from sapporo.run import read_file, read_state  # pylint: disable=C0415
+
+    return RunSummary(
+        run_id=run_id,
+        state=read_state(run_id),
+        start_time=read_file(run_id, "start_time"),
+        end_time=read_file(run_id, "end_time"),
+        tags=read_file(run_id, "run_request").tags,
     )

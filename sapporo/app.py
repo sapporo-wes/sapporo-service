@@ -1,6 +1,9 @@
 import logging.config
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
 import uvicorn
+from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,6 +11,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from sapporo.config import LOGGER, PKG_DIR, get_config, logging_config
+from sapporo.database import SNAPSHOT_INTERVAL, init_db
 from sapporo.factory import create_service_info
 from sapporo.routers import router
 from sapporo.schemas import ErrorResponse
@@ -61,11 +65,25 @@ def validate_initial_state() -> None:
         raise ValueError(f"Service info file is invalid: {service_info_path}") from e
 
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    init_db()
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(init_db, "interval", minutes=SNAPSHOT_INTERVAL)
+    scheduler.start()
+    LOGGER.info("DB snapshot scheduler started.")
+
+    yield
+
+    scheduler.shutdown()
+    LOGGER.info("DB snapshot scheduler stopped.")
+
+
 def create_app() -> FastAPI:
     app_config = get_config()
     logging.config.dictConfig(logging_config(app_config.debug))
 
-    app = FastAPI(root_path=app_config.url_prefix)
+    app = FastAPI(root_path=app_config.url_prefix, lifespan=lifespan)
     app.include_router(router)
     app.add_middleware(
         CORSMiddleware,

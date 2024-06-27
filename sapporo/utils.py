@@ -28,6 +28,14 @@ def now_str() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def time_str_to_dt(time_str: str) -> datetime:
+    return datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+
+
+def dt_to_time_str(dt: datetime) -> str:
+    return dt.isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
 def sapporo_version() -> str:
     return importlib.metadata.version("sapporo")
 

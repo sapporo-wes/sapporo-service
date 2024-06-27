@@ -170,21 +170,36 @@ def logging_config(debug: bool = False) -> Dict[str, Any]:
                 "()": "uvicorn.logging.DefaultFormatter",
                 "fmt": "%(levelprefix)s %(message)s",
                 "use_colors": True,
-            }
+            },
+            "sqlalchemy": {
+                "()": "uvicorn.logging.DefaultFormatter",
+                "fmt": "%(levelprefix)s DB - %(message)s",
+                "use_colors": True,
+            },
         },
         "handlers": {
             "default": {
                 "formatter": "default",
                 "class": "logging.StreamHandler",
                 "stream": "ext://sys.stderr",
-            }
+            },
+            "sqlalchemy": {
+                "formatter": "sqlalchemy",
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stderr",
+            },
         },
         "loggers": {
             "sapporo": {
                 "handlers": ["default"],
                 "level": "DEBUG" if debug else "INFO",
                 "propagate": False
-            }
+            },
+            "sqlalchemy.engine": {
+                "handlers": ["sqlalchemy"],
+                "level": "INFO",
+                "propagate": False
+            },
         }
     }
 

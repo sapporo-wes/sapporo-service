@@ -27,12 +27,14 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
+    "apscheduler",
     "fastapi",
     "httpx",
     "pydantic",
     "pyjwt",
     "python-multipart",
     "pyyaml",
+    "sqlmodel",
     "uvicorn[standard]",
 ]
 
@@ -52,3 +54,6 @@ packages = ["sapporo"]
 
 [tool.setuptools.package-data]
 sapporo = ["sapporo/service_info.json"] # TODO: check
+
+[tool.mypy]
+ignore_missing_imports = true
