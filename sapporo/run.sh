@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+# TODO: check flag (also debug mode)
 set -e
 
 function run_wf() {
+    check_canceling
     echo "RUNNING" >${state}
-    # date +"%Y-%m-%dT%H:%M:%S" >${start_time}  TODO: move to prepare_run_dir
     # e.g. when wf_engine=cwltool, call function run_cwltool
     local function_name="run_${wf_engine}"
     if [[ "$(type -t ${function_name})" == "function" ]]; then
@@ -13,11 +14,9 @@ function run_wf() {
         executor_error
     fi
     upload
-    # TODO date command using utc timezone
-    date +"%Y-%m-%dT%H:%M:%S" >${end_time}
+    date -u +"%Y-%m-%dT%H:%M:%S" >${end_time}
     echo 0 >${exit_code}
     echo "COMPLETE" >${state}
-    clean_rundir &
     exit 0
 }
 
@@ -181,15 +180,6 @@ aws --endpoint-url ${endpoint} s3 cp ${outputs_dir} s3://${bucket_name}/${dirnam
     eval ${cmd_txt} || uploader_error
 }
 
-function clean_rundir() {
-    # Find files under run_dir older than env integer SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS and delete them in a background process
-    local re_pattern="^[0-9]+$"
-    local base_run_dir=$(realpath ${run_dir}/../..)
-    if [[ ! -z ${SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS} ]] && [[ ${SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS} =~ ${re_pattern} ]]; then
-        find ${base_run_dir} -mindepth 2 -maxdepth 2 -mtime "+${SAPPORO_DATA_REMOVE_OLDER_THAN_DAYS}" -type d -exec rm -r {} \; >/dev/null 2>&1 &
-    fi
-}
-
 # ==============================================================
 # If you are not familiar with sapporo, please don't edit below.
 
@@ -237,7 +227,6 @@ function desc_error() {
     date +"%Y-%m-%dT%H:%M:%S" >${end_time}
     echo "SYSTEM_ERROR" >${state}
     generate_ro_crate &
-    clean_rundir &
     exit ${original_exit_code}
 }
 
@@ -248,7 +237,6 @@ function executor_error() {
     date +"%Y-%m-%dT%H:%M:%S" >${end_time}
     echo "EXECUTOR_ERROR" >${state}
     generate_ro_crate &
-    clean_rundir &
     exit ${original_exit_code}
 }
 
@@ -259,7 +247,6 @@ function uploader_error() {
     date +"%Y-%m-%dT%H:%M:%S" >${end_time}
     echo "UPLOADER_ERROR" >${state}
     generate_ro_crate &
-    clean_rundir &
     exit ${original_exit_code}
 }
 
@@ -279,7 +266,6 @@ function kill_by_system() {
     date +"%Y-%m-%dT%H:%M:%S" >${end_time}
     echo "SYSTEM_ERROR" >${state}
     generate_ro_crate &
-    clean_rundir &
     exit ${original_exit_code}
 }
 
@@ -290,8 +276,14 @@ function cancel_by_request() {
     date +"%Y-%m-%dT%H:%M:%S" >${end_time}
     echo "CANCELED" >${state}
     generate_ro_crate &
-    clean_rundir &
     exit ${original_exit_code}
+}
+
+function check_canceling() {
+    state_content=$(cat ${state})
+    if [[ ${state_content} == "CANCELING" ]]; then
+        cancel
+    fi
 }
 
 trap 'desc_error' ERR              # Exit case 1

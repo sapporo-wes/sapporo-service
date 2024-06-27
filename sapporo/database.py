@@ -86,7 +86,7 @@ def init_db() -> None:
         session.commit()
 
 
-def add_run(
+def add_run_db(
     session: Session,
     run_summary: RunSummary,
     username: Optional[str] = None,
@@ -135,7 +135,7 @@ def _decode_page_token(page_token: str) -> Dict[str, str]:
     return json.loads(token_data)  # type: ignore
 
 
-def list_runs(
+def list_runs_db(
     session: Session,
     page_size: int,
     page_token: Optional[str] = None,

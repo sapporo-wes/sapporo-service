@@ -6,12 +6,12 @@ from fastapi import (APIRouter, BackgroundTasks, Depends, File, Form,
 from sqlmodel import Session
 
 from sapporo.config import GA4GH_WES_SPEC
-from sapporo.database import add_run, db_runs_to_run_summaries, get_session
-from sapporo.database import list_runs as list_runs_db
-from sapporo.database import system_state_counts
+from sapporo.database import (add_run_db, db_runs_to_run_summaries,
+                              get_session, list_runs_db, system_state_counts)
 from sapporo.factory import (create_run_log, create_run_status,
                              create_run_summary, create_service_info)
-from sapporo.run import post_run_task, prepare_run_dir
+from sapporo.run import (cancel_run_task, delete_run_task, post_run_task,
+                         prepare_run_dir)
 from sapporo.schemas import (RunId, RunListResponse, RunLog, RunStatus,
                              ServiceInfo, State, TaskListResponse, TaskLog)
 from sapporo.validator import validate_run_id, validate_run_request
@@ -115,7 +115,7 @@ async def run_workflow(
         workflow_attachment_obj,
     )
     prepare_run_dir(run_id, run_request)
-    add_run(db_session, create_run_summary(run_id))
+    add_run_db(db_session, create_run_summary(run_id))
     background_tasks.add_task(post_run_task, run_id, run_request)
     return RunId(run_id=run_id)
 
@@ -202,6 +202,29 @@ async def get_task(
     response_model=RunId,
 )
 async def cancel_run(
-    run_id: str
+    run_id: str,
+    background_tasks: BackgroundTasks,
 ) -> RunId:
-    raise NotImplementedError("Not implemented")
+    validate_run_id(run_id)
+    background_tasks.add_task(cancel_run_task, run_id)
+    return RunId(run_id=run_id)
+
+
+@router.delete(
+    "/runs/{run_id}",
+    summary="DeleteRun",
+    description="""\
+Delete the run and associated files.
+If the run is in progress, it will be canceled first.
+Then, the contents of the run_dir will be deleted, but state.txt, start_time.txt, and end_time.txt will not be deleted.
+This is because the information that the run has been deleted should be retained.
+""",
+    response_model=RunId,
+)
+async def delete_run(
+    run_id: str,
+    background_tasks: BackgroundTasks,
+) -> RunId:
+    validate_run_id(run_id)
+    background_tasks.add_task(delete_run_task, run_id)
+    return RunId(run_id=run_id)

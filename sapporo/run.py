@@ -2,11 +2,13 @@ import json
 import os
 import shlex
 import shutil
+import signal
+import time
 import traceback
 import urllib
 from pathlib import Path
 from subprocess import Popen
-from typing import Any, Dict, Iterable, List, Union
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 import httpx
 
@@ -155,8 +157,10 @@ def read_file(run_id: str, key: RunDirStructureKeys) -> Any:
             return RunRequest.model_validate_json(content)
         if key == "cmd":
             return shlex.split(content)
-        if key in ["stdout", "stderr"]:
+        if key in ["start_time", "end_time", "stdout", "stderr"]:
             return content
+        if key in ["pid", "exit_code"]:
+            return int(content)
 
         try:
             return json.loads(content)
@@ -173,7 +177,7 @@ def read_state(run_id: str) -> State:
 
 
 def append_system_logs(run_id: str, log: str) -> None:
-    system_logs = read_file(run_id, "system_logs")
+    system_logs = read_file(run_id, "system_logs") or []
     system_logs.append(log)
     write_file(run_id, "system_logs", system_logs)
 
@@ -206,3 +210,54 @@ def list_files(dir_: Path) -> Iterable[Path]:
 
 def glob_all_run_ids() -> List[str]:
     return [run_dir.parent.name for run_dir in get_config().run_dir.glob(f"*/*/{RUN_DIR_STRUCTURE['run_request']}")]
+
+
+def cancel_run_task(run_id: str) -> None:
+    state = read_state(run_id)
+    if state == State.INITIALIZING:
+        # The process is doing in fastapi's background task. This task has no stop feature.
+        # So, write CANCELING to the state.
+        # Then, when run.sh is executed, check the state and do not run the job.
+        write_file(run_id, "state", State.CANCELING)
+    if state in [State.QUEUED, State.RUNNING]:
+        # The process is doing in run.sh. Send SIGUSR1 to the process.
+        write_file(run_id, "state", State.CANCELING)
+        pid: Optional[int] = read_file(run_id, "pid")
+        if pid is not None:
+            os.kill(pid, signal.SIGUSR1)
+        else:
+            write_file(run_id, "state", State.UNKNOWN)
+
+
+KEEP_FILES = [
+    RUN_DIR_STRUCTURE["state"],
+    RUN_DIR_STRUCTURE["start_time"],
+    RUN_DIR_STRUCTURE["end_time"],
+]
+
+
+def delete_run_task(run_id: str) -> None:
+    # 1. Cancel the run if it is running.
+    cancel_run_task(run_id)
+
+    # 2. Delete run-related files.
+    # Pooling 10min for the cancellation process.
+    # If it does not cancel after 10min, delete it as it is.
+    for _ in range(10):
+        state = read_state(run_id)
+        if state == State.CANCELING:
+            time.sleep(60)
+        else:
+            break
+    write_file(run_id, "state", State.DELETING)
+    run_dir = resolve_run_dir(run_id)
+    for path in run_dir.glob("*"):
+        if path.name in KEEP_FILES:
+            continue
+        if path.is_dir():
+            shutil.rmtree(path)
+        else:
+            path.unlink()
+
+    # 3. Record the deletion.
+    write_file(run_id, "state", State.DELETED)

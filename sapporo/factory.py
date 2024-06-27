@@ -1,13 +1,13 @@
 import json
 from functools import lru_cache
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from pydantic import TypeAdapter
 
 from sapporo.config import get_config
 from sapporo.schemas import (DefaultWorkflowEngineParameter, Log, Organization,
-                             RunLog, RunStatus, RunSummary, ServiceInfo,
-                             ServiceType, WorkflowEngineVersion,
+                             RunLog, RunRequest, RunStatus, RunSummary,
+                             ServiceInfo, ServiceType, WorkflowEngineVersion,
                              WorkflowTypeVersion)
 from sapporo.utils import now_str, sapporo_version
 
@@ -67,14 +67,18 @@ def create_run_log(run_id: str) -> RunLog:
     # Avoid circular import
     from sapporo.run import read_file, read_state  # pylint: disable=C0415
 
+    # Use local var. for type hint
+    request: Optional[RunRequest] = read_file(run_id, "run_request")
+    outputs: Optional[List[Dict[str, Any]]] = read_file(run_id, "outputs")
+
     return RunLog(
         run_id=run_id,
-        request=read_file(run_id, "run_request"),
+        request=request,
         state=read_state(run_id),
         run_log=create_log(run_id),
         task_logs_url=None,  # not used
         task_logs=None,  # not used
-        outputs=read_file(run_id, "outputs"),
+        outputs=outputs,
     )
 
 
@@ -82,15 +86,24 @@ def create_log(run_id: str) -> Log:
     # Avoid circular import
     from sapporo.run import read_file  # pylint: disable=C0415
 
+    # Use local var. for type hint
+    cmd: Optional[List[str]] = read_file(run_id, "cmd")
+    start_time: Optional[str] = read_file(run_id, "start_time")
+    end_time: Optional[str] = read_file(run_id, "end_time")
+    stdout: Optional[str] = read_file(run_id, "stdout")
+    stderr: Optional[str] = read_file(run_id, "stderr")
+    exit_code: Optional[int] = read_file(run_id, "exit_code")
+    system_logs: Optional[List[str]] = read_file(run_id, "system_logs")
+
     return Log(
         name=None,  # not used
-        cmd=read_file(run_id, "cmd"),
-        start_time=read_file(run_id, "start_time"),
-        end_time=read_file(run_id, "end_time"),
-        stdout=read_file(run_id, "stdout"),
-        stderr=read_file(run_id, "stderr"),
-        exit_code=read_file(run_id, "exit_code"),
-        system_logs=read_file(run_id, "system_logs"),
+        cmd=cmd,
+        start_time=start_time,
+        end_time=end_time,
+        stdout=stdout,
+        stderr=stderr,
+        exit_code=exit_code,
+        system_logs=system_logs,
     )
 
 
@@ -108,10 +121,15 @@ def create_run_summary(run_id: str) -> RunSummary:
     # Avoid circular import
     from sapporo.run import read_file, read_state  # pylint: disable=C0415
 
+    # Use local var. for type hint
+    start_time: Optional[str] = read_file(run_id, "start_time")
+    end_time: Optional[str] = read_file(run_id, "end_time")
+    run_request: Optional[RunRequest] = read_file(run_id, "run_request")
+
     return RunSummary(
         run_id=run_id,
         state=read_state(run_id),
-        start_time=read_file(run_id, "start_time"),
-        end_time=read_file(run_id, "end_time"),
-        tags=read_file(run_id, "run_request").tags,
+        start_time=start_time,
+        end_time=end_time,
+        tags=run_request.get("tags", {}) if run_request is not None else {},
     )

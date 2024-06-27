@@ -192,9 +192,8 @@ class State(str, Enum):
     CANCELED = "CANCELED"
     CANCELING = "CANCELING"
     PREEMPTED = "PREEMPTED"
-
-    def __str__(self) -> str:
-        return self.name
+    DELETED = "DELETED"  # sapporo-wes-2.0.0 extension
+    DELETING = "DELETING"  # sapporo-wes-2.0.0 extension
 
 
 class RunStatus(BaseModel):
