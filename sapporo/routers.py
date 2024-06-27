@@ -210,6 +210,9 @@ async def cancel_run(
     return RunId(run_id=run_id)
 
 
+# === sapporo-wes-2.0.0 extension ===
+
+
 @router.delete(
     "/runs/{run_id}",
     summary="DeleteRun",

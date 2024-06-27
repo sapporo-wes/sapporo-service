@@ -28,7 +28,6 @@ class AppConfig(BaseModel):
     run_dir: Path = Path.cwd().joinpath("runs")
     registered_only_mode: bool = False
     service_info: Path = PKG_DIR.joinpath("service_info.json")
-    executable_workflows: Path = PKG_DIR.joinpath("executable_workflows.json")
     run_sh: Path = PKG_DIR.joinpath("run.sh")
     url_prefix: str = ""
     base_url: str = f"http://{'0.0.0.0' if inside_docker() else '127.0.0.1'}:1122"
@@ -77,12 +76,6 @@ def parse_args(args: Optional[List[str]] = None) -> Namespace:
         type=Path,
         metavar="",
         help="Path to the service_info.json file."
-    )
-    parser.add_argument(
-        "--executable-workflows",
-        type=Path,
-        metavar="",
-        help="Path to the executable_workflows.json file."
     )
     parser.add_argument(
         "--run-sh",
@@ -148,7 +141,6 @@ def get_config() -> AppConfig:
         registered_only_mode=True if args.run_only_registered_workflows else str2bool(
             os.environ.get("SAPPORO_RUN_ONLY_REGISTERED_WORKFLOWS", default_config.registered_only_mode)),
         service_info=args.service_info or Path(os.environ.get("SAPPORO_SERVICE_INFO", default_config.service_info)),
-        executable_workflows=args.executable_workflows or Path(os.environ.get("SAPPORO_EXECUTABLE_WORKFLOWS", default_config.executable_workflows)),
         run_sh=args.run_sh or Path(os.environ.get("SAPPORO_RUN_SH", default_config.run_sh)),
         url_prefix=url_prefix,
         base_url=base_url,
