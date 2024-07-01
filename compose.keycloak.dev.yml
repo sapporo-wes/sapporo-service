@@ -1,0 +1,22 @@
+services:
+  keycloak:
+    # https://hub.docker.com/r/keycloak/keycloak/tags
+    image: quay.io/keycloak/keycloak:24.0.5
+    container_name: sapporo-keycloak-dev
+    environment:
+      - KEYCLOAK_ADMIN=sapporo-admin-user
+      - KEYCLOAK_ADMIN_PASSWORD=sapporo-admin-password
+    volumes:
+      - ${PWD}/keycloak-data:/opt/keycloak/data
+    ports:
+      - 127.0.0.1:8080:8080
+    user: 0:0
+    restart: on-failure
+    command: ["start-dev"]
+    networks:
+      - sapporo-dev-network
+
+networks:
+  sapporo-dev-network:
+    name: sapporo-dev-network
+    external: true

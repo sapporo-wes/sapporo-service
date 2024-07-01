@@ -2,7 +2,7 @@ import json
 from functools import lru_cache
 from typing import List, Optional, Tuple
 
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException, UploadFile, status
 
 from sapporo.config import get_config
 from sapporo.factory import create_service_info
@@ -62,7 +62,10 @@ def validate_wf_type_and_version(
     wf_types = service_info.workflow_type_versions.keys()  # pylint: disable=E1101
 
     if wf_type not in wf_types:
-        raise HTTPException(status_code=400, detail=f"Invalid workflow_type: {wf_type}, please select from {wf_types}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid workflow_type: {wf_type}, please select from {wf_types}",
+        )
     if wf_type_version is None:
         wf_type_version = service_info.workflow_type_versions[wf_type].workflow_type_version[0]  # type: ignore # pylint: disable=E1136
 
@@ -81,7 +84,10 @@ def validate_wf_engine_type_and_version(
     service_info = create_service_info()
     wf_engines = service_info.workflow_engine_versions.keys()  # pylint: disable=E1101
     if wf_engine not in wf_engines:
-        raise HTTPException(status_code=400, detail=f"Invalid workflow_engine: {wf_engine}, please select from {wf_engines}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid workflow_engine: {wf_engine}, please select from {wf_engines}",
+        )
     if wf_engine_version is None:
         wf_engine_version = service_info.workflow_engine_versions[wf_engine].workflow_engine_version[0]  # type: ignore # pylint: disable=E1136
 
@@ -91,4 +97,7 @@ def validate_wf_engine_type_and_version(
 def validate_run_id(run_id: str) -> None:
     specific_run_dir = get_config().run_dir.joinpath(run_id[:2]).joinpath(run_id)
     if not specific_run_dir.exists():
-        raise HTTPException(status_code=404, detail=f"Run ID {run_id} not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Run ID {run_id} not found.",
+        )

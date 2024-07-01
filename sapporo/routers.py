@@ -2,10 +2,13 @@ from typing import List, Literal, Optional, Union
 from uuid import uuid4
 
 from fastapi import (APIRouter, BackgroundTasks, Depends, File, Form,
-                     HTTPException, Query, UploadFile)
+                     HTTPException, Query, UploadFile, status)
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlmodel import Session
 
+from sapporo.auth import (MeResponse, TokenResponse, create_access_token,
+                          decode_token, extract_username,
+                          is_create_token_endpoint_enabled, oauth2_schema)
 from sapporo.config import GA4GH_WES_SPEC
 from sapporo.database import (add_run_db, db_runs_to_run_summaries,
                               get_session, list_runs_db, system_state_counts)
@@ -183,7 +186,10 @@ async def list_tasks(
         description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/tasks"]["get"]["parameters"][2]["description"],
     )
 ) -> TaskListResponse:
-    raise HTTPException(status_code=400, detail="Sorry, this endpoint is not implemented and there are no plans to implement it.")
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Sorry, this endpoint is not implemented and there are no plans to implement it.",
+    )
 
 
 @router.get(
@@ -200,7 +206,10 @@ async def get_task(
     run_id: str,
     task_id: str
 ) -> TaskLog:
-    raise HTTPException(status_code=400, detail="Sorry, this endpoint is not implemented and there are no plans to implement it.")
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Sorry, this endpoint is not implemented and there are no plans to implement it.",
+    )
 
 
 @router.post(
@@ -280,5 +289,40 @@ async def get_run_outputs(
     validate_run_id(run_id)
     file_path = resolve_content_path(run_id, "outputs_dir").joinpath(secure_filepath(path))
     if not file_path.exists():
-        raise HTTPException(status_code=404, detail=f"File {path} is not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"File {path} is not found.",
+        )
     return FileResponse(file_path)
+
+
+@router.post(
+    "/token",
+    summary="CreateToken",
+    description="""\
+**sapporo-wes-2.0.0 extension:**
+This endpoint is used when Sapporo acts as an OpenID Connect Identity Provider (IdP)
+or when an external IdP is used as a "Confidential Client".
+Upon successful authentication, it issues a JWT access token.
+This token is necessary for accessing other endpoints, and should be included in the "Authorization: Bearer <token>" header.
+""",
+    response_model=None,
+)
+async def create_token(
+    username: str = Form(..., description="The username for authentication."),
+    password: str = Form(..., description="The password for authentication."),
+) -> TokenResponse:
+    is_create_token_endpoint_enabled()
+    access_token = await create_access_token(username, password)
+    return TokenResponse(access_token=access_token)
+
+
+@router.get(
+    "/me",
+    summary="Me",
+    response_model=MeResponse,
+)
+async def get_me(token: str = Depends(oauth2_schema)) -> MeResponse:
+    payload = decode_token(token)
+    print(payload)
+    return MeResponse(username=extract_username(payload))

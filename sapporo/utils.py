@@ -40,6 +40,10 @@ def sapporo_version() -> str:
     return importlib.metadata.version("sapporo")
 
 
+def user_agent() -> str:
+    return f"sapporo/{sapporo_version()}"
+
+
 _filename_char_whitelist_re = re.compile(r"[^A-Za-z0-9_.-]+")
 
 

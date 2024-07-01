@@ -17,7 +17,7 @@ import httpx
 from sapporo.config import RUN_DIR_STRUCTURE, RunDirStructureKeys, get_config
 from sapporo.factory import create_service_info
 from sapporo.schemas import RunRequest, RunRequestForm, State
-from sapporo.utils import now_str, sapporo_version, secure_filepath
+from sapporo.utils import now_str, sapporo_version, secure_filepath, user_agent
 
 
 def prepare_run_dir(run_id: str, run_request: RunRequestForm) -> None:
@@ -102,13 +102,15 @@ def download_wf_attachment(run_id: str, run_request: RunRequestForm) -> None:
         if parsed_url.scheme in ["http", "https"]:
             file_path = exe_dir.joinpath(secure_filepath(name)).resolve()
             file_path.parent.mkdir(parents=True, exist_ok=True)
-            with httpx.Client() as client:
-                res = client.get(url, timeout=10, follow_redirects=True, headers={"User-Agent": "sapporo"})
-                if res.status_code == 200:
+            try:
+                with httpx.Client() as client:
+                    res = client.get(url, timeout=10, follow_redirects=True, headers={"User-Agent": user_agent()})
+                    res.raise_for_status()
                     with file_path.open(mode="wb") as f:
                         f.write(res.content)
-                else:
-                    raise Exception(f"Failed to download workflow attachment {obj}: {res.status_code} {res.text}")  # pylint: disable=W0719
+            except Exception as e:
+                # Because it is a background task, raise Exception instead of HTTPException
+                raise Exception(f"Failed to download workflow attachment {obj}: {res.status_code} {res.text}") from e  # pylint: disable=W0719
 
 
 def fork_run(run_id: str) -> None:
