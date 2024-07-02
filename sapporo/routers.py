@@ -6,9 +6,9 @@ from fastapi import (APIRouter, BackgroundTasks, Depends, File, Form,
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlmodel import Session
 
-from sapporo.auth import (MeResponse, TokenResponse, create_access_token,
-                          decode_token, extract_username,
-                          is_create_token_endpoint_enabled, oauth2_schema)
+from sapporo.auth import (MeResponse, TokenResponse, auth_depends_factory,
+                          create_access_token, decode_token, extract_username,
+                          is_create_token_endpoint_enabled)
 from sapporo.config import GA4GH_WES_SPEC
 from sapporo.database import (add_run_db, db_runs_to_run_summaries,
                               get_session, list_runs_db, system_state_counts)
@@ -306,7 +306,7 @@ or when an external IdP is used as a "Confidential Client".
 Upon successful authentication, it issues a JWT access token.
 This token is necessary for accessing other endpoints, and should be included in the "Authorization: Bearer <token>" header.
 """,
-    response_model=None,
+    response_model=TokenResponse,
 )
 async def create_token(
     username: str = Form(..., description="The username for authentication."),
@@ -320,9 +320,20 @@ async def create_token(
 @router.get(
     "/me",
     summary="Me",
+    description="""\
+**sapporo-wes-2.0.0 extension:**
+This endpoint returns the username of the authenticated user.
+If authentication is not enabled, an error will be returned.
+""",
     response_model=MeResponse,
 )
-async def get_me(token: str = Depends(oauth2_schema)) -> MeResponse:
+async def get_me(
+    token: Optional[str] = auth_depends_factory(),
+) -> MeResponse:
+    if token is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Authentication is not enabled.",
+        )
     payload = decode_token(token)
-    print(payload)
     return MeResponse(username=extract_username(payload))

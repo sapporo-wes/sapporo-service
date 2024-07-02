@@ -1,13 +1,15 @@
 import datetime
 from functools import lru_cache
-from typing import List, Literal, Optional
+from typing import Any, List, Literal, Optional
 
 import httpx
 import jwt
-from fastapi import HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, OAuth2PasswordBearer
+from fastapi.security.utils import get_authorization_scheme_param
 from jwt import PyJWKSet
 from pydantic import BaseModel
+from starlette.requests import Request
 
 from sapporo.config import get_config
 from sapporo.utils import user_agent
@@ -40,9 +42,8 @@ class SapporoAuthConfig(BaseModel):
 
 
 class ExternalAuthConfig(BaseModel):
-    idp_url: str  # Access to {idp_url}/.well-known/openid-configuration
+    idp_url: str  # Access to {idp_url}/.well-known/openid-configuration, accessible from the Sapporo
     jwt_audience: str  # e.g., "account"
-    username_claim: str
     client_mode: Literal["confidential", "public"]
     client_id: Optional[str]
     client_secret: Optional[str]
@@ -78,14 +79,55 @@ class ExternalEndpointMetadata(BaseModel):
 # === General Functions ===
 
 
-oauth2_schema = OAuth2PasswordBearer(tokenUrl="token")
-
-
 @lru_cache(maxsize=None)
 def get_auth_config() -> AuthConfig:
     with get_config().auth_config.open(mode="r", encoding="utf-8") as f:
         auth_config = AuthConfig.model_validate_json(f.read())
     return auth_config
+
+
+class HTTPBearerCustom(HTTPBearer):
+    async def __call__(self, request: Request) -> str:  # type: ignore
+        authorization = request.headers.get("Authorization")
+        scheme, credentials = get_authorization_scheme_param(authorization)
+        if not (authorization and scheme and credentials):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authorization header is missing or invalid.",
+            )
+        if scheme.lower() != "bearer":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication scheme.",
+            )
+        return credentials
+
+
+http_bearer_custom = HTTPBearerCustom(
+    scheme_name="JWT Bearer",
+    description="Include JWT as Bearer in the Authorization header for authentication. Please input JWT token.",
+)
+password_bearer = OAuth2PasswordBearer(tokenUrl="/token")
+
+
+@lru_cache(maxsize=None)
+def auth_depends_factory() -> Any:
+    """\
+    Function to inject authorization into each endpoint.
+    Use like `token: Optional[str] = auth_depends_factory`.
+    """
+    auth_config = get_auth_config()
+    if auth_config.auth_enabled:
+        if auth_config.idp_provider == "sapporo":
+            return Depends(password_bearer)
+        else:
+            if auth_config.external_config.client_mode == "confidential":
+                return Depends(password_bearer)
+            else:
+                return Depends(http_bearer_custom)
+
+    # do nothing
+    return Depends(lambda: None)
 
 
 @lru_cache(maxsize=None)

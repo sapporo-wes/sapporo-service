@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from sapporo.auth import get_auth_config
 from sapporo.config import LOGGER, PKG_DIR, get_config, logging_config
 from sapporo.database import SNAPSHOT_INTERVAL, init_db
 from sapporo.factory import create_service_info
@@ -21,8 +22,8 @@ def fix_error_handler(app: FastAPI) -> None:
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(_request: Request, exc: StarletteHTTPException) -> JSONResponse:
         app_config = get_config()
-        if app_config.debug and exc.status_code == 500:
-            LOGGER.exception("Internal server error occurred.", exc_info=exc)
+        if app_config.debug:
+            LOGGER.exception("Something http exception occurred.", exc_info=exc)
         return JSONResponse(
             status_code=exc.status_code,
             content=ErrorResponse(
@@ -33,6 +34,9 @@ def fix_error_handler(app: FastAPI) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def request_validation_exception_handler(_request: Request, exc: RequestValidationError) -> JSONResponse:
+        app_config = get_config()
+        if app_config.debug:
+            LOGGER.exception("Request validation error occurred.", exc_info=exc)
         return JSONResponse(
             status_code=400,
             content=ErrorResponse(
@@ -42,10 +46,8 @@ def fix_error_handler(app: FastAPI) -> None:
         )
 
     @app.exception_handler(Exception)
-    async def generic_exception_handler(_request: Request, exc: Exception) -> JSONResponse:
-        app_config = get_config()
-        if app_config.debug:
-            LOGGER.exception("Internal server error occurred.", exc_info=exc)
+    async def generic_exception_handler(_request: Request, _exc: Exception) -> JSONResponse:
+        # If a general Exception occurs, a traceback will be output without using LOGGER.
         return JSONResponse(
             status_code=500,
             content=ErrorResponse(
@@ -55,20 +57,38 @@ def fix_error_handler(app: FastAPI) -> None:
         )
 
 
-def validate_initial_state() -> None:
-    """\
-    Validate the initial state of the app before starting the app.
-
-    - Check if the service_info file exists.
-    - Check if the service_info file is valid JSON.
+def init_app_state() -> None:
     """
+    Perform validation, initialize the cache, and log the configuration contents.
+    Specifically, validate the configuration files such as service_info.json, auth_config.json,
+    executable_workflows.json, etc., and the initial state of the application.
+    """
+    LOGGER.info("=== Initializing app state... ====")
+
     service_info_path = get_config().service_info
     if not service_info_path.exists():
         raise FileNotFoundError(f"Service info file not found: {service_info_path}")
     try:
-        create_service_info()
+        service_info = create_service_info()  # Cache and validate
     except Exception as e:
         raise ValueError(f"Service info file is invalid: {service_info_path}") from e
+    LOGGER.info("Service info: %s", service_info)
+
+    auth_config_path = get_config().auth_config
+    if not auth_config_path.exists():
+        raise FileNotFoundError(f"Auth config file not found: {auth_config_path}")
+    try:
+        auth_config = get_auth_config()  # Cache and validate
+        # Extra validation
+        if auth_config.auth_enabled:
+            if auth_config.idp_provider == "external" and auth_config.external_config.client_mode == "confidential":
+                if auth_config.external_config.client_id is None or auth_config.external_config.client_secret is None:
+                    raise ValueError("Client ID and Client Secret must be specified in confidential mode in the auth_config.json file.")
+    except Exception as e:
+        raise ValueError(f"Auth config file is invalid: {auth_config_path}") from e
+    LOGGER.info("Auth config: %s", auth_config)
+
+    LOGGER.info("=== App state initialized. ===")
 
 
 @asynccontextmanager
@@ -87,7 +107,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
 def create_app() -> FastAPI:
     app_config = get_config()
-    logging.config.dictConfig(logging_config(app_config.debug))
+    logging.config.dictConfig(logging_config(app_config.debug))  # Reconfigure logging
 
     app = FastAPI(root_path=app_config.url_prefix, lifespan=lifespan)
     app.include_router(router)
@@ -106,8 +126,7 @@ def create_app() -> FastAPI:
 def main() -> None:
     app_config = get_config()  # Cache the config
     logging.config.dictConfig(logging_config(app_config.debug))
-    LOGGER.debug("App config: %s", app_config)
-    validate_initial_state()
+    init_app_state()
     uvicorn.run(
         "sapporo.app:create_app",
         host=app_config.host,

@@ -14,9 +14,8 @@
   "external_config": {
     "idp_url": "http://sapporo-keycloak-dev:8080/realms/sapporo-dev",
     "jwt_audience": "account",
-    "username_claim": "sub",
-    "client_mode": "credentials",
+    "client_mode": "public",
     "client_id": "sapporo-service-dev",
-    "client_secret": "example-client-secret",
+    "client_secret": "example-client-secret"
   }
 }
