@@ -13,7 +13,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from sapporo.auth import get_auth_config
 from sapporo.config import LOGGER, PKG_DIR, get_config, logging_config
 from sapporo.database import SNAPSHOT_INTERVAL, init_db
-from sapporo.factory import create_service_info
+from sapporo.factory import create_executable_wfs, create_service_info
 from sapporo.routers import router
 from sapporo.schemas import ErrorResponse
 
@@ -73,6 +73,18 @@ def init_app_state() -> None:
     except Exception as e:
         raise ValueError(f"Service info file is invalid: {service_info_path}") from e
     LOGGER.info("Service info: %s", service_info)
+
+    executable_wfs_path = get_config().executable_workflows
+    try:
+        executable_wfs = create_executable_wfs()  # Cache and validate
+        if len(executable_wfs.workflows) != 0:
+            # Check wf_url is http or https
+            for wf_url in executable_wfs.workflows:
+                if not wf_url.startswith("http://") and not wf_url.startswith("https://"):
+                    raise ValueError(f"Invalid workflow_url: {wf_url} in executable_workflows.json. The workflow_url must start with 'http://' or 'https://'.")
+    except Exception as e:
+        raise ValueError(f"Executable workflows file is invalid: {executable_wfs_path}") from e
+    LOGGER.info("Executable workflows: %s", executable_wfs)
 
     auth_config_path = get_config().auth_config
     if not auth_config_path.exists():

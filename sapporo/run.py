@@ -52,10 +52,14 @@ def resolve_content_path(run_id: str, key: RunDirStructureKeys) -> Path:
 def write_file(run_id: str, key: RunDirStructureKeys, content: Any) -> None:
     file = resolve_content_path(run_id, key)
     file.parent.mkdir(parents=True, exist_ok=True)
-    if file.suffix == ".json":
-        content = json.dumps(content, indent=2)
     with file.open(mode="w", encoding="utf-8") as f:
-        f.write(str(content))
+        if file.suffix == ".json":
+            content = json.dumps(content, indent=2)
+        elif key == "state":
+            content = content.value
+        else:
+            content = str(content)
+        f.write(content)
 
 
 def dump_runtime_info() -> Dict[str, Any]:

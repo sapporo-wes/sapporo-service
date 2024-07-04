@@ -5,7 +5,8 @@ from typing import Any, Dict, List, Optional
 from pydantic import TypeAdapter
 
 from sapporo.config import get_config
-from sapporo.schemas import (DefaultWorkflowEngineParameter, FileObject, Log,
+from sapporo.schemas import (DefaultWorkflowEngineParameter,
+                             ExecutableWorkflows, FileObject, Log,
                              Organization, OutputsListResponse, RunLog,
                              RunRequest, RunStatus, RunSummary, ServiceInfo,
                              ServiceType, WorkflowEngineVersion,
@@ -23,7 +24,8 @@ def create_service_info() -> ServiceInfo:
 
     To enable caching, `system_state_counts` is set to an empty dict.
     """
-    service_info_path = get_config().service_info
+    app_config = get_config()
+    service_info_path = app_config.service_info
     with service_info_path.open(mode="r", encoding="utf-8") as f:
         file_obj: Dict[str, Any] = json.load(f)
 
@@ -153,3 +155,13 @@ def create_outputs_list_response(run_id: str) -> OutputsListResponse:
     return OutputsListResponse(
         outputs=outputs or [],
     )
+
+
+@lru_cache(maxsize=None)
+def create_executable_wfs() -> ExecutableWorkflows:
+    executable_wfs_path = get_config().executable_workflows
+    if executable_wfs_path.exists():
+        with executable_wfs_path.open(mode="r", encoding="utf-8") as f:
+            return ExecutableWorkflows.model_validate_json(f.read())
+    else:
+        return ExecutableWorkflows(workflows=[])

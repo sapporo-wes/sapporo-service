@@ -12,14 +12,15 @@ from sapporo.auth import (MeResponse, TokenResponse, auth_depends_factory,
 from sapporo.config import GA4GH_WES_SPEC
 from sapporo.database import (add_run_db, db_runs_to_run_summaries,
                               get_session, list_runs_db, system_state_counts)
-from sapporo.factory import (create_outputs_list_response, create_run_log,
+from sapporo.factory import (create_executable_wfs,
+                             create_outputs_list_response, create_run_log,
                              create_run_status, create_run_summary,
                              create_service_info)
 from sapporo.run import (cancel_run_task, delete_run_task, post_run_task,
                          prepare_run_dir, resolve_content_path, zip_stream)
-from sapporo.schemas import (OutputsListResponse, RunId, RunListResponse,
-                             RunLog, RunStatus, ServiceInfo, State,
-                             TaskListResponse, TaskLog)
+from sapporo.schemas import (ExecutableWorkflows, OutputsListResponse, RunId,
+                             RunListResponse, RunLog, RunStatus, ServiceInfo,
+                             State, TaskListResponse, TaskLog)
 from sapporo.utils import secure_filepath
 from sapporo.validator import validate_run_id, validate_run_request
 
@@ -228,6 +229,20 @@ async def cancel_run(
 
 
 # === sapporo-wes-2.0.0 extension ===
+
+
+@router.get(
+    "/executable-workflows",
+    summary="ListExecutableWorkflows",
+    description="""\
+**sapporo-wes-2.0.0 extension:**
+Return the list of workflows that can be executed in this service.
+If `workflows: []`, it indicates that there are no restrictions, and any workflow can be executed.
+If `workflows` contains workflow urls, only those workflows can be executed.
+"""
+)
+def list_executable_wfs() -> ExecutableWorkflows:
+    return create_executable_wfs()
 
 
 @router.delete(

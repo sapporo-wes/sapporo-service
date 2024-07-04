@@ -1,0 +1,5 @@
+{
+  "workflows": [
+    "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwltool/trimming_and_qc.cwl"
+  ]
+}

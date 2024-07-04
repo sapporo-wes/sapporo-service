@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple
 from fastapi import HTTPException, UploadFile, status
 
 from sapporo.config import get_config
-from sapporo.factory import create_service_info
+from sapporo.factory import create_executable_wfs, create_service_info
 from sapporo.schemas import RunRequestForm
 
 
@@ -34,6 +34,16 @@ def validate_run_request(
     wf_engine_parameters = json.loads(wf_engine_parameters) if wf_engine_parameters is not None else None
     wf_url = wf_url if wf_url is not None else ""
     _wf_attachment_obj = json.loads(wf_attachment_obj) if wf_attachment_obj is not None else []
+
+    # Check executable_wfs
+    executable_wfs = create_executable_wfs()
+    if len(executable_wfs.workflows) != 0:
+        # Need to check if the wf_url is in the executable_wfs
+        if wf_url not in executable_wfs.workflows:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid workflow_url: {wf_url}. Sapporo is currently operating in the mode where only registered workflows can be executed. Please refer to GET /executable_workflows to see the list of executable workflows.",
+            )
 
     return RunRequestForm(
         workflow_params=_wf_params,

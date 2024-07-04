@@ -36,6 +36,19 @@ class OutputsListResponse(BaseModel):
     }
 
 
+class ExecutableWorkflows(BaseModel):
+    workflows: List[str] = Field(
+        ...,
+        description="List of executable workflows. Each workflow is a URL to the workflow file.",
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "description": "**sapporo-wes-2.0.0 extension:** Schema for executable_workflows.json. List of workflows that can be executed in this service.",
+        }
+    }
+
+
 # === Schemas from https://raw.githubusercontent.com/ga4gh-discovery/ga4gh-service-info/v1.0.0/service-info.yaml ===
 
 
