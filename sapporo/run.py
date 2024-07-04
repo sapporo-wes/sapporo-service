@@ -7,6 +7,7 @@ import time
 import traceback
 import urllib
 import zipfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 from pathlib import Path
 from subprocess import Popen
@@ -14,7 +15,8 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 
 import httpx
 
-from sapporo.config import RUN_DIR_STRUCTURE, RunDirStructureKeys, get_config
+from sapporo.config import (LOGGER, RUN_DIR_STRUCTURE, RunDirStructureKeys,
+                            get_config)
 from sapporo.factory import create_service_info
 from sapporo.schemas import RunRequest, RunRequestForm, State
 from sapporo.utils import now_str, sapporo_version, secure_filepath, user_agent
@@ -289,3 +291,27 @@ def zip_stream(run_id: str) -> Iterable[bytes]:
         buffer.seek(0)
         while chunk := buffer.read(8192):
             yield chunk
+
+
+def remove_old_runs() -> None:
+    # Avoid circular import
+    from sapporo.database import list_old_runs_db  # pylint: disable=C0415
+
+    older_than_days = get_config().run_remove_older_than_days
+    if older_than_days is None:
+        return
+
+    LOGGER.info("Removing old runs...")
+
+    old_runs = list_old_runs_db(older_than_days)
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        future_to_run_id = {
+            executor.submit(delete_run_task, run.run_id): run.run_id
+            for run in old_runs
+        }
+        for future in as_completed(future_to_run_id):
+            run_id = future_to_run_id[future]
+            try:
+                future.result()
+            except Exception as e:
+                raise Exception(f"Failed to delete run {run_id}") from e  # pylint: disable=W0719

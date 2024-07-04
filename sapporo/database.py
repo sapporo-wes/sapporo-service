@@ -11,7 +11,7 @@ Init DB script:
 
 import base64
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Generator, List, Literal, Optional, Tuple
 
 from sqlalchemy import func
@@ -178,6 +178,17 @@ def list_runs_db(
         next_page_token = None
 
     return results, next_page_token
+
+
+def list_old_runs_db(
+    older_than_days: int,
+) -> List[Run]:
+    with Session(engine) as session:
+        cutoff_date = datetime.now() - timedelta(days=older_than_days)
+        query = select(Run).where(Run.start_time < cutoff_date)
+        results = session.exec(query).all()
+
+    return list(results)
 
 
 if __name__ == "__main__":

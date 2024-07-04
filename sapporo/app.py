@@ -15,6 +15,7 @@ from sapporo.config import LOGGER, PKG_DIR, get_config, logging_config
 from sapporo.database import SNAPSHOT_INTERVAL, init_db
 from sapporo.factory import create_executable_wfs, create_service_info
 from sapporo.routers import router
+from sapporo.run import remove_old_runs
 from sapporo.schemas import ErrorResponse
 
 
@@ -108,13 +109,18 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     init_db()
     scheduler = BackgroundScheduler()
     scheduler.add_job(init_db, "interval", minutes=SNAPSHOT_INTERVAL)
+    scheduler.add_job(remove_old_runs, "interval", minutes=SNAPSHOT_INTERVAL)
     scheduler.start()
     LOGGER.info("DB snapshot scheduler started.")
 
-    yield
-
-    scheduler.shutdown()
-    LOGGER.info("DB snapshot scheduler stopped.")
+    try:
+        yield
+    except Exception as e:  # pylint: disable=W0718
+        LOGGER.exception("An unexpected error occurred.", exc_info=e)
+        # do not raise
+    finally:
+        scheduler.shutdown()
+        LOGGER.info("DB snapshot scheduler stopped.")
 
 
 def create_app() -> FastAPI:

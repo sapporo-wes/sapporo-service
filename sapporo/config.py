@@ -33,6 +33,7 @@ class AppConfig(BaseModel):
     base_url: str = f"http://{'0.0.0.0' if inside_docker() else '127.0.0.1'}:1122"
     allow_origin: str = "*"
     auth_config: Path = PKG_DIR.joinpath("auth_config.json")
+    run_remove_older_than_days: Optional[int] = None
 
 
 default_config = AppConfig()
@@ -108,6 +109,12 @@ def parse_args(args: Optional[List[str]] = None) -> Namespace:
         metavar="",
         help="Path to the auth_config.json file."
     )
+    parser.add_argument(
+        "--run-remove-older-than-days",
+        type=int,
+        metavar="",
+        help="Clean up run directories with a start time older than the specified number of days."
+    )
 
     return parser.parse_args(args)
 
@@ -134,6 +141,13 @@ def get_config() -> AppConfig:
     url_prefix = args.url_prefix or os.environ.get("SAPPORO_URL_PREFIX", default_config.url_prefix)
     base_url = args.base_url or os.environ.get("SAPPORO_BASE_URL", f"http://{host}:{port}{url_prefix}")
 
+    run_remove_older_than_days = args.run_remove_older_than_days or os.environ.get(
+        "SAPPORO_run_REMOVE_OLDER_THAN_DAYS", default_config.run_remove_older_than_days)
+    if run_remove_older_than_days is not None:
+        run_remove_older_than_days = int(run_remove_older_than_days)
+        if run_remove_older_than_days < 1:
+            raise ValueError("The value of --run-remove-older-than-days (SAPPORO_RUN_REMOVE_OLDER_THAN_DAYS) must be greater than or equal to 1.")
+
     return AppConfig(
         host=host,
         port=port,
@@ -146,6 +160,7 @@ def get_config() -> AppConfig:
         base_url=base_url,
         allow_origin=args.allow_origin or os.environ.get("SAPPORO_ALLOW_ORIGIN", default_config.allow_origin),
         auth_config=args.auth_config or Path(os.environ.get("SAPPORO_AUTH_CONFIG", default_config.auth_config)),
+        run_remove_older_than_days=run_remove_older_than_days,
     )
 
 
