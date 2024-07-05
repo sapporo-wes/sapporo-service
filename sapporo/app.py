@@ -11,7 +11,8 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from sapporo.auth import get_auth_config
-from sapporo.config import LOGGER, PKG_DIR, get_config, logging_config
+from sapporo.config import (LOGGER, PKG_DIR, add_openapi_info, get_config,
+                            logging_config)
 from sapporo.database import SNAPSHOT_INTERVAL, init_db
 from sapporo.factory import create_executable_wfs, create_service_info
 from sapporo.routers import router
@@ -127,8 +128,22 @@ def create_app() -> FastAPI:
     app_config = get_config()
     logging.config.dictConfig(logging_config(app_config.debug))  # Reconfigure logging
 
-    app = FastAPI(root_path=app_config.url_prefix, lifespan=lifespan)
-    app.include_router(router)
+    app = FastAPI(
+        root_path=app_config.url_prefix,
+        debug=app_config.debug,
+        lifespan=lifespan,
+    )
+    app.include_router(
+        router,
+        responses={
+            400: {"model": ErrorResponse, "description": "The request is malformed."},
+            401: {"model": ErrorResponse, "description": "The request is unauthorized."},
+            403: {"model": ErrorResponse, "description": "The requester is not authorized to perform this action."},
+            404: {"model": ErrorResponse, "description": "The requested workflow run not found."},
+            500: {"model": ErrorResponse, "description": "An unexpected error occurred."},
+        },
+    )
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[app_config.allow_origin],
@@ -137,6 +152,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     fix_error_handler(app)
+
+    add_openapi_info(app)
+    # dump_openapi_schema(app)
 
     return app
 

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
 import yaml
+from fastapi import FastAPI
 from pydantic import BaseModel
 
 from sapporo.utils import inside_docker, str2bool
@@ -255,3 +256,47 @@ RunDirStructureKeys = Literal[
     "cmd",
     "system_logs"
 ]
+
+
+# === API Spec ===
+
+
+API_DESCRIPTION = """\
+*Run standard workflows on workflow execution platforms in a platform-agnostic way.*
+
+## Executive Summary
+
+he Workflow Execution Service (WES) API provides a standard way for users to submit workflow requests to workflow execution systems and monitor their execution. This API lets users run a single workflow (currently [**CWL**](https://www.commonwl.org/) or [**WDL**](http://www.openwdl.org/) formatted workflows, with other types potentially supported in the future) on multiple different platforms, clouds, and environments.
+
+Key features of the API:
+
+- Request that a workflow be run.
+- Pass parameters to that workflow (e.g., input files, command-line arguments).
+- Get information about running workflows (e.g., status, errors, output file locations).
+- Cancel a running workflow.
+
+## Sapporo-WES Extensions
+
+`sapporo-wes-2.0.0` extends the original WES API to provide enhanced functionality and support for additional features. This document describes the WES API and details the specific endpoints, request formats, and responses, aimed at developers of WES-compatible services and clients.
+"""
+
+
+def add_openapi_info(app: FastAPI) -> None:
+    app.title = "GA4GH Workflow Execution Service API specification extended for the Sapporo"
+    app.version = "2.0.0"
+    app.description = API_DESCRIPTION
+    app.servers = [{"url": get_config().base_url}]
+    app.license_info = {
+        "name": "Apache 2.0",
+        "identifier": "Apache-2.0",
+        "url": "https://github.com/sapporo-wes/sapporo-service/blob/main/LICENSE",
+    }
+    app.contact = {
+        "name": "Sapporo-WES Project Team",
+        "url": "https://github.com/sapporo-wes/sapporo-service/issues",
+    }
+
+
+def dump_openapi_schema(app: FastAPI) -> None:
+    with PKG_DIR.joinpath("sapporo-wes-spec-2.0.0.yml").open("w", encoding="utf-8") as f:
+        f.write(yaml.dump(app.openapi()))

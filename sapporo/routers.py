@@ -231,20 +231,6 @@ async def cancel_run(
 # === sapporo-wes-2.0.0 extension ===
 
 
-@router.get(
-    "/executable-workflows",
-    summary="ListExecutableWorkflows",
-    description="""\
-**sapporo-wes-2.0.0 extension:**
-Return the list of workflows that can be executed in this service.
-If `workflows: []`, it indicates that there are no restrictions, and any workflow can be executed.
-If `workflows` contains workflow urls, only those workflows can be executed.
-"""
-)
-def list_executable_wfs() -> ExecutableWorkflows:
-    return create_executable_wfs()
-
-
 @router.delete(
     "/runs/{run_id}",
     summary="DeleteRun",
@@ -289,6 +275,20 @@ async def get_run_outputs_list(
             }
         )
     return create_outputs_list_response(run_id)
+
+
+@router.get(
+    "/executable-workflows",
+    summary="ListExecutableWorkflows",
+    description="""\
+**sapporo-wes-2.0.0 extension:**
+Return the list of workflows that can be executed in this service.
+If `workflows: []`, it indicates that there are no restrictions, and any workflow can be executed.
+If `workflows` contains workflow urls, only those workflows can be executed.
+"""
+)
+def list_executable_wfs() -> ExecutableWorkflows:
+    return create_executable_wfs()
 
 
 @router.get(
