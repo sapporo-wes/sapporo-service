@@ -144,7 +144,7 @@ def post_run_task(run_id: str, run_request: RunRequestForm) -> None:
         download_wf_attachment(run_id, run_request)
         fork_run(run_id)
     except Exception as e:  # pylint: disable=W0718
-        write_file(run_id, "state", State.EXECUTOR_ERROR)
+        write_file(run_id, "state", State.SYSTEM_ERROR)
         write_file(run_id, "end_time", now_str())
         error_msg = "".join(traceback.TracebackException.from_exception(e).format())
         append_system_logs(run_id, error_msg)
