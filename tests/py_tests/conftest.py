@@ -7,7 +7,7 @@ import sys
 import tempfile
 from pathlib import Path
 from time import sleep
-from typing import Generator, Optional
+from typing import Any, Dict, Generator, Optional
 
 import pytest
 from fastapi.testclient import TestClient
@@ -38,16 +38,15 @@ def reset_os_env() -> Generator[None, None, None]:
 
 @pytest.fixture()
 def tmpdir() -> Generator[Path, None, None]:
-    yield Path("/tmp/foobar")
-    # tempdir = tempfile.mkdtemp()
-    # yield Path(tempdir)
-    # try:
-    #     shutil.rmtree(tempdir)
-    # except PermissionError:
-    #     pass
+    tempdir = tempfile.mkdtemp()
+    yield Path(tempdir)
+    try:
+        shutil.rmtree(tempdir)
+    except Exception:  # pylint: disable=W0718
+        pass
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def clear_cache():  # type: ignore
     from sapporo.config import get_config
     get_config.cache_clear()
@@ -69,6 +68,9 @@ def clear_cache():  # type: ignore
                                    validate_wf_type_and_version)
     validate_wf_type_and_version.cache_clear()
     validate_wf_engine_type_and_version.cache_clear()
+
+    from sapporo.database import create_db_engine
+    create_db_engine.cache_clear()
 
 
 def mock_get_config(mocker, app_config):  # type: ignore
@@ -143,3 +145,19 @@ def wait_for_run_complete(client: TestClient, run_id: str) -> None:
         raise TimeoutError("The run did not complete within the expected time.")
     if response.json()["state"] != "COMPLETE":
         raise RuntimeError(f"Run failed with state: {response.json()['state']}")
+
+
+def assert_run_complete(run_id: str, data: Dict[str, Any]) -> None:
+    assert data["run_id"] == run_id
+    assert data["state"] == "COMPLETE"
+    assert data["run_log"]["name"] is None
+    assert data["run_log"]["cmd"] is not None
+    assert data["run_log"]["start_time"] is not None
+    assert data["run_log"]["end_time"] is not None
+    assert data["run_log"]["stdout"] is not None
+    assert data["run_log"]["stderr"] is not None
+    assert data["run_log"]["exit_code"] == 0
+    assert data["run_log"]["system_logs"] == []
+    assert data["task_logs_url"] is None
+    assert data["task_logs"] is None
+    assert len(data["outputs"]) != 0

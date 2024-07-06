@@ -13,6 +13,7 @@ import base64
 import json
 from contextlib import contextmanager
 from datetime import datetime, timedelta
+from functools import lru_cache
 from typing import Dict, Generator, List, Literal, Optional, Tuple
 
 from sqlalchemy import func
@@ -27,27 +28,20 @@ from sapporo.utils import dt_to_time_str, time_str_to_dt
 
 SNAPSHOT_INTERVAL = 30  # minutes
 DATABASE_NAME = "sapporo.db"
-DB_ENGINE: Optional[Engine] = None
 
 
+@lru_cache(maxsize=None)
 def create_db_engine() -> Engine:
-    e = create_engine(
+    return create_engine(
         f"sqlite:///{get_config().run_dir}/{DATABASE_NAME}",
         echo=get_config().debug,
         connect_args={"check_same_thread": False},
     )
-    # Cache the engine
-    global DB_ENGINE  # pylint: disable=W0603
-    DB_ENGINE = e
-
-    return e
 
 
 @contextmanager
 def get_session() -> Generator[Session, None, None]:
-    if DB_ENGINE is None:
-        create_db_engine()
-    session = Session(DB_ENGINE)
+    session = Session(create_db_engine())
     try:
         yield session
     finally:
@@ -84,12 +78,10 @@ def init_db() -> None:
     Master data is stored under the each run directory, so if an existing database is found,
     it will be deleted and regenerated from scratch.
     """
-    if DB_ENGINE is None:
-        create_db_engine()
-
+    engine = create_db_engine()
     if get_config().run_dir.joinpath(DATABASE_NAME).exists():
-        SQLModel.metadata.drop_all(DB_ENGINE)  # type: ignore
-    SQLModel.metadata.create_all(DB_ENGINE)  # type: ignore
+        SQLModel.metadata.drop_all(engine)  # type: ignore
+    SQLModel.metadata.create_all(engine)  # type: ignore
     with get_session() as session:
         for run_id in glob_all_run_ids():
             run_summary = create_run_summary(run_id)
