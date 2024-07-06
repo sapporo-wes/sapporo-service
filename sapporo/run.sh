@@ -178,6 +178,7 @@ function generate_outputs_list() {
 
 function generate_ro_crate() {
     # python3 -c "from sapporo.ro_crate import dump_ro_crate; dump_ro_crate('${run_dir}')" || echo "{}" >${run_dir}/ro-crate-metadata.json
+    :
     # If you want to upload ro-crate-metadata.json, write the process here.
 }
 

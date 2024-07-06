@@ -6,10 +6,13 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
-from typing import Generator
+from time import sleep
+from typing import Generator, Optional
 
 import pytest
 from fastapi.testclient import TestClient
+from httpx import Response
+from httpx._types import RequestFiles
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -35,18 +38,37 @@ def reset_os_env() -> Generator[None, None, None]:
 
 @pytest.fixture()
 def tmpdir() -> Generator[Path, None, None]:
-    tempdir = tempfile.mkdtemp()
-    yield Path(tempdir)
-    try:
-        shutil.rmtree(tempdir)
-    except PermissionError:
-        pass
+    yield Path("/tmp/foobar")
+    # tempdir = tempfile.mkdtemp()
+    # yield Path(tempdir)
+    # try:
+    #     shutil.rmtree(tempdir)
+    # except PermissionError:
+    #     pass
 
 
 @pytest.fixture(autouse=True)
-def clear_get_config_cache():  # type: ignore
+def clear_cache():  # type: ignore
     from sapporo.config import get_config
     get_config.cache_clear()
+
+    from sapporo.factory import create_executable_wfs, create_service_info
+    create_service_info.cache_clear()
+    create_executable_wfs.cache_clear()
+
+    from sapporo.auth import (auth_depends_factory, fetch_endpoint_metadata,
+                              fetch_jwks, get_auth_config,
+                              is_create_token_endpoint_enabled)
+    get_auth_config.cache_clear()
+    auth_depends_factory.cache_clear()
+    is_create_token_endpoint_enabled.cache_clear()
+    fetch_endpoint_metadata.cache_clear()
+    fetch_jwks.cache_clear()
+
+    from sapporo.validator import (validate_wf_engine_type_and_version,
+                                   validate_wf_type_and_version)
+    validate_wf_type_and_version.cache_clear()
+    validate_wf_engine_type_and_version.cache_clear()
 
 
 def mock_get_config(mocker, app_config):  # type: ignore
@@ -70,7 +92,6 @@ def anyhow_get_test_client(app_config, mocker, tmpdir) -> TestClient:  # type: i
         app_config = AppConfig(run_dir=tmpdir,)
     else:
         app_config.run_dir = tmpdir
-    print(app_config)
     mock_get_config(mocker, app_config)  # type: ignore
 
     from sapporo.database import init_db
@@ -79,3 +100,46 @@ def anyhow_get_test_client(app_config, mocker, tmpdir) -> TestClient:  # type: i
 
     from sapporo.app import create_app
     return TestClient(create_app())
+
+
+def post_run(
+    client: TestClient,
+    workflow_type: str,
+    workflow_engine: str,
+    workflow_params: Optional[str] = None,
+    workflow_type_version: Optional[str] = None,
+    tags: Optional[str] = None,
+    workflow_engine_version: Optional[str] = None,
+    workflow_engine_parameters: Optional[str] = None,
+    workflow_url: Optional[str] = None,
+    workflow_attachment: Optional[RequestFiles] = None,
+    workflow_attachment_obj: Optional[str] = None,
+) -> Response:
+    data = {
+        "workflow_params": workflow_params,
+        "workflow_type": workflow_type,
+        "workflow_type_version": workflow_type_version,
+        "tags": tags,
+        "workflow_engine": workflow_engine,
+        "workflow_engine_version": workflow_engine_version,
+        "workflow_engine_parameters": workflow_engine_parameters,
+        "workflow_url": workflow_url,
+        "workflow_attachment_obj": workflow_attachment_obj,
+    }
+    data = {k: v for k, v in data.items() if v is not None}
+
+    return client.post("/runs", data=data, files=workflow_attachment)  # type: ignore
+
+
+def wait_for_run_complete(client: TestClient, run_id: str) -> None:
+    count = 0
+    while count <= 120:
+        sleep(3)
+        response = client.get(f"/runs/{run_id}")
+        if response.json()["state"] in ["COMPLETE", "EXECUTOR_ERROR", "SYSTEM_ERROR", "CANCELED", "DELETED"]:
+            break
+        count += 1
+    if count > 120:
+        raise TimeoutError("The run did not complete within the expected time.")
+    if response.json()["state"] != "COMPLETE":
+        raise RuntimeError(f"Run failed with state: {response.json()['state']}")
