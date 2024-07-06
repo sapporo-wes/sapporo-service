@@ -229,7 +229,7 @@ def cancel_run_task(run_id: str) -> None:
         # So, write CANCELING to the state.
         # Then, when run.sh is executed, check the state and do not run the job.
         write_file(run_id, "state", State.CANCELING)
-    if state in [State.QUEUED, State.RUNNING]:
+    elif state in [State.QUEUED, State.RUNNING]:
         # The process is doing in run.sh. Send SIGUSR1 to the process.
         write_file(run_id, "state", State.CANCELING)
         pid: Optional[int] = read_file(run_id, "pid")
@@ -250,15 +250,16 @@ def delete_run_task(run_id: str) -> None:
     # 1. Cancel the run if it is running.
     cancel_run_task(run_id)
 
-    # 2. Delete run-related files.
-    # Pooling 10min for the cancellation process.
-    # If it does not cancel after 10min, delete it as it is.
-    for _ in range(10):
+    # 2. Pooling for the run to be canceled.
+    time.sleep(3)
+    for _ in range(120):
         state = read_state(run_id)
         if state == State.CANCELING:
-            time.sleep(60)
+            time.sleep(3)
         else:
             break
+
+    # 3. Delete run-related files.
     write_file(run_id, "state", State.DELETING)
     run_dir = resolve_run_dir(run_id)
     for path in run_dir.glob("*"):
@@ -269,7 +270,7 @@ def delete_run_task(run_id: str) -> None:
         else:
             path.unlink()
 
-    # 3. Record the deletion.
+    # 4. Record the deletion.
     write_file(run_id, "state", State.DELETED)
 
 

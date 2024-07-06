@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from .conftest import (anyhow_get_test_client, assert_run_complete, post_run,
-                       wait_for_run_complete)
+                       wait_for_run)
 
 REMOTE_BASE_URL = "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwltool/"
 
@@ -29,7 +29,8 @@ def post_run_cwltool_remote_wf(client):  # type: ignore
     data = response.json()
     run_id = data["run_id"]
 
-    wait_for_run_complete(client, run_id)
+    state = wait_for_run(client, run_id)
+    assert state == "COMPLETE"
 
     return run_id
 
@@ -43,7 +44,8 @@ def test_post_run_cwltool_remote_wf(mocker, tmpdir):  # type: ignore
     assert "run_id" in data
     run_id = data["run_id"]
 
-    wait_for_run_complete(client, run_id)
+    state = wait_for_run(client, run_id)
+    assert state == "COMPLETE"
 
     response = client.get(f"/runs/{run_id}")
     assert response.status_code == 200
@@ -83,7 +85,8 @@ def test_post_run_cwltool_attach_all_files(mocker, tmpdir):  # type: ignore
     assert "run_id" in data
     run_id = data["run_id"]
 
-    wait_for_run_complete(client, run_id)
+    state = wait_for_run(client, run_id)
+    assert state == "COMPLETE"
 
     response = client.get(f"/runs/{run_id}")
     assert response.status_code == 200

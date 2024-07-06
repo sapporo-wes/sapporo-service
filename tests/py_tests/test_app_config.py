@@ -75,3 +75,4 @@ def test_get_config_with_env_vars(env_var, value, expected):  # type: ignore
     config = get_config()
     attr_name = env_var.split("_", 1)[1].lower()
     assert getattr(config, attr_name) == expected
+    os.environ.pop(env_var)

@@ -183,7 +183,7 @@ function generate_ro_crate() {
 }
 
 function desc_error() {
-    local original_exit_code=$?
+    local original_exit_code=1
     echo ${original_exit_code} >${exit_code}
     date -u +"%Y-%m-%dT%H:%M:%S" >${end_time}
     echo "SYSTEM_ERROR" >${state}
@@ -240,4 +240,7 @@ trap 'kill_by_system SIGQUIT' QUIT
 trap 'kill_by_system SIGTERM' TERM
 trap 'cancel' USR1 # Handle cancellation request
 
-run_wf
+# Run as a background process to handle cancellation requests
+run_wf &
+bg_pid=$!
+wait $bg_pid || true

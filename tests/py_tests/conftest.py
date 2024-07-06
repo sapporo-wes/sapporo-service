@@ -133,18 +133,19 @@ def post_run(
     return client.post("/runs", data=data, files=workflow_attachment)  # type: ignore
 
 
-def wait_for_run_complete(client: TestClient, run_id: str) -> None:
+def wait_for_run(client: TestClient, run_id: str) -> str:
     count = 0
     while count <= 120:
         sleep(3)
         response = client.get(f"/runs/{run_id}")
-        if response.json()["state"] in ["COMPLETE", "EXECUTOR_ERROR", "SYSTEM_ERROR", "CANCELED", "DELETED"]:
+        state = response.json()["state"]
+        if state in ["COMPLETE", "EXECUTOR_ERROR", "SYSTEM_ERROR", "CANCELED", "DELETED"]:
             break
         count += 1
     if count > 120:
         raise TimeoutError("The run did not complete within the expected time.")
-    if response.json()["state"] != "COMPLETE":
-        raise RuntimeError(f"Run failed with state: {response.json()['state']}")
+
+    return state  # type: ignore
 
 
 def assert_run_complete(run_id: str, data: Dict[str, Any]) -> None:
