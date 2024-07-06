@@ -205,7 +205,7 @@ def logging_config(debug: bool = False) -> Dict[str, Any]:
             },
             "sqlalchemy.engine": {
                 "handlers": ["sqlalchemy"],
-                "level": "INFO",
+                "level": "INFO" if debug else "WARNING",
                 "propagate": False
             },
         }

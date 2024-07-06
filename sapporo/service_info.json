@@ -32,8 +32,7 @@
   "supported_filesystem_protocols": [
     "file",
     "http",
-    "https",
-    "s3"
+    "https"
   ],
   "workflow_engine_versions": {
     "cwltool": {

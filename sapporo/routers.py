@@ -1,17 +1,16 @@
 from typing import List, Literal, Optional, Union
 from uuid import uuid4
 
-from fastapi import (APIRouter, BackgroundTasks, Depends, File, Form,
-                     HTTPException, Query, UploadFile, status)
+from fastapi import (APIRouter, BackgroundTasks, File, Form, HTTPException,
+                     Query, UploadFile, status)
 from fastapi.responses import FileResponse, StreamingResponse
-from sqlmodel import Session
 
 from sapporo.auth import (MeResponse, TokenResponse, auth_depends_factory,
                           create_access_token, decode_token, extract_username,
                           is_create_token_endpoint_enabled)
 from sapporo.config import GA4GH_WES_SPEC
 from sapporo.database import (add_run_db, db_runs_to_run_summaries,
-                              get_session, list_runs_db, system_state_counts)
+                              list_runs_db, system_state_counts)
 from sapporo.factory import (create_executable_wfs,
                              create_outputs_list_response, create_run_log,
                              create_run_status, create_run_summary,
@@ -37,9 +36,9 @@ router = APIRouter()
 """,
     response_model=ServiceInfo,
 )
-async def get_service_info(db_session: Session = Depends(get_session)) -> ServiceInfo:
+async def get_service_info() -> ServiceInfo:
     service_info = create_service_info()
-    service_info.system_state_counts = system_state_counts(db_session)
+    service_info.system_state_counts = system_state_counts()
     return service_info
 
 
@@ -55,7 +54,6 @@ async def get_service_info(db_session: Session = Depends(get_session)) -> Servic
     response_model=RunListResponse,
 )
 async def list_runs(
-    db_session: Session = Depends(get_session),
     page_size: int = Query(
         10,
         description=GA4GH_WES_SPEC["paths"]["/runs"]["get"]["parameters"][0]["description"],
@@ -73,7 +71,7 @@ async def list_runs(
         description='**sapporo-wes-2.0.0 extension:**: Filter the runs based on the state (e.g., "COMPLETE", "RUNNING", etc.).',
     ),
 ) -> RunListResponse:
-    (db_runs, next_page_token) = list_runs_db(db_session, page_size, page_token, sort_order, state)
+    (db_runs, next_page_token) = list_runs_db(page_size, page_token, sort_order, state)
     return RunListResponse(
         runs=db_runs_to_run_summaries(db_runs),  # type: ignore
         next_page_token=next_page_token,
@@ -92,7 +90,6 @@ async def list_runs(
 )
 async def run_workflow(
     background_tasks: BackgroundTasks,
-    db_session: Session = Depends(get_session),
     workflow_params: Optional[str] = Form(None),
     workflow_type: str = Form(
         ...,
@@ -127,7 +124,7 @@ async def run_workflow(
         workflow_attachment_obj,
     )
     prepare_run_dir(run_id, run_request)
-    add_run_db(db_session, create_run_summary(run_id))
+    add_run_db(create_run_summary(run_id))
     background_tasks.add_task(post_run_task, run_id, run_request)
     return RunId(run_id=run_id)
 

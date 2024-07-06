@@ -166,3 +166,4 @@ cython_debug/
 
 run/
 keycloak-data/
+tests/htmlcov/

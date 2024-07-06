@@ -11,10 +11,12 @@ Init DB script:
 
 import base64
 import json
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Dict, Generator, List, Literal, Optional, Tuple
 
 from sqlalchemy import func
+from sqlalchemy.engine.base import Engine
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from sapporo.config import get_config
@@ -25,17 +27,31 @@ from sapporo.utils import dt_to_time_str, time_str_to_dt
 
 SNAPSHOT_INTERVAL = 30  # minutes
 DATABASE_NAME = "sapporo.db"
-DATABASE_URL = f"sqlite:///{get_config().run_dir}/{DATABASE_NAME}"
-engine = create_engine(
-    DATABASE_URL,
-    echo=get_config().debug,
-    connect_args={"check_same_thread": False},
-)
+DB_ENGINE: Optional[Engine] = None
 
 
+def create_db_engine() -> Engine:
+    e = create_engine(
+        f"sqlite:///{get_config().run_dir}/{DATABASE_NAME}",
+        echo=get_config().debug,
+        connect_args={"check_same_thread": False},
+    )
+    # Cache the engine
+    global DB_ENGINE  # pylint: disable=W0603
+    DB_ENGINE = e
+
+    return e
+
+
+@contextmanager
 def get_session() -> Generator[Session, None, None]:
-    with Session(engine) as session:
+    if DB_ENGINE is None:
+        create_db_engine()
+    session = Session(DB_ENGINE)
+    try:
         yield session
+    finally:
+        session.close()
 
 
 # === Models ===
@@ -68,10 +84,13 @@ def init_db() -> None:
     Master data is stored under the each run directory, so if an existing database is found,
     it will be deleted and regenerated from scratch.
     """
+    if DB_ENGINE is None:
+        create_db_engine()
+
     if get_config().run_dir.joinpath(DATABASE_NAME).exists():
-        SQLModel.metadata.drop_all(engine)
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
+        SQLModel.metadata.drop_all(DB_ENGINE)  # type: ignore
+    SQLModel.metadata.create_all(DB_ENGINE)  # type: ignore
+    with get_session() as session:
         for run_id in glob_all_run_ids():
             run_summary = create_run_summary(run_id)
             run = Run(
@@ -87,7 +106,6 @@ def init_db() -> None:
 
 
 def add_run_db(
-    session: Session,
     run_summary: RunSummary,
     username: Optional[str] = None,
 ) -> Run:
@@ -102,18 +120,18 @@ def add_run_db(
         end_time=run_summary.end_time and time_str_to_dt(run_summary.end_time),
         tags=json.dumps(run_summary.tags),
     )
-    session.add(run)
-    session.commit()
-    session.refresh(run)
+    with get_session() as session:
+        session.add(run)
+        session.commit()
+        session.refresh(run)
 
     return run
 
 
-def system_state_counts(
-    session: Session,
-) -> Dict[str, int]:
+def system_state_counts() -> Dict[str, int]:
     statement = select(Run.state, func.count(Run.run_id)).group_by(Run.state)  # type: ignore # pylint: disable=E1102
-    results = session.exec(statement).all()
+    with get_session() as session:
+        results = session.exec(statement).all()
 
     state_counts = {state.value: 0 for state in State}
     for state, count in results:
@@ -136,7 +154,6 @@ def _decode_page_token(page_token: str) -> Dict[str, str]:
 
 
 def list_runs_db(
-    session: Session,
     page_size: int,
     page_token: Optional[str] = None,
     sort_order: Literal["asc", "desc"] = "desc",
@@ -169,7 +186,8 @@ def list_runs_db(
 
     query = query.limit(page_size + 1)
 
-    results = session.exec(query).all()
+    with get_session() as session:
+        results = session.exec(query).all()
     results = list(results)
     if len(results) > page_size:
         next_page_token = _encode_page_token(results[page_size - 1])
@@ -183,7 +201,7 @@ def list_runs_db(
 def list_old_runs_db(
     older_than_days: int,
 ) -> List[Run]:
-    with Session(engine) as session:
+    with get_session() as session:
         cutoff_date = datetime.now() - timedelta(days=older_than_days)
         query = select(Run).where(Run.start_time < cutoff_date)
         results = session.exec(query).all()

@@ -8,7 +8,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, OAuth2PasswordBearer
 from fastapi.security.utils import get_authorization_scheme_param
 from jwt import PyJWKSet
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from starlette.requests import Request
 
 from sapporo.config import get_config
@@ -63,8 +63,9 @@ class TokenPayload(BaseModel):
     aud: str
     iss: str
 
-    class Config:
-        extra = "allow"
+    model_config = ConfigDict(
+        extra="allow"
+    )
 
 
 class ExternalEndpointMetadata(BaseModel):
@@ -72,8 +73,9 @@ class ExternalEndpointMetadata(BaseModel):
     token_endpoint: str
     jwks_uri: str
 
-    class Config:
-        extra = "ignore"
+    model_config = ConfigDict(
+        extra="ignore"
+    )
 
 
 # === General Functions ===

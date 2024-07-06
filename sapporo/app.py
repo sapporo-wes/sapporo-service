@@ -108,6 +108,7 @@ def init_app_state() -> None:
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     init_db()
+
     scheduler = BackgroundScheduler()
     scheduler.add_job(init_db, "interval", minutes=SNAPSHOT_INTERVAL)
     scheduler.add_job(remove_old_runs, "interval", minutes=SNAPSHOT_INTERVAL)

@@ -44,7 +44,7 @@ Documentation = "https://github.com/sapporo-wes/sapporo-service/blob/main/README
 Repository = "https://github.com/sapporo-wes/sapporo-service.git"
 
 [project.optional-dependencies]
-tests = []
+tests = ["pytest", "pytest-cov", "pytest-mock"]
 
 [project.scripts]
 sapporo = "sapporo.app:main"
@@ -53,7 +53,17 @@ sapporo = "sapporo.app:main"
 packages = ["sapporo"]
 
 [tool.setuptools.package-data]
-sapporo = ["sapporo/service_info.json"] # TODO: check
+sapporo = [
+    "sapporo/service_info.json",
+    "sapporo/executable_workflows.json",
+    "sapporo/auth_config.json",
+    "sapporo/run.sh",
+    "sapporo/ga4gh-wes-spec-1.1.0.yml",
+]
+
+[tool.pytest.ini_options]
+addopts = "--cov=sapporo --cov-report=html:tests/htmlcov"
+testpaths = ["tests/py_tests"]
 
 [tool.mypy]
 ignore_missing_imports = true

@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
 from fastapi import UploadFile
-from pydantic import BaseModel, Field, HttpUrl, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_serializer
 
 from sapporo.config import GA4GH_WES_SPEC
 
@@ -19,21 +19,21 @@ class FileObject(BaseModel):
         description="Download URL of the file.",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "description": "**sapporo-wes-2.0.0 extension:** File object used in Workflow Attachment and Output files, etc.",
         }
-    }
+    )
 
 
 class OutputsListResponse(BaseModel):
     outputs: List[FileObject]
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "description": "**sapporo-wes-2.0.0 extension:** Response schema for GET /runs/{run_id}/outputs.",
         }
-    }
+    )
 
 
 class ExecutableWorkflows(BaseModel):
@@ -42,11 +42,11 @@ class ExecutableWorkflows(BaseModel):
         description="List of executable workflows. Each workflow is a URL to the workflow file.",
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "description": "**sapporo-wes-2.0.0 extension:** Schema for executable_workflows.json. List of workflows that can be executed in this service.",
         }
-    }
+    )
 
 
 # === Schemas from https://raw.githubusercontent.com/ga4gh-discovery/ga4gh-service-info/v1.0.0/service-info.yaml ===
@@ -66,11 +66,11 @@ class ServiceType(BaseModel):
         description="Version of the API or specification. GA4GH specifications use semantic versioning.",
         examples=["1.0.0"])
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "description": "Type of a GA4GH service.",
         }
-    }
+    )
 
 
 class Organization(BaseModel):
@@ -83,11 +83,11 @@ class Organization(BaseModel):
         description="URL of the website of the organization (RFC 3986 format).",
         examples=["https://example.com"])
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "description": "Organization providing the service.",
         }
-    }
+    )
 
 
 class Service(BaseModel):
@@ -134,11 +134,11 @@ class Service(BaseModel):
         description="Version of the service being described. Semantic versioning is recommended, but other identifiers, such as dates or commit hashes, are also allowed. The version should be changed whenever the service is updated.",
         examples=["1.0.0"])
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "description": "GA4GH service.",
         }
-    }
+    )
 
 
 # === Schemas from ./ga4gh-wes-spec-1.1.0.yml ===
@@ -153,11 +153,11 @@ class WorkflowTypeVersion(BaseModel):
         description=GA4GH_WES_SCHEMAS["WorkflowTypeVersion"]["properties"]["workflow_type_version"]["description"],
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "description": GA4GH_WES_SCHEMAS["WorkflowTypeVersion"]["description"],
         }
-    }
+    )
 
 
 class WorkflowEngineVersion(BaseModel):
@@ -166,11 +166,11 @@ class WorkflowEngineVersion(BaseModel):
         description=GA4GH_WES_SCHEMAS["WorkflowEngineVersion"]["properties"]["workflow_engine_version"]["description"],
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "description": GA4GH_WES_SCHEMAS["WorkflowEngineVersion"]["description"],
         }
-    }
+    )
 
 
 class DefaultWorkflowEngineParameter(BaseModel):
@@ -187,11 +187,11 @@ class DefaultWorkflowEngineParameter(BaseModel):
         description=GA4GH_WES_SCHEMAS["DefaultWorkflowEngineParameter"]["properties"]["default_value"]["description"],
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "description": GA4GH_WES_SCHEMAS["DefaultWorkflowEngineParameter"]["description"],
         }
-    }
+    )
 
 
 class ServiceInfo(Service):
@@ -248,11 +248,11 @@ class RunStatus(BaseModel):
         description=GA4GH_WES_SCHEMAS["State"]["description"],
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "description": GA4GH_WES_SCHEMAS["RunStatus"]["description"],
         }
-    }
+    )
 
 
 class RunSummary(RunStatus):
@@ -269,11 +269,11 @@ class RunSummary(RunStatus):
         description=GA4GH_WES_SCHEMAS["RunSummary"]["allOf"][1]["properties"]["tags"]["description"],
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "description": GA4GH_WES_SCHEMAS["RunSummary"]["description"],
         }
-    }
+    )
 
 
 class RunListResponse(BaseModel):
@@ -286,11 +286,11 @@ class RunListResponse(BaseModel):
         description=GA4GH_WES_SCHEMAS["RunListResponse"]["properties"]["next_page_token"]["description"],
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "description": GA4GH_WES_SCHEMAS["RunListResponse"]["description"],
         }
-    }
+    )
 
 
 class RunRequest(BaseModel):
@@ -321,11 +321,11 @@ class RunRequest(BaseModel):
         description=GA4GH_WES_SCHEMAS["RunRequest"]["properties"]["workflow_url"]["description"],
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "description": GA4GH_WES_SCHEMAS["RunRequest"]["description"],
         }
-    }
+    )
 
 
 class RunId(BaseModel):
@@ -369,11 +369,11 @@ class Log(BaseModel):
         description=GA4GH_WES_SCHEMAS["Log"]["properties"]["system_logs"]["description"],
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "description": GA4GH_WES_SCHEMAS["Log"]["description"],
         }
-    }
+    )
 
 
 class TaskLog(Log):
@@ -394,11 +394,11 @@ class TaskLog(Log):
         description=GA4GH_WES_SCHEMAS["TaskLog"]["allOf"][1]["properties"]["tes_uri"]["description"],
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "description": GA4GH_WES_SCHEMAS["TaskLog"]["description"],
         }
-    }
+    )
 
 
 class RunLog(BaseModel):
@@ -438,11 +438,11 @@ class TaskListResponse(BaseModel):
         description=GA4GH_WES_SCHEMAS["TaskListResponse"]["properties"]["next_page_token"]["description"],
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "description": GA4GH_WES_SCHEMAS["TaskListResponse"]["description"],
         }
-    }
+    )
 
 
 class ErrorResponse(BaseModel):
@@ -455,11 +455,11 @@ class ErrorResponse(BaseModel):
         description=GA4GH_WES_SCHEMAS["ErrorResponse"]["properties"]["status_code"]["description"],
     )
 
-    model_config = {
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        json_schema_extra={
             "description": GA4GH_WES_SCHEMAS["ErrorResponse"]["description"],
         }
-    }
+    )
 
 
 # === Schemas convenient for implementation ===
