@@ -6,6 +6,7 @@ from fastapi import HTTPException, UploadFile, status
 
 from sapporo.config import get_config
 from sapporo.factory import create_executable_wfs, create_service_info
+from sapporo.run import read_file
 from sapporo.schemas import RunRequestForm
 
 
@@ -104,10 +105,22 @@ def validate_wf_engine_type_and_version(
     return wf_engine, wf_engine_version
 
 
-def validate_run_id(run_id: str) -> None:
+def validate_run_id(run_id: str, username: Optional[str]) -> None:
+    """
+    Note: This function directly checks the run directory without using the database. 
+    Although this approach may seem confusing, it is based on the concept that the master data is stored in the run directory.
+    """
     specific_run_dir = get_config().run_dir.joinpath(run_id[:2]).joinpath(run_id)
     if not specific_run_dir.exists():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Run ID {run_id} not found.",
         )
+
+    if username is not None:
+        run_username = read_file(run_id, "username")
+        if run_username != username:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Your username is not allowed to access run ID {run_id}.",
+            )

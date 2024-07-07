@@ -22,7 +22,7 @@ from sapporo.schemas import RunRequest, RunRequestForm, State
 from sapporo.utils import now_str, sapporo_version, secure_filepath, user_agent
 
 
-def prepare_run_dir(run_id: str, run_request: RunRequestForm) -> None:
+def prepare_run_dir(run_id: str, run_request: RunRequestForm, username: Optional[str]) -> None:
     run_dir = resolve_run_dir(run_id)
     run_dir.mkdir(parents=True, exist_ok=True)
     exe_dir = resolve_content_path(run_id, "exe_dir")
@@ -37,6 +37,9 @@ def prepare_run_dir(run_id: str, run_request: RunRequestForm) -> None:
     write_file(run_id, "wf_params", run_request.workflow_params)
     write_file(run_id, "wf_engine_params", wf_engine_params_to_str(run_request))
     write_file(run_id, "system_logs", [])
+
+    if username is not None:
+        write_file(run_id, "username", username)
 
     write_wf_attachment(run_id, run_request)
 
@@ -167,7 +170,7 @@ def read_file(run_id: str, key: RunDirStructureKeys) -> Any:
             return RunRequest.model_validate_json(content)
         if key == "cmd":
             return shlex.split(content)
-        if key in ["start_time", "end_time", "stdout", "stderr"]:
+        if key in ["start_time", "end_time", "stdout", "stderr", "username"]:
             return content
         if key in ["pid", "exit_code"]:
             return int(content)

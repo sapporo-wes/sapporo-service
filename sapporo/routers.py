@@ -70,8 +70,10 @@ async def list_runs(
         None,
         description='**sapporo-wes-2.0.0 extension:**: Filter the runs based on the state (e.g., "COMPLETE", "RUNNING", etc.).',
     ),
+    token: Optional[str] = auth_depends_factory(),
 ) -> RunListResponse:
-    (db_runs, next_page_token) = list_runs_db(page_size, page_token, sort_order, state)
+    username = token and extract_username(decode_token(token))
+    (db_runs, next_page_token) = list_runs_db(page_size, page_token, sort_order, state, username)
     return RunListResponse(
         runs=db_runs_to_run_summaries(db_runs),  # type: ignore
         next_page_token=next_page_token,
@@ -109,7 +111,9 @@ async def run_workflow(
         None,
         description='Extension specific to sapporo-wes-2.0.0: e.g., [{ "file_name": "path/to/file", "file_url": "https://example.com/path/to/file" }]',
     ),
+    token: Optional[str] = auth_depends_factory(),
 ) -> RunId:
+    username = token and extract_username(decode_token(token))
     run_id = str(uuid4())
     run_request = validate_run_request(
         workflow_params,
@@ -123,8 +127,8 @@ async def run_workflow(
         workflow_attachment,
         workflow_attachment_obj,
     )
-    prepare_run_dir(run_id, run_request)
-    add_run_db(create_run_summary(run_id))
+    prepare_run_dir(run_id, run_request, username)
+    add_run_db(create_run_summary(run_id), username)
     background_tasks.add_task(post_run_task, run_id, run_request)
     return RunId(run_id=run_id)
 
@@ -140,9 +144,11 @@ async def run_workflow(
     response_model=RunLog,
 )
 async def get_run_log(
-    run_id: str
+    run_id: str,
+    token: Optional[str] = auth_depends_factory(),
 ) -> RunLog:
-    validate_run_id(run_id)
+    username = token and extract_username(decode_token(token))
+    validate_run_id(run_id, username)
     return create_run_log(run_id)
 
 
@@ -157,9 +163,11 @@ async def get_run_log(
     response_model=RunStatus,
 )
 async def get_run_status(
-    run_id: str
+    run_id: str,
+    token: Optional[str] = auth_depends_factory(),
 ) -> RunStatus:
-    validate_run_id(run_id)
+    username = token and extract_username(decode_token(token))
+    validate_run_id(run_id, username)
     return create_run_status(run_id)
 
 
@@ -219,8 +227,10 @@ async def get_task(
 async def cancel_run(
     run_id: str,
     background_tasks: BackgroundTasks,
+    token: Optional[str] = auth_depends_factory(),
 ) -> RunId:
-    validate_run_id(run_id)
+    username = token and extract_username(decode_token(token))
+    validate_run_id(run_id, username)
     background_tasks.add_task(cancel_run_task, run_id)
     return RunId(run_id=run_id)
 
@@ -243,8 +253,10 @@ This is because the information that the run has been deleted should be retained
 async def delete_run(
     run_id: str,
     background_tasks: BackgroundTasks,
+    token: Optional[str] = auth_depends_factory(),
 ) -> RunId:
-    validate_run_id(run_id)
+    username = token and extract_username(decode_token(token))
+    validate_run_id(run_id, username)
     background_tasks.add_task(delete_run_task, run_id)
     return RunId(run_id=run_id)
 
@@ -261,8 +273,10 @@ async def get_run_outputs_list(
         False,
         description="Download all outputs as a zip file.",
     ),
+    token: Optional[str] = auth_depends_factory(),
 ) -> Union[OutputsListResponse, StreamingResponse]:
-    validate_run_id(run_id)
+    username = token and extract_username(decode_token(token))
+    validate_run_id(run_id, username)
     if download:
         return StreamingResponse(
             zip_stream(run_id),
@@ -296,9 +310,11 @@ def list_executable_wfs() -> ExecutableWorkflows:
 )
 async def get_run_outputs(
     run_id: str,
-    path: str
+    path: str,
+    token: Optional[str] = auth_depends_factory(),
 ) -> FileResponse:
-    validate_run_id(run_id)
+    username = token and extract_username(decode_token(token))
+    validate_run_id(run_id, username)
     file_path = resolve_content_path(run_id, "outputs_dir").joinpath(secure_filepath(path))
     if not file_path.exists():
         raise HTTPException(

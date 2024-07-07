@@ -1,5 +1,5 @@
 {
-  "auth_enabled": true,
+  "auth_enabled": false,
   "idp_provider": "sapporo",
   "sapporo_auth_config": {
     "secret_key": "sapporo_secret_key_please_change_this",

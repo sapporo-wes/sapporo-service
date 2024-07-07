@@ -150,11 +150,15 @@ def list_runs_db(
     page_token: Optional[str] = None,
     sort_order: Literal["asc", "desc"] = "desc",
     state: Optional[State] = None,
+    username: Optional[str] = None,
 ) -> Tuple[List[Run], Optional[str]]:
     query = select(Run)
 
     if state is not None:
         query = query.where(Run.state == state)
+
+    if username is not None:
+        query = query.where(Run.username == username)
 
     if sort_order == "asc":
         query = query.order_by(Run.start_time.asc(), Run.run_id.asc())  # pylint: disable=E1101

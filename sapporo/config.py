@@ -235,6 +235,7 @@ RUN_DIR_STRUCTURE: Dict[str, str] = {
     "wf_engine_params": "workflow_engine_params.txt",
     "cmd": "cmd.txt",
     "system_logs": "system_logs.json",
+    "username": "username.txt",
 }
 
 
@@ -254,7 +255,8 @@ RunDirStructureKeys = Literal[
     "pid",
     "wf_engine_params",
     "cmd",
-    "system_logs"
+    "system_logs",
+    "username",
 ]
 
 
