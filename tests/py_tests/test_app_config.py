@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+from .conftest import anyhow_get_test_client
+
 
 def test_get_config_defaults():  # type: ignore
     from sapporo.config import PKG_DIR, get_config
@@ -76,3 +78,10 @@ def test_get_config_with_env_vars(env_var, value, expected):  # type: ignore
     attr_name = env_var.split("_", 1)[1].lower()
     assert getattr(config, attr_name) == expected
     os.environ.pop(env_var)
+
+
+def test_init_app_state(mocker, tmpdir):  # type: ignore
+    _client = anyhow_get_test_client(None, mocker, tmpdir)  # for clear all cache and dependencies
+
+    from sapporo.app import init_app_state
+    init_app_state()  # no raise
