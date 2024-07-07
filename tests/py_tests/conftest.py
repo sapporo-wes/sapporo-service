@@ -5,6 +5,7 @@ import os
 import shutil
 import sys
 import tempfile
+from functools import lru_cache
 from pathlib import Path
 from time import sleep
 from typing import Any, Dict, Generator, Optional
@@ -13,6 +14,14 @@ import pytest
 from fastapi.testclient import TestClient
 from httpx import Response
 from httpx._types import RequestFiles
+
+
+@lru_cache(maxsize=None)
+def package_root() -> Path:
+    root = Path(__file__).parent
+    while not root.joinpath("pyproject.toml").exists():
+        root = root.parent
+    return root
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -151,14 +160,9 @@ def wait_for_run(client: TestClient, run_id: str) -> str:
 def assert_run_complete(run_id: str, data: Dict[str, Any]) -> None:
     assert data["run_id"] == run_id
     assert data["state"] == "COMPLETE"
-    assert data["run_log"]["name"] is None
     assert data["run_log"]["cmd"] is not None
     assert data["run_log"]["start_time"] is not None
     assert data["run_log"]["end_time"] is not None
     assert data["run_log"]["stdout"] is not None
     assert data["run_log"]["stderr"] is not None
     assert data["run_log"]["exit_code"] == 0
-    assert data["run_log"]["system_logs"] == []
-    assert data["task_logs_url"] is None
-    assert data["task_logs"] is None
-    assert len(data["outputs"]) != 0

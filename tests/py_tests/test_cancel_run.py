@@ -3,7 +3,7 @@
 from time import sleep
 
 from .conftest import anyhow_get_test_client, post_run, wait_for_run
-from .test_post_cwltool import remote_wf_run_request
+from .test_run_cwltool import remote_wf_run_request
 
 
 def test_cancel_run(mocker, tmpdir):  # type: ignore

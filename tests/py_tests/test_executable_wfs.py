@@ -1,11 +1,12 @@
 # pylint: disable=C0415, W0613, W0621
+
 import json
 import logging
 
 import pytest
 
 from .conftest import anyhow_get_test_client, post_run
-from .test_post_cwltool import attach_all_run_request
+from .test_run_cwltool import attach_all_run_request
 
 
 def test_post_invalid_wf(mocker, tmpdir):  # type: ignore
