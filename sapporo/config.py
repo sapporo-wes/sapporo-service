@@ -236,6 +236,7 @@ RUN_DIR_STRUCTURE: Dict[str, str] = {
     "cmd": "cmd.txt",
     "system_logs": "system_logs.json",
     "username": "username.txt",
+    "ro_crate": "ro-crate-metadata.json",
 }
 
 
@@ -257,6 +258,7 @@ RunDirStructureKeys = Literal[
     "cmd",
     "system_logs",
     "username",
+    "ro_crate",
 ]
 
 

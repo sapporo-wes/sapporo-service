@@ -1,8 +1,10 @@
 from enum import Enum
+from io import BytesIO
 from typing import Any, Dict, List, Optional, Union
 
 from fastapi import UploadFile
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_serializer
+from pydantic import (BaseModel, ConfigDict, Field, HttpUrl, field_serializer,
+                      field_validator)
 
 from sapporo.config import GA4GH_WES_SPEC
 
@@ -476,10 +478,20 @@ class RunRequestForm(RunRequest):
     workflow_attachment_obj: List[FileObject]
 
     @field_serializer("workflow_attachment")
-    def serialize_workflow_attachment(self, value: List[UploadFile]) -> List[Dict[str, Any]]:
+    def serialize_wf_attachment(self, value: List[UploadFile]) -> List[Dict[str, Any]]:
         return [{
             "filename": file.filename,
             "size": file.size,
             "headers": dict(file.headers.items()),
             "content_type": file.content_type,
         } for file in value]
+
+    @field_validator("workflow_attachment", mode="before")
+    def deserialize_wf_attachment(cls: "RunRequestForm", v: Dict[str, Any]) -> List[UploadFile]:  # pylint: disable=E0213
+        print(v)
+        return [UploadFile(
+                file=BytesIO(b""),
+                filename=file["filename"],  # type: ignore
+                headers=file["headers"],  # type: ignore
+                size=file["size"],  # type: ignore
+                ) for file in v]

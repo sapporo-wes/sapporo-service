@@ -161,6 +161,7 @@ stderr="${run_dir}/stderr.log"
 wf_engine_params_file="${run_dir}/workflow_engine_params.txt"
 cmd="${run_dir}/cmd.txt"
 system_logs="${run_dir}/system_logs.json"
+ro_crate="${run_dir}/ro-crate-metadata.json"
 
 # Extract workflow engine and URL from the run request
 wf_engine=$(jq -r ".workflow_engine" ${run_request})
@@ -177,8 +178,7 @@ function generate_outputs_list() {
 }
 
 function generate_ro_crate() {
-    # python3 -c "from sapporo.ro_crate import dump_ro_crate; dump_ro_crate('${run_dir}')" || echo "{}" >${run_dir}/ro-crate-metadata.json
-    :
+    python3 -c "from sapporo.ro_crate import generate_ro_crate; generate_ro_crate('${run_dir}')" || echo "{}" >${ro_crate}
     # If you want to upload ro-crate-metadata.json, write the process here.
 }
 

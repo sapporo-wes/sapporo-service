@@ -30,10 +30,13 @@ dependencies = [
     "apscheduler",
     "fastapi",
     "httpx",
+    "multiqc",
     "pydantic",
     "pyjwt[crypto]",
+    "python-magic",
     "python-multipart",
     "pyyaml",
+    "rocrate",
     "sqlmodel",
     "uvicorn[standard]",
 ]
