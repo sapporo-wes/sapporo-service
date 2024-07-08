@@ -57,11 +57,11 @@ packages = ["sapporo"]
 
 [tool.setuptools.package-data]
 sapporo = [
-    "sapporo/service_info.json",
-    "sapporo/executable_workflows.json",
-    "sapporo/auth_config.json",
-    "sapporo/run.sh",
-    "sapporo/ga4gh-wes-spec-1.1.0.yml",
+    "service_info.json",
+    "executable_workflows.json",
+    "auth_config.json",
+    "run.sh",
+    "ga4gh-wes-spec-1.1.0.yml",
 ]
 
 [tool.pytest.ini_options]

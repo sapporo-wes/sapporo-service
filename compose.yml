@@ -1,0 +1,26 @@
+services:
+  app:
+    image: ghcr.io/sapporo-wes/sapporo-service:2.0.0
+    container_name: sapporo-service
+    volumes:
+      # The ones below are mounted for cwltool and DinD.
+      - ${PWD}/run:${PWD}/run
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp:/tmp
+    environment:
+      # Priority: [CLI Args] -> [Env Vals] -> [Defaults]
+      - SAPPORO_HOST=0.0.0.0
+      - SAPPORO_PORT=1122
+      - SAPPORO_DEBUG=False
+      - SAPPORO_RUN_DIR=${PWD}/run
+    ports:
+      - 127.0.0.1:1122:1122
+    restart: on-failure
+    working_dir: /app
+    command: ["sapporo"]
+    networks:
+      - sapporo-network
+
+networks:
+  sapporo-network:
+    name: sapporo-network

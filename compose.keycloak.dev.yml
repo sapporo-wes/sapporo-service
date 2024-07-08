@@ -14,9 +14,10 @@ services:
     restart: on-failure
     command: ["start-dev"]
     networks:
-      - sapporo-dev-network
+      - sapporo-network
 
 networks:
-  sapporo-dev-network:
+  sapporo-network:
+    # name: sapporo-network
     name: sapporo-dev-network
     external: true
