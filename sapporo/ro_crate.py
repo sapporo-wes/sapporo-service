@@ -17,6 +17,7 @@ from urllib.parse import urlsplit
 
 import magic
 import multiqc
+from fastapi import UploadFile
 from pydantic import BaseModel, TypeAdapter
 from rocrate.model.computationalworkflow import ComputationalWorkflow
 from rocrate.model.computerlanguage import ComputerLanguage
@@ -130,7 +131,7 @@ def generate_ro_crate(inputted_run_dir: str) -> None:
 
     crate = ROCrate(init=False, gen_preview=False)
 
-    run_request = RunRequestForm.model_validate(read_file(run_dir, "run_request"))
+    run_request = load_run_request(read_file(run_dir, "run_request"))
     run_id = run_dir.name
 
     add_crate_metadata(crate)
@@ -174,6 +175,19 @@ def read_file(
             return json.load(f)
         except json.JSONDecodeError:
             return f.read()
+
+
+def load_run_request(obj: Dict[str, Any]) -> RunRequestForm:
+    wf_attachment = [
+        UploadFile(
+            file=io.BytesIO(b""),
+            filename=f["filename"],
+            headers=f["headers"],
+            size=f["size"],
+        ) for f in obj["workflow_attachment"]
+    ]
+    obj["workflow_attachment"] = wf_attachment
+    return RunRequestForm.model_validate(obj)
 
 
 def add_crate_metadata(crate: ROCrate) -> None:
@@ -438,7 +452,7 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequestForm,
         create_action_ins.append_to("object", file_ins)
 
     # Run outputs
-    outputs = outputs_adapter.validate_python(read_file(run_dir, "outputs"))
+    outputs = outputs_adapter.validate_python(read_file(run_dir, "outputs") or [])
     for source in run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"]).glob("**/*"):
         if source.is_dir():
             continue

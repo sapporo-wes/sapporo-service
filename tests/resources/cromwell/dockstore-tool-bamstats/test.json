@@ -1,7 +1,0 @@
-{
-  "bam_input": {
-    "class": "File",
-    "format": "http://edamontology.org/format_2572",
-    "path": "tiny.bam"
-  }
-}
