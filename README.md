@@ -1,9 +1,5 @@
 # sapporo-service
 
-[![pytest](https://github.com/sapporo-wes/sapporo-service/actions/workflows/pytest.yml/badge.svg)](https://github.com/sapporo-wes/sapporo-service/actions/workflows/pytest.yml)
-[![flake8](https://github.com/sapporo-wes/sapporo-service/actions/workflows/flake8.yml/badge.svg)](https://github.com/sapporo-wes/sapporo-service/actions/workflows/flake8.yml)
-[![isort](https://github.com/sapporo-wes/sapporo-service/actions/workflows/isort.yml/badge.svg)](https://github.com/sapporo-wes/sapporo-service/actions/workflows/isort.yml)
-[![mypy](https://github.com/sapporo-wes/sapporo-service/actions/workflows/mypy.yml/badge.svg)](https://github.com/sapporo-wes/sapporo-service/actions/workflows/mypy.yml)
 [![DOI](https://zenodo.org/badge/220937589.svg)](https://zenodo.org/badge/latestdoi/220937589)
 [![Apache License](https://img.shields.io/badge/license-Apache%202.0-orange.svg?style=flat&color=important)](http://www.apache.org/licenses/LICENSE-2.0)
 
@@ -11,11 +7,9 @@
 
 The sapporo-service is a standard implementation conforming to the [Global Alliance for Genomics and Health](https://www.ga4gh.org) (GA4GH) [Workflow Execution Service](https://github.com/ga4gh/workflow-execution-service-schemas) (WES) API specification.
 
-We have also extended the API specification.
-For more details, please refer to [`./sapporo-wes-1-1-0-openapi-spec.yml`](./sapporo-wes-1-1-0-openapi-spec.yml) for more details.
+We have also extended the API specification. For more details, please refer to [`./sapporo-wes-spec-2.0.0.yml`](./sapporo-wes-spec-2.0.0.yml) for more details.
 
-One of the key features of the sapporo-service is its ability to abstract workflow engines, making it easy to adapt various workflow engines to the WES standard.
-Currently, we have verified compatibility with the following workflow engines:
+The service is compatible with the following workflow engines:
 
 - [cwltool](https://github.com/common-workflow-language/cwltool)
 - [nextflow](https://www.nextflow.io)
@@ -25,17 +19,14 @@ Currently, we have verified compatibility with the following workflow engines:
 - [ep3 (experimental)](https://github.com/tom-tan/ep3)
 - [StreamFlow (experimental)](https://github.com/alpha-unito/streamflow)
 
-Another unique feature of the sapporo-service is a mode that permits only workflows registered by the system administrator to be executed.
-This feature is particularly beneficial when setting up a WES in a shared HPC environment.
-
 ## Installation and Startup
 
-The sapporo-service is compatible with Python 3.8 or later versions.
+The sapporo-service is compatible with Python 3.8 and later versions.
 
 You can install it using pip:
 
 ```bash
-pip3 install sapporo
+python3 -m pip install sapporo
 ```
 
 To start the sapporo-service, run the following command:
@@ -46,8 +37,7 @@ sapporo
 
 ### Using Docker
 
-Alternatively, you can run the sapporo-service using Docker.
-If you want to use Docker-in-Docker (DinD), make sure to mount `docker.sock`, `/tmp`, and other necessary directories.
+Alternatively, you can run the sapporo-service using Docker. If you want to use Docker-in-Docker (DinD), make sure to mount `docker.sock`, `/tmp`, and other necessary directories.
 
 To start the sapporo-service using Docker, run the following command:
 
@@ -60,74 +50,43 @@ docker compose up -d
 You can view the help for the sapporo-service as follows:
 
 ```bash
-$ sapporo --help
-usage: sapporo [-h] [--host] [-p] [--debug] [-r] [--disable-get-runs]
-               [--disable-workflow-attachment] [--run-only-registered-workflows]
-               [--service-info] [--executable-workflows] [--run-sh]
-               [--url-prefix] [--auth-config]
+sapporo --help
+usage: sapporo [-h] [--host] [--port] [--debug] [--run-dir] [--service-info]
+               [--executable-workflows] [--run-sh] [--url-prefix] [--base-url]
+               [--allow-origin] [--auth-config] [--run-remove-older-than-days]
 
-This is an implementation of a GA4GH workflow execution service that can easily
-support various workflow runners.
+The sapporo-service is a standard implementation conforming to the Global
+Alliance for Genomics and Health (GA4GH) Workflow Execution Service (WES) API
+specification.
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
-  --host                Specify the host address for Flask. (default: 127.0.0.1)
-  -p , --port           Specify the port for Flask. (default: 1122)
-  --debug               Enable Flask's debug mode.
-  -r , --run-dir        Specify the run directory. (default: ./run)
-  --disable-get-runs    Disable the `GET /runs` endpoint.
-  --disable-workflow-attachment
-                        Disable the `workflow_attachment` feature on the `Post
-                        /runs` endpoint.
-  --run-only-registered-workflows
-                        Only run registered workflows. Check the registered
-                        workflows using `GET /executable-workflows`, and specify
-                        the `workflow_name` in the `POST /run` request.
-  --service-info        Specify the `service-info.json` file. The
-                        `supported_wes_versions` and `system_state_counts` will
-                        be overwritten by the application.
-  --executable-workflows
-                        Specify the `executable-workflows.json` file.
-  --run-sh              Specify the `run.sh` file.
-  --url-prefix          Specify the prefix of the URL (e.g., --url-prefix /foo
-                        will result in /foo/service-info).
-  --auth-config         Specify the `auth-config.json` file.
+  --host                Host address for the service. (default: 127.0.0.1)
+  --port                Port number for the service. (default: 1122)
+  --debug               Enable debug mode.
+  --run-dir             Directory where the runs are stored. (default: ./runs)
+  --service-info        Path to the service_info.json file.
+  --executable-workflows 
+                        Path to the executable_workflows.json file.
+  --run-sh              Path to the run.sh script.
+  --url-prefix          URL prefix for the service endpoints. (default: '',
+                        e.g., /sapporo/api)
+  --base-url            Base URL for downloading the output files of the
+                        executed runs. The files can be downloaded using the
+                        format: {base_url}/runs/{run_id}/outputs/{path}.
+                        (default: http://{host}:{port}{url_prefix})
+  --allow-origin        Access-Control-Allow-Origin header value. (default: *)
+  --auth-config         Path to the auth_config.json file.
+  --run-remove-older-than-days 
+                        Clean up run directories with a start time older than
+                        the specified number of days.
 ```
-
-### Operating Mode
-
-The sapporo-service can be started in one of the following two modes:
-
-- Standard WES mode (Default)
-- Execute only registered workflows mode
-
-You can switch between these modes using the `--run-only-registered-workflows` startup argument or by setting the `SAPPORO_ONLY_REGISTERED_WORKFLOWS` environment variable to `True` or `False`.
-Note that startup arguments take precedence over environment variables.
-
-#### Standard WES Mode
-
-In this mode, the sapporo-service conforms to the standard WES API specification.
-
-#### Execute Only Registered Workflows Mode
-
-In this mode, the sapporo-service only allows workflows registered by the system administrator to be executed.
-
-The key changes in this mode are:
-
-- `GET /executable_workflows` returns the list of executable workflows.
-- `POST /runs`, use `workflow_name` instead of `workflow_url`.
-
-The list of executable workflows is managed in [`executable_workflows.json`](./sapporo/executable_workflows.json).
-By default, this file is located in the application directory of the sapporo-service.
-However, you can override it using the startup argument `--executable-workflows` or the environment variable `SAPPORO_EXECUTABLE_WORKFLOWS`.
 
 ### Run Directory
 
-The sapporo-service organizes all submitted workflows, workflow parameters, output files, and related data within a specific directory on the file system.
-This directory, known as the "run directory".
-To specify a different location for the run directory, use the startup argument `--run-dir` or set the environment variable `SAPPORO_RUN_DIR`.
+The sapporo-service organizes all submitted workflows, workflow parameters, output files, and related data within a specific directory on the file system. This directory is known as the "run directory." To specify a different location for the run directory, use the startup argument `--run-dir` or set the environment variable `SAPPORO_RUN_DIR`.
 
-The run dir structure is as follows:
+The run directory structure is as follows:
 
 ```bash
 $ tree run
@@ -141,238 +100,72 @@ $ tree run
         ├── exit_code.txt
         ├── outputs
         │   ├── <output_file>
-        ├── outputs.json
+        ├── outputs.json 
         ├── run.pid
         ├── run_request.json
+        ├── runtime_info.json
         ├── start_time.txt
         ├── state.txt
         ├── stderr.log
         ├── stdout.log
+        ├── system_logs.json
         └── workflow_engine_params.txt
 ├── 2d
 │   └── ...
 └── 6b
     └── ...
+└── sapporo.db
 ```
 
 You can manage each run by physically deleting it using the `rm` command.
 
-Executing `POST /runs` can be quite complex.
-For your convenience, we've provided examples using `curl` in the [`./tests/curl_example`](./tests/curl_example) directory.
-Please refer to these examples as a guide.
+As of sapporo-service 2.0.0, an SQLite database (`sapporo.db`) has been added inside the run directory. This database is used to speed up `GET /runs` calls. The master data remains within each run directory, and the database is updated every 30 minutes while sapporo is running. If you need the latest run status, use `GET /runs/{run_id}` instead of `GET /runs`.
 
 ### `run.sh`
 
-The [`run.sh`](./sapporo/run.sh) script is used to abstract the workflow engine.
-When `POST /runs` is invoked, the sapporo-service forks the execution of `run.sh` after preparing the necessary files in the run directory.
-This allows you to adapt various workflow engines to WES by modifying `run.sh`.
+The [`run.sh`](./sapporo/run.sh) script is used to abstract the workflow engine. When `POST /runs` is invoked, the sapporo-service forks the execution of `run.sh` after preparing the necessary files in the run directory. This allows you to adapt various workflow engines to WES by modifying `run.sh`.
 
-By default, `run.sh` is located in the application directory of the sapporo-service.
-You can override this location using the startup argument `--run-sh` or the environment variable `SAPPORO_RUN_SH`.
+By default, `run.sh` is located in the application directory of the sapporo-service. You can override this location using the startup argument `--run-sh` or the environment variable `SAPPORO_RUN_SH`.
 
-### Other Startup Arguments
+### Executable Workflows
 
-You can modify the host and port used by the application using the startup arguments `--host` and `--port` or the environment variables `SAPPORO_HOST` and `SAPPORO_PORT`.
+The sapporo-service can be configured to allow only specific workflows to be executed. This is managed using the `--executable-workflows` startup argument or the `SAPPORO_EXECUTABLE_WORKFLOWS` environment variable. These options specify the location of the `executable_workflows.json` file, which by default is located in the application directory of the sapporo-service.
 
-The following three startup arguments and corresponding environment variables can be used to limit the WES:
-
-- `--disable-get-runs` / `SAPPORO_GET_RUNS`: Disables `GET /runs`. This can be useful when using WES with an unspecified number of users, as it prevents users from viewing or cancelling other users' runs by knowing the run_id.
-- `--disable-workflow-attachment` / `SAPPORO_WORKFLOW_ATTACHMENT`: Disables the `workflow_attachment` field in `POST /runs`. This field is used to attach files for executing workflows, and disabling it can address security concerns.
-- `--url-prefix` / `SAPPORO_URL_PREFIX`: Sets the URL prefix. For example, if `--url-prefix /foo/bar` is set, `GET /service-info` becomes `GET /foo/bar/service-info`.
-
-The response content of `GET /service-info` is managed in [`service-info.json`](./sapporo/service-info.json).
-By default, this file is located in the application directory of the sapporo-service.
-You can override this location using the startup argument `--service-info` or the environment variable `SAPPORO_SERVICE_INFO`.
-
-### Generate Download Link
-
-The sapporo-service allows you to generate download links for files and directories located under the `run_dir`.
-
-For more details, please refer to the `GetData` section in [`./sapporo-wes-1-1-0-openapi-spec.yml`](./sapporo-wes-1-1-0-openapi-spec.yml).
-
-### Parse Workflow
-
-The sapporo-service offers a feature to inspect the type, version, and inputs of a workflow document.
-
-For more details, please refer to the `ParseWorkflow` section in [`./sapporo-wes-1-1-0-openapi-spec.yml`](./sapporo-wes-1-1-0-openapi-spec.yml).
-
-### Generate RO-Crate
-
-Upon completion of workflow execution, the sapporo-service generates an RO-Crate from the `run_dir`, which is saved as `ro-crate-metadata.json` within the same directory. You can download the RO-Crate using the `GET /runs/{run_id}/ro-crate/data/ro-crate-metadata.json` endpoint.
-
-Additionally, you can generate an RO-Crate from the `run_dir` as follows:
-
-```bash
-# Inside the Sapporo run_dir
-$ ls
-cmd.txt                     run.sh                      state.txt
-exe/                        run_request.json            stderr.log
-executable_workflows.json   sapporo_config.json         stdout.log
-outputs/                    service_info.json           workflow_engine_params.txt
-run.pid                     start_time.txt              yevis-metadata.yml
-
-# Execute the sapporo/ro_crate.py script
-$ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $PWD:$PWD -w $PWD ghcr.io/sapporo-wes/sapporo-service:latest python3 /app/sapporo/ro_crate.py $PWD
-```
-
-For more information on RO-Crate, please also refer to [`./tests/ro-crate`](./tests/ro-crate).
-
-### Authentication
-
-The sapporo-service supports authentication, configurable via the [`./sapporo/auth_config.json`](./sapporo/auth_config.json).
-By default, this configuration is as follows:
+The `executable_workflows.json` file manages the list of executable workflows in the following format:
 
 ```json
 {
-  "auth_enabled": false,
-  "auth_provider": "local",
-  "local_auth": {
-    "jwt_secret_key": "spr_secret_key_please_change_this",
-    "users": [
-      {
-        "username": "spr_test_user",
-        "password": "spr_test_password"
-      }
-    ]
-  },
-  "oidc_auth": {
-    "realm_url": "http://localhost:8080/realms/sapporo-dev",
-    "username_claim": "sub"
-  }
+  "workflows": [
+    "https://example.com/workflow.cwl"
+  ]
 }
 ```
 
-This configuration file can be directly edited or relocated using the `--auth-config` startup argument or the `SAPPORO_AUTH_CONFIG` environment variable.
+The `executable_workflows.json` file contains a list of executable `workflow_url`s. If the array is empty, all workflows are allowed to execute. Each `workflow_url` must be a remote resource (http/https). When this list is defined, any `workflow_url` provided in a `POST /runs` request must be present in the list; otherwise, the request will return a 400 Bad Request.
 
-#### Configuration Fields
+You can retrieve the list of executable workflows via the API using the `GET /executable_workflows` endpoint.
 
-- `auth_enabled`: Determines if JWT authentication is activated. If set to `true`, JWT authentication is enabled.
-- `auth_provider`: Specifies the type of authentication provider, supporting:
-  - `local`: Uses a locally managed list of users for authentication.
-    - Tokens are issued by Sapporo.
-    - Usernames and passwords are referenced from the `auth_config.json`.
-  - `oidc`: Uses an OpenID Connect (OIDC) provider like [Keycloak](https://www.keycloak.org).
-    - Tokens are issued by the OIDC provider.
-    - User information is managed by the OIDC provider.
-- `local_auth`: Configuration for local authentication includes:
-  - `jwt_secret_key`: Secret key for signing JWTs. Changing this key is highly recommended.
-  - `users`: List of users eligible for JWT authentication, specifying username and password.
-- `oidc_auth`: Configuration for OIDC authentication includes:
-  - `realm_url`: URL of the OIDC realm.
-  - `username_claim`: JWT claim used as the username.
+### Download Output Files
 
-#### Authentication Endpoints
+The sapporo-service provides a feature to download output files and allows users to list and download files from the outputs directory of a run.
 
-When JWT authentication is enabled, endpoints requiring authentication include:
+To list the files in the outputs directory, use the `GET /runs/{run_id}/outputs` endpoint. Additionally, you can download the entire outputs directory as a zip file by using the query parameter `?download=true` with the `GET /runs/{run_id}/outputs` endpoint.
 
-- `GET /runs`
-- `POST /runs`
-- `GET /runs/{run_id}`
-- `POST /runs/{run_id}/cancel`
-- `GET /runs/{run_id}/status`
-- `GET /runs/{run_id}/data`
+To download a specific file in the outputs directory, use the `GET /runs/{run_id}/outputs/{path}` endpoint.
 
-Each run is associated with a `username`, ensuring that only the user who created a run can access details like `GET /runs/{run_id}`.
+You can specify the base URL for downloading the output files using the `--base-url` startup argument or the `SAPPORO_BASE_URL` environment variable. The files can be downloaded using the format `{base_url}/runs/{run_id}/outputs/{path}`. By default, the base URL is `http://{host}:{port}{url_prefix}`. This feature is useful when using a reverse proxy such as Nginx or when a domain name is configured.
 
-#### Local Authentication
+### Clean Up Run Directories
 
-For local JWT authentication, configure `auth_config.json` as shown:
+The sapporo-service provides a feature to clean up run directories that have a start time older than a specified number of days.
+This can be configured using the `--run-remove-older-than-days` startup argument or the `SAPPORO_RUN_REMOVE_OLDER_THAN_DAYS` environment variable.
 
-```json
-{
-  "auth_enabled": true,
-  "auth_provider": "local",
-  "local_auth": {
-    "jwt_secret_key": "new_secret_key",
-    "users": [
-      {
-        "username": "user1",
-        "password": "password1"
-      },
-      {
-        "username": "user2",
-        "password": "password2"
-      }
-    ]
-  },
-  "oidc_auth": {
-    "realm_url": "http://localhost:8080/realms/sapporo-dev",
-    "username_claim": "sub"
-  }
-}
-```
-
-Starting sapporo-service with this configuration allows access to the `GET /service-info` endpoint, while `GET /runs` will require authentication:
-
-```bash
-# Start sapporo-service
-$ sapporo
-
-# GET /service-info
-$ curl -X GET localhost:1122/service-info
-{
-  "auth_instructions_url": "https://github.com/sapporo-wes/sapporo-service",
-  "contact_info_url": "https://github.com/sapporo-wes/sapporo-service",
-...
-
-# Generate JWT for authentication
-$ TOKEN=$(curl -s -X POST \
-    -H "Content-Type: application/json" \
-    -d '{"username":"user1", "password":"password1"}' \
-    localhost:1122/auth | jq -r '.access_token')
-
-# Authenticate and access runs
-$ curl -X GET -H "Authorization: Bearer $TOKEN" localhost:1122/runs
-{
-  "runs": []
-}
-```
-
-#### OpenID Connect (OIDC) Authentication
-
-For OIDC authentication, ensure the `auth_provider` is set to `oidc` and appropriate configurations are specified under `oidc_auth`. Users must obtain a token from the OIDC provider and attach it to the Authorization header for authentication.
-
-## Development
-
-To start the development environment, follow these steps:
-
-```bash
-$ docker compose -f compose.dev.yml up -d --build
-$ docker compose -f compose.dev.yml exec app bash
-# inside container
-$ sapporo
-```
-
-We utilize [flake8](https://pypi.org/project/flake8/), [isort](https://github.com/timothycrosley/isort), and [mypy](http://mypy-lang.org) for linting and style checking.
-
-```bash
-bash ./tests/lint_and_style_check/flake8.sh
-bash ./tests/lint_and_style_check/isort.sh
-bash ./tests/lint_and_style_check/mypy.sh
-
-bash ./tests/lint_and_style_check/run_all.sh
-```
-
-For testing, we use [pytest](https://docs.pytest.org/en/latest/).
-
-```bash
-pytest .
-```
+By setting this option, the sapporo-service will automatically remove run directories that are older than the specified number of days, helping to manage disk space and maintain a clean working environment.
 
 ## Adding New Workflow Engines to Sapporo Service
 
-Take a look at the [`run.sh`](./sapporo/run.sh) script, which is invoked from Python. This shell script receives a request with a Workflow Engine such as cwltool and triggers the `run_cwltool` bash function.
-
-This function executes a Bash Shell command to start a Docker container for the Workflow Engine and monitors its exit status. For a comprehensive example, please refer to this pull request: <https://github.com/sapporo-wes/sapporo-service/pull/29>
+The sapporo-service calls each workflow engine through the [`run.sh`](./sapporo/run.sh) script. Therefore, by editing `run.sh`, you can easily add new workflow engines or modify the behavior of existing ones. For an example of adding a new workflow engine, refer to the pull request that includes the addition of the `Streamflow` workflow engine: <https://github.com/sapporo-wes/sapporo-service/pull/29>
 
 ## License
 
-This project is licensed under [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0). See the [LICENSE](./LICENSE) file for details.
-
-## Notice
-
-Please note that this repository is participating in a study into sustainability of open source projects. Data will be gathered about this repository for approximately the next 12 months, starting from 2021-06-16.
-
-Data collected will include number of contributors, number of PRs, time taken to close/merge these PRs, and issues closed.
-
-For more information, please visit [our informational page](https://sustainable-open-science-and-software.github.io/) or download our [participant information sheet](https://sustainable-open-science-and-software.github.io/assets/PIS_sustainable_software.pdf).
+This project is licensed under the [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) license. See the [LICENSE](./LICENSE) file for details.

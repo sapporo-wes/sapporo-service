@@ -155,7 +155,6 @@ def create_app() -> FastAPI:
     fix_error_handler(app)
 
     add_openapi_info(app)
-    # dump_openapi_schema(app)
 
     return app
 

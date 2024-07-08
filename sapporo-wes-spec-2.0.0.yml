@@ -936,13 +936,6 @@ components:
           title: Workflow Type Version
       title: WorkflowTypeVersion
       type: object
-  securitySchemes:
-    OAuth2PasswordBearer:
-      flows:
-        password:
-          scopes: {}
-          tokenUrl: /token
-      type: oauth2
 info:
   contact:
     name: Sapporo-WES Project Team
@@ -1084,8 +1077,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: An unexpected error occurred.
-      security:
-      - OAuth2PasswordBearer: []
       summary: Me
   /runs:
     get:
@@ -1614,6 +1605,71 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
           description: An unexpected error occurred.
       summary: DownloadRunOutput
+  /runs/{run_id}/ro-crate:
+    get:
+      description: '**sapporo-wes-2.0.0 extension:** Download the RO-Crate (ro-crate-metadata.json)
+        of the run. If the download option is specified, download the entire Crate
+        as a zip file.'
+      operationId: get_run_ro_crate_runs__run_id__ro_crate_get
+      parameters:
+      - in: path
+        name: run_id
+        required: true
+        schema:
+          title: Run Id
+          type: string
+      - description: Download the entire Crate as a zip file.
+        in: query
+        name: download
+        required: false
+        schema:
+          default: false
+          description: Download the entire Crate as a zip file.
+          title: Download
+          type: boolean
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: The request is malformed.
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: The request is unauthorized.
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: The requester is not authorized to perform this action.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: The requested workflow run not found.
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: An unexpected error occurred.
+      summary: DownloadRO-Crate
   /runs/{run_id}/status:
     get:
       description: 'This provides an abbreviated (and likely fast depending on implementation)
@@ -1958,4 +2014,4 @@ paths:
           description: An unexpected error occurred.
       summary: CreateToken
 servers:
-- url: http://0.0.0.0:1122
+- url: http://127.0.0.1:1122
