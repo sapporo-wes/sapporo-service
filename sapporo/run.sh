@@ -25,7 +25,7 @@ function run_wf() {
 }
 
 function run_cwltool() {
-    local container="quay.io/commonwl/cwltool:3.1.20240112164112"
+    local container="quay.io/commonwl/cwltool:3.1.20240508115724"
     local cmd_txt="${DOCKER_CMD} ${container} --outdir ${outputs_dir} ${wf_engine_params} ${wf_url} ${wf_params} 1>${stdout} 2>${stderr}"
     echo ${cmd_txt} >${cmd}
     eval ${cmd_txt} || executor_error
@@ -47,7 +47,8 @@ function run_toil() {
 }
 
 function run_cromwell() {
-    local container="ghcr.io/sapporo-wes/cromwell-with-docker:80"
+    # local container="ghcr.io/sapporo-wes/cromwell-with-docker:80"
+    local container="ghcr.io/sapporo-wes/cromwell-with-docker:87"
     local wf_type=$(jq -r ".workflow_type" ${run_request})
     local cmd_txt="docker run --rm ${D_SOCK} -v ${run_dir}:${run_dir} -v /tmp:/tmp -w=${exe_dir} ${container} run ${wf_engine_params} ${wf_url} -i ${wf_params} -m ${exe_dir}/metadata.json 1>${stdout} 2>${stderr}"
     echo ${cmd_txt} >${cmd}
@@ -84,7 +85,7 @@ function run_snakemake() {
         chmod a+x "${wf_scripts_dir}/"*
     fi
 
-    local container="snakemake/snakemake:v7.8.3"
+    local container="snakemake/snakemake:v8.15.2"
     local cmd_txt="docker run --rm -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} snakemake ${wf_engine_params} --configfile ${wf_params} --snakefile ${wf_url_local} 1>${stdout} 2>${stderr}"
     echo ${cmd_txt} >${cmd}
     eval ${cmd_txt} || executor_error

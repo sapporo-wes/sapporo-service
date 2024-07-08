@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from fastapi import (APIRouter, BackgroundTasks, File, Form, HTTPException,
                      Query, UploadFile, status)
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 from sapporo.auth import (MeResponse, TokenResponse, auth_depends_factory,
                           create_access_token, decode_token, extract_username,
@@ -12,11 +12,13 @@ from sapporo.config import GA4GH_WES_SPEC
 from sapporo.database import (add_run_db, db_runs_to_run_summaries,
                               list_runs_db, system_state_counts)
 from sapporo.factory import (create_executable_wfs,
-                             create_outputs_list_response, create_run_log,
+                             create_outputs_list_response,
+                             create_ro_crate_response, create_run_log,
                              create_run_status, create_run_summary,
                              create_service_info)
-from sapporo.run import (cancel_run_task, delete_run_task, post_run_task,
-                         prepare_run_dir, resolve_content_path, zip_stream)
+from sapporo.run import (cancel_run_task, delete_run_task, outputs_zip_stream,
+                         post_run_task, prepare_run_dir, resolve_content_path,
+                         ro_crate_zip_stream)
 from sapporo.schemas import (ExecutableWorkflows, OutputsListResponse, RunId,
                              RunListResponse, RunLog, RunStatus, ServiceInfo,
                              State, TaskListResponse, TaskLog)
@@ -293,7 +295,7 @@ async def get_run_outputs_list(
     validate_run_id(run_id, username)
     if download:
         return StreamingResponse(
-            zip_stream(run_id),
+            outputs_zip_stream(run_id),
             media_type="application/zip",
             headers={
                 "Content-Disposition": f"attachment; filename=sapporo_{run_id}_outputs.zip"
@@ -322,6 +324,36 @@ async def get_run_outputs(
             detail=f"File {path} is not found.",
         )
     return FileResponse(file_path)
+
+
+@router.get(
+    "/runs/{run_id}/ro-crate",
+    summary="DownloadRO-Crate",
+    description="**sapporo-wes-2.0.0 extension:** Download the RO-Crate (ro-crate-metadata.json) of the run. If the download option is specified, download the entire Crate as a zip file.",
+    response_model=None,  # Union[JSONResponse, FileResponse],
+)
+async def get_run_ro_crate(
+    run_id: str,
+    download: bool = Query(
+        False,
+        description="Download the entire Crate as a zip file.",
+    ),
+    token: Optional[str] = auth_depends_factory(),
+) -> Union[JSONResponse, StreamingResponse]:
+    username = token and extract_username(decode_token(token))
+    validate_run_id(run_id, username)
+    if download:
+        return StreamingResponse(
+            ro_crate_zip_stream(run_id),
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": f"attachment; filename=sapporo_{run_id}_ro_crate.zip"
+            }
+        )
+    return JSONResponse(
+        content=create_ro_crate_response(run_id),
+        media_type="application/ld+json",
+    )
 
 
 @router.post(

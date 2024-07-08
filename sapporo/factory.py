@@ -165,3 +165,12 @@ def create_executable_wfs() -> ExecutableWorkflows:
             return ExecutableWorkflows.model_validate_json(f.read())
     else:
         return ExecutableWorkflows(workflows=[])
+
+
+def create_ro_crate_response(run_id: str) -> Dict[str, Any]:
+    # Avoid circular import
+    from sapporo.run import read_file  # pylint: disable=C0415
+
+    ro_crate: Dict[str, Any] = read_file(run_id, "ro_crate")
+
+    return ro_crate

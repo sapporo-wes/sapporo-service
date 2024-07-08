@@ -174,6 +174,8 @@ def read_file(run_id: str, key: RunDirStructureKeys) -> Any:
             return content
         if key in ["pid", "exit_code"]:
             return int(content)
+        if key == "ro_crate":
+            return json.loads(content)
 
         try:
             return json.loads(content)
@@ -277,7 +279,7 @@ def delete_run_task(run_id: str) -> None:
     write_file(run_id, "state", State.DELETED)
 
 
-def zip_stream(run_id: str) -> Iterable[bytes]:
+def outputs_zip_stream(run_id: str) -> Iterable[bytes]:
     outputs_dir = resolve_content_path(run_id, "outputs_dir")
     base_dir_name = f"sapporo_{run_id}_outputs"
 
@@ -291,6 +293,26 @@ def zip_stream(run_id: str) -> Iterable[bytes]:
                         zf.writestr(arc_path, "")
                 if path.is_file():
                     arc_path = f"{base_dir_name}/{path.relative_to(outputs_dir)}"
+                    zf.write(path, arc_path)
+        buffer.seek(0)
+        while chunk := buffer.read(8192):
+            yield chunk
+
+
+def ro_crate_zip_stream(run_id: str) -> Iterable[bytes]:
+    run_dir = resolve_run_dir(run_id)
+    base_dir_name = f"sapporo_{run_id}_ro_crate"
+
+    with BytesIO() as buffer:
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            for path in run_dir.glob("**/*"):
+                if path.is_dir():
+                    # Check if directory is empty
+                    if not any(path.iterdir()):
+                        arc_path = f"{base_dir_name}/{path.relative_to(run_dir)}/"
+                        zf.writestr(arc_path, "")
+                if path.is_file():
+                    arc_path = f"{base_dir_name}/{path.relative_to(run_dir)}"
                     zf.write(path, arc_path)
         buffer.seek(0)
         while chunk := buffer.read(8192):

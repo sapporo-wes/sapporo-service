@@ -1,4 +1,4 @@
-FROM broadinstitute/cromwell:80
+FROM broadinstitute/cromwell:87
 
 # install docker-ce
 RUN apt update && \
