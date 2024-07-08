@@ -1,5 +1,4 @@
 import json
-from functools import lru_cache
 from typing import List, Optional, Tuple
 
 from fastapi import HTTPException, UploadFile, status
@@ -60,7 +59,6 @@ def validate_run_request(
     )
 
 
-@lru_cache(maxsize=None)
 def validate_wf_type_and_version(
     wf_type: str,
     wf_type_version: Optional[str] = None,
@@ -83,7 +81,6 @@ def validate_wf_type_and_version(
     return wf_type, wf_type_version
 
 
-@lru_cache(maxsize=None)
 def validate_wf_engine_type_and_version(
     wf_engine: str,
     wf_engine_version: Optional[str] = None,

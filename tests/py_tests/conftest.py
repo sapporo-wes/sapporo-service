@@ -56,6 +56,10 @@ def tmpdir() -> Generator[Path, None, None]:
 
 
 @pytest.fixture(scope="function", autouse=True)
+def clear_cache_fixture():  # type: ignore
+    clear_cache()  # type: ignore
+
+
 def clear_cache():  # type: ignore
     from sapporo.config import get_config
     get_config.cache_clear()
@@ -64,19 +68,11 @@ def clear_cache():  # type: ignore
     create_service_info.cache_clear()
     create_executable_wfs.cache_clear()
 
-    from sapporo.auth import (auth_depends_factory, fetch_endpoint_metadata,
-                              fetch_jwks, get_auth_config,
-                              is_create_token_endpoint_enabled)
+    from sapporo.auth import (fetch_endpoint_metadata, fetch_jwks,
+                              get_auth_config)
     get_auth_config.cache_clear()
-    auth_depends_factory.cache_clear()
-    is_create_token_endpoint_enabled.cache_clear()
     fetch_endpoint_metadata.cache_clear()
     fetch_jwks.cache_clear()
-
-    from sapporo.validator import (validate_wf_engine_type_and_version,
-                                   validate_wf_type_and_version)
-    validate_wf_type_and_version.cache_clear()
-    validate_wf_engine_type_and_version.cache_clear()
 
     from sapporo.database import create_db_engine
     create_db_engine.cache_clear()
@@ -84,6 +80,7 @@ def clear_cache():  # type: ignore
 
 def mock_get_config(mocker, app_config):  # type: ignore
     mocker.patch("sapporo.app.get_config", return_value=app_config)
+    mocker.patch("sapporo.auth.get_config", return_value=app_config)
     mocker.patch("sapporo.config.get_config", return_value=app_config)
     mocker.patch("sapporo.database.get_config", return_value=app_config)
     mocker.patch("sapporo.factory.get_config", return_value=app_config)
@@ -100,10 +97,11 @@ def anyhow_get_test_client(app_config, mocker, tmpdir) -> TestClient:  # type: i
     """
     from sapporo.config import AppConfig
     if app_config is None:
-        app_config = AppConfig(run_dir=tmpdir,)
+        app_config = AppConfig(run_dir=tmpdir)
     else:
         app_config.run_dir = tmpdir
     mock_get_config(mocker, app_config)  # type: ignore
+    clear_cache()  # type: ignore
 
     from sapporo.database import init_db
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)

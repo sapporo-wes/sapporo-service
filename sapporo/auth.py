@@ -112,7 +112,6 @@ http_bearer_custom = HTTPBearerCustom(
 password_bearer = OAuth2PasswordBearer(tokenUrl="/token")
 
 
-@lru_cache(maxsize=None)
 def auth_depends_factory() -> Any:
     """\
     Function to inject authorization into each endpoint.
@@ -132,7 +131,6 @@ def auth_depends_factory() -> Any:
     return Depends(lambda: None)
 
 
-@lru_cache(maxsize=None)
 def is_create_token_endpoint_enabled() -> None:
     auth_config = get_auth_config()
     if auth_config.idp_provider == "external":
