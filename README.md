@@ -162,6 +162,33 @@ This can be configured using the `--run-remove-older-than-days` startup argument
 
 By setting this option, the sapporo-service will automatically remove run directories that are older than the specified number of days, helping to manage disk space and maintain a clean working environment.
 
+### Generate RO-Crate
+
+### Authentication
+
+## Development
+
+To start the development environment, follow these steps:
+
+```bash
+docker compose -f compose.dev.yml up -d --build
+docker compose -f compose.dev.yml exec app bash
+# inside the container
+sapporo --debug
+```
+
+To run the lint, format, and test commands, use the following:
+
+```bash
+# List and Format
+pylint ./sapporo
+mypy ./sapporo
+isort ./sapporo
+
+# Test
+pytest
+```
+
 ## Adding New Workflow Engines to Sapporo Service
 
 The sapporo-service calls each workflow engine through the [`run.sh`](./sapporo/run.sh) script. Therefore, by editing `run.sh`, you can easily add new workflow engines or modify the behavior of existing ones. For an example of adding a new workflow engine, refer to the pull request that includes the addition of the `Streamflow` workflow engine: <https://github.com/sapporo-wes/sapporo-service/pull/29>

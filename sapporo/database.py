@@ -51,7 +51,7 @@ def get_session() -> Generator[Session, None, None]:
 # === Models ===
 
 
-class Run(SQLModel, table=True):
+class Run(SQLModel, table=True):  # type: ignore
     run_id: str = Field(primary_key=True)
     username: Optional[str] = None
     state: State
@@ -80,8 +80,8 @@ def init_db() -> None:
     """
     engine = create_db_engine()
     if get_config().run_dir.joinpath(DATABASE_NAME).exists():
-        SQLModel.metadata.drop_all(engine)  # type: ignore
-    SQLModel.metadata.create_all(engine)  # type: ignore
+        SQLModel.metadata.drop_all(engine)
+    SQLModel.metadata.create_all(engine)
     with get_session() as session:
         for run_id in glob_all_run_ids():
             run_summary = create_run_summary(run_id)
@@ -121,7 +121,7 @@ def add_run_db(
 
 
 def system_state_counts() -> Dict[str, int]:
-    statement = select(Run.state, func.count(Run.run_id)).group_by(Run.state)  # type: ignore # pylint: disable=E1102
+    statement = select(Run.state, func.count(Run.run_id)).group_by(Run.state)  # pylint: disable=E1102
     with get_session() as session:
         results = session.exec(statement).all()
 
@@ -142,7 +142,7 @@ def _encode_page_token(last_run: Run) -> str:
 
 def _decode_page_token(page_token: str) -> Dict[str, str]:
     token_data = base64.urlsafe_b64decode(page_token).decode("utf-8")
-    return json.loads(token_data)  # type: ignore
+    return json.loads(token_data)
 
 
 def list_runs_db(
@@ -161,9 +161,9 @@ def list_runs_db(
         query = query.where(Run.username == username)
 
     if sort_order == "asc":
-        query = query.order_by(Run.start_time.asc(), Run.run_id.asc())  # pylint: disable=E1101
+        query = query.order_by(Run.start_time.asc(), Run.run_id.asc())  # type: ignore # pylint: disable=E1101
     else:
-        query = query.order_by(Run.start_time.desc(), Run.run_id.desc())  # pylint: disable=E1101
+        query = query.order_by(Run.start_time.desc(), Run.run_id.desc())  # type: ignore # pylint: disable=E1101
 
     if page_token is not None:
         token_data = _decode_page_token(page_token)

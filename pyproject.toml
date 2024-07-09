@@ -47,7 +47,7 @@ Documentation = "https://github.com/sapporo-wes/sapporo-service/blob/main/README
 Repository = "https://github.com/sapporo-wes/sapporo-service.git"
 
 [project.optional-dependencies]
-tests = ["pytest", "pytest-cov", "pytest-mock"]
+tests = ["isort", "mypy", "pylint", "pytest-cov", "pytest-mock", "pytest"]
 
 [project.scripts]
 sapporo = "sapporo.app:main"
@@ -69,4 +69,33 @@ addopts = "--cov=sapporo --cov-report=html:tests/htmlcov"
 testpaths = ["tests/py_tests"]
 
 [tool.mypy]
+files = ["./sapporo/**/*.py"]
 ignore_missing_imports = true
+follow_imports = "skip"
+warn_redundant_casts = true
+warn_unused_ignores = true
+disallow_any_generics = true
+check_untyped_defs = true
+no_implicit_reexport = true
+disallow_untyped_defs = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.pylint.messages_control]
+disable = [
+    "C0114", # Missing module docstring
+    "C0115", # Missing class docstring
+    "C0116", # Missing function or method docstring
+    "C0301", # Line too long
+    "R0401", # Cyclic import
+    "R0903", # Too few public methods
+    "R0911", # Too many return statements
+    "R0912", # Too many branches
+    "R0913", # Too many arguments
+    "R0914", # Too many local variables
+    "R0915", # Too many statements
+    "R1705", # Unnecessary "else" after "return"
+]

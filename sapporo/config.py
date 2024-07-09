@@ -16,7 +16,7 @@ PKG_DIR = Path(__file__).resolve().parent
 
 
 GA4GH_WES_SPEC_PATH = PKG_DIR.joinpath("ga4gh-wes-spec-1.1.0.yml")
-GA4GH_WES_SPEC = yaml.safe_load(GA4GH_WES_SPEC_PATH.read_text(encoding="utf-8"))
+GA4GH_WES_SPEC: Dict[str, Any] = yaml.safe_load(GA4GH_WES_SPEC_PATH.read_text(encoding="utf-8"))
 
 
 # === Global configuration ===

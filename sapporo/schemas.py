@@ -1,10 +1,8 @@
 from enum import Enum
-from io import BytesIO
 from typing import Any, Dict, List, Optional, Union
 
 from fastapi import UploadFile
-from pydantic import (BaseModel, ConfigDict, Field, HttpUrl, field_serializer,
-                      field_validator, root_validator)
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_serializer
 
 from sapporo.config import GA4GH_WES_SPEC
 

@@ -5,13 +5,13 @@ import shutil
 import signal
 import time
 import traceback
-import urllib
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 from pathlib import Path
 from subprocess import Popen
 from typing import Any, Dict, Iterable, List, Optional, Union
+from urllib import parse
 
 import httpx
 
@@ -107,7 +107,7 @@ def download_wf_attachment(run_id: str, run_request: RunRequestForm) -> None:
     for obj in run_request.workflow_attachment_obj:
         name = obj.file_name
         url = obj.file_url
-        parsed_url = urllib.parse.urlparse(url)
+        parsed_url = parse.urlparse(url)
         if parsed_url.scheme in ["http", "https"]:
             file_path = exe_dir.joinpath(secure_filepath(name)).resolve()
             file_path.parent.mkdir(parents=True, exist_ok=True)

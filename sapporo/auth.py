@@ -89,7 +89,7 @@ def get_auth_config() -> AuthConfig:
 
 
 class HTTPBearerCustom(HTTPBearer):
-    async def __call__(self, request: Request) -> str:  # type: ignore
+    async def __call__(self, request: Request) -> str:
         authorization = request.headers.get("Authorization")
         scheme, credentials = get_authorization_scheme_param(authorization)
         if not (authorization and scheme and credentials):
@@ -262,7 +262,7 @@ async def external_create_access_token(username: str, password: str) -> str:
         async with httpx.AsyncClient() as client:
             res = await client.post(token_url, data=data, headers=headers, follow_redirects=True)
             res.raise_for_status()
-            return res.json()["access_token"]  # type: ignore
+            return res.json()["access_token"]
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -274,7 +274,7 @@ def external_decode_token(token: str) -> TokenPayload:
     jwks = fetch_jwks()
 
     # Extract the kid and alg from the token header
-    unverified_header = jwt.get_unverified_header(token)  # type: ignore
+    unverified_header = jwt.get_unverified_header(token)
     kid = unverified_header["kid"]
     alg = unverified_header["alg"]
 
@@ -306,7 +306,7 @@ def fetch_jwks() -> PyJWKSet:
         with httpx.Client() as client:
             res = client.get(jwks_uri, follow_redirects=True, headers={"User-Agent": user_agent()})
             res.raise_for_status()
-            return PyJWKSet.from_dict(res.json())  # type: ignore
+            return PyJWKSet.from_dict(res.json())
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

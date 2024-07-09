@@ -77,7 +77,7 @@ async def list_runs(
     username = token and extract_username(decode_token(token))
     (db_runs, next_page_token) = list_runs_db(page_size, page_token, sort_order, state, username)
     return RunListResponse(
-        runs=db_runs_to_run_summaries(db_runs),  # type: ignore
+        runs=db_runs_to_run_summaries(db_runs),
         next_page_token=next_page_token,
     )
 

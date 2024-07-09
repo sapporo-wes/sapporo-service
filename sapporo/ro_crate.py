@@ -280,7 +280,9 @@ def update_local_file_stat(file_ins: File, file_path: Path, include_content: boo
         file_ins.append_to("encodingFormat", edam.url, compact=True)
     else:
         # https://pypi.org/project/python-magic/
-        file_ins["encodingFormat"] = magic.from_file(str(file_path), mime=True)  # type: ignore
+        file_ins["encodingFormat"] = magic.from_file(str(file_path), mime=True)
+
+    return None
 
 
 def append_exe_dir_dataset(crate: ROCrate, ins: DataEntity) -> None:
@@ -546,7 +548,7 @@ def add_file_stats(crate: ROCrate, file_ins: File) -> None:
 
     formats = get_norm_value(file_ins, "encodingFormat")
     for format_ in formats:
-        if format_ == "http://edamontology.org/format_2572" or format_ == "http://edamontology.org/format_2573":
+        if format_ in ("http://edamontology.org/format_2572", "http://edamontology.org/format_2573"):
             # bam or sam
             add_samtools_stats(crate, file_ins)
         elif format_ == "http://edamontology.org/format_3016":
@@ -670,7 +672,7 @@ def extract_exe_dir_file_ids(crate: ROCrate) -> List[str]:
     for entity in crate.get_entities():
         if isinstance(entity, Dataset):
             if str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['exe_dir']}/":
-                return get_norm_value(entity, "hasPart")  # type: ignore
+                return get_norm_value(entity, "hasPart")
     return []
 
 
