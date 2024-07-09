@@ -24,6 +24,9 @@ def test_run_cromwell_bamstats_wdl(mocker, tmpdir):  # type: ignore
 
     state = wait_for_run(client, run_id)
 
+    if state != "COMPLETE":
+        response = client.get(f"/runs/{run_id}")
+        print(response.json())
     assert state == "COMPLETE"
 
     response = client.get(f"/runs/{run_id}")

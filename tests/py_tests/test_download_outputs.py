@@ -15,6 +15,9 @@ def test_get_run_outputs_list(mocker, tmpdir):  # type: ignore
     run_id = data["run_id"]
 
     state = wait_for_run(client, run_id)
+    if state != "COMPLETE":
+        response = client.get(f"/runs/{run_id}")
+        print(response.json())
     assert state == "COMPLETE"
 
     response = client.get(f"/runs/{run_id}/outputs")
@@ -29,6 +32,9 @@ def test_download_zip_outputs(mocker, tmpdir):  # type: ignore
     run_id = data["run_id"]
 
     state = wait_for_run(client, run_id)
+    if state != "COMPLETE":
+        response = client.get(f"/runs/{run_id}")
+        print(response.json())
     assert state == "COMPLETE"
 
     response = client.get(f"/runs/{run_id}/outputs?download=true")
@@ -65,6 +71,9 @@ def test_download_each_output(mocker, tmpdir):  # type: ignore
     run_id = data["run_id"]
 
     state = wait_for_run(client, run_id)
+    if state != "COMPLETE":
+        response = client.get(f"/runs/{run_id}")
+        print(response.json())
     assert state == "COMPLETE"
 
     response = client.get(f"/runs/{run_id}/outputs/ERR034597_1.small_fastqc.html")

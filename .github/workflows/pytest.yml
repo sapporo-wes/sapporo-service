@@ -14,7 +14,7 @@ on:
       - synchronize
 
 jobs:
-  lint:
+  pytest:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Code
@@ -43,4 +43,4 @@ jobs:
 
       - name: Run pytest
         run: |
-          pytest
+          pytest -s

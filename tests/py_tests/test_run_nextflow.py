@@ -28,6 +28,9 @@ def test_run_nextflow_str_input(mocker, tmpdir):  # type: ignore
     run_id = data["run_id"]
 
     state = wait_for_run(client, run_id)
+    if state != "COMPLETE":
+        response = client.get(f"/runs/{run_id}")
+        print(response.json())
     assert state == "COMPLETE"
 
     response = client.get(f"/runs/{run_id}")
@@ -58,6 +61,9 @@ def test_run_nextflow_file_input(mocker, tmpdir):  # type: ignore
     run_id = data["run_id"]
 
     state = wait_for_run(client, run_id)
+    if state != "COMPLETE":
+        response = client.get(f"/runs/{run_id}")
+        print(response.json())
     assert state == "COMPLETE"
 
     response = client.get(f"/runs/{run_id}")
@@ -90,6 +96,9 @@ def test_run_nextflow_params_outdir(mocker, tmpdir):  # type: ignore
     run_id = data["run_id"]
 
     state = wait_for_run(client, run_id)
+    if state != "COMPLETE":
+        response = client.get(f"/runs/{run_id}")
+        print(response.json())
     assert state == "COMPLETE"
 
     response = client.get(f"/runs/{run_id}")

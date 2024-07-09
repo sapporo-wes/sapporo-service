@@ -29,6 +29,9 @@ def run_cwltool_remote_wf(client):  # type: ignore
     run_id = data["run_id"]
 
     state = wait_for_run(client, run_id)
+    if state != "COMPLETE":
+        response = client.get(f"/runs/{run_id}")
+        print(response.json())
     assert state == "COMPLETE"
 
     return run_id
@@ -42,6 +45,9 @@ def test_run_cwltool_remote_wf(mocker, tmpdir):  # type: ignore
     run_id = data["run_id"]
 
     state = wait_for_run(client, run_id)
+    if state != "COMPLETE":
+        response = client.get(f"/runs/{run_id}")
+        print(response.json())
     assert state == "COMPLETE"
 
     response = client.get(f"/runs/{run_id}")
@@ -81,6 +87,9 @@ def test_run_cwltool_attach_all_files(mocker, tmpdir):  # type: ignore
     run_id = data["run_id"]
 
     state = wait_for_run(client, run_id)
+    if state != "COMPLETE":
+        response = client.get(f"/runs/{run_id}")
+        print(response.json())
     assert state == "COMPLETE"
 
     response = client.get(f"/runs/{run_id}")
@@ -117,6 +126,9 @@ def test_run_cwltool_fetch_remote_resource(mocker, tmpdir):  # type: ignore
     run_id = data["run_id"]
 
     state = wait_for_run(client, run_id)
+    if state != "COMPLETE":
+        response = client.get(f"/runs/{run_id}")
+        print(response.json())
     assert state == "COMPLETE"
 
     response = client.get(f"/runs/{run_id}")

@@ -17,6 +17,9 @@ def test_generate_ro_crate(mocker, tmpdir):  # type: ignore
     run_id = data["run_id"]
 
     state = wait_for_run(client, run_id)
+    if state != "COMPLETE":
+        response = client.get(f"/runs/{run_id}")
+        print(response.json())
     assert state == "COMPLETE"
 
     from sapporo.config import RUN_DIR_STRUCTURE
@@ -41,6 +44,9 @@ def test_get_ro_crate(mocker, tmpdir):  # type: ignore
     run_id = data["run_id"]
 
     state = wait_for_run(client, run_id)
+    if state != "COMPLETE":
+        response = client.get(f"/runs/{run_id}")
+        print(response.json())
     assert state == "COMPLETE"
 
     from sapporo.config import RUN_DIR_STRUCTURE
@@ -64,6 +70,9 @@ def test_download_zip_ro_crate(mocker, tmpdir):  # type: ignore
     run_id = data["run_id"]
 
     state = wait_for_run(client, run_id)
+    if state != "COMPLETE":
+        response = client.get(f"/runs/{run_id}")
+        print(response.json())
     assert state == "COMPLETE"
 
     from sapporo.config import RUN_DIR_STRUCTURE
