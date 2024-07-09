@@ -5,9 +5,11 @@
 
 <img src="https://raw.githubusercontent.com/sapporo-wes/sapporo/main/logo/sapporo-service.svg" width="400" style="display: block; margin-left: auto; margin-right: auto; margin-top: 30px; margin-bottom: 30px;" alt="sapporo-service logo">
 
+**The sapporo-service underwent a major version up (2024/07/09). While we have maintained some level of compatibility, full backward compatibility is not guaranteed. For more details, please refer to the [CHANGELOG](./CHANGELOG.md). The latest version of the previous major version is 1.5.7.**
+
 The sapporo-service is a standard implementation conforming to the [Global Alliance for Genomics and Health](https://www.ga4gh.org) (GA4GH) [Workflow Execution Service](https://github.com/ga4gh/workflow-execution-service-schemas) (WES) API specification.
 
-We have also extended the API specification. For more details, please refer to *[`./sapporo-wes-spec-2.0.0.yml`](./sapporo-wes-spec-2.0.0.yml).
+We have also extended the API specification. For more details, please refer to [`sapporo-wes-spec-2.0.0.yml`](./sapporo-wes-spec-2.0.0.yml).
 
 The sapporo-service is compatible with the following workflow engines:
 
@@ -349,6 +351,17 @@ isort ./sapporo
 # Test
 pytest
 ```
+
+## Differences Between Sapporo Service 2.x and 1.x
+
+- Changed from Flask to FastAPI.
+- Updated the base GA4GH WES from WES 1.0.0 to WES 1.1.0.
+- Reorganized authentication and enabled switching of authentication methods.
+- Added an SQLite database directly under the run directory to speed up high-load endpoints like `GET /runs`.
+- Organized the Python and Docker toolchain.
+- Adjusted the `run_only_registered_only_mode` specification to manage simple lists of `workflow_url`s in `executable_workflows.json`.
+- Fully supported the clean-up run directories feature.
+- For detailed API specifications, refer to [`sapporo-wes-spec-2.0.0.yml`](./sapporo-wes-spec-2.0.0.yml).
 
 ## Adding New Workflow Engines to the Sapporo-service
 
