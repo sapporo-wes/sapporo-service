@@ -7,9 +7,9 @@
 
 The sapporo-service is a standard implementation conforming to the [Global Alliance for Genomics and Health](https://www.ga4gh.org) (GA4GH) [Workflow Execution Service](https://github.com/ga4gh/workflow-execution-service-schemas) (WES) API specification.
 
-We have also extended the API specification. For more details, please refer to [`./sapporo-wes-spec-2.0.0.yml`](./sapporo-wes-spec-2.0.0.yml) for more details.
+We have also extended the API specification. For more details, please refer to *[`./sapporo-wes-spec-2.0.0.yml`](./sapporo-wes-spec-2.0.0.yml).
 
-The service is compatible with the following workflow engines:
+The sapporo-service is compatible with the following workflow engines:
 
 - [cwltool](https://github.com/common-workflow-language/cwltool)
 - [nextflow](https://www.nextflow.io)
@@ -34,6 +34,8 @@ To start the sapporo-service, run the following command:
 ```bash
 sapporo
 ```
+
+Afterwards, you can query `GET /service-info` or access `localhost:1122/docs` in your browser to view the API documentation.
 
 ### Using Docker
 
@@ -119,7 +121,7 @@ $ tree run
 
 You can manage each run by physically deleting it using the `rm` command.
 
-As of sapporo-service 2.0.0, an SQLite database (`sapporo.db`) has been added inside the run directory. This database is used to speed up `GET /runs` calls. The master data remains within each run directory, and the database is updated every 30 minutes while sapporo is running. If you need the latest run status, use `GET /runs/{run_id}` instead of `GET /runs`.
+As of the sapporo-service 2.0.0, an SQLite database (`sapporo.db`) has been added inside the run directory. This database is used to speed up `GET /runs` calls. The master data remains within each run directory, and the database is updated every 30 minutes while sapporo is running. If you need the latest run status, use `GET /runs/{run_id}` instead of `GET /runs`.
 
 ### `run.sh`
 
@@ -157,14 +159,173 @@ You can specify the base URL for downloading the output files using the `--base-
 
 ### Clean Up Run Directories
 
-The sapporo-service provides a feature to clean up run directories that have a start time older than a specified number of days.
-This can be configured using the `--run-remove-older-than-days` startup argument or the `SAPPORO_RUN_REMOVE_OLDER_THAN_DAYS` environment variable.
+The sapporo-service provides a feature to clean up run directories that have a start time older than a specified number of days. This can be configured using the `--run-remove-older-than-days` startup argument or the `SAPPORO_RUN_REMOVE_OLDER_THAN_DAYS` environment variable.
 
 By setting this option, the sapporo-service will automatically remove run directories that are older than the specified number of days, helping to manage disk space and maintain a clean working environment.
 
+### Swagger UI
+
+Since the sapporo-service is implemented using FastAPI, Swagger UI is available. After starting the sapporo-service, you can access Swagger UI by navigating to `http://localhost:1122/docs` in your browser. This interface allows you to review the API specifications and execute API requests directly from the browser.
+
 ### Generate RO-Crate
 
+The sapporo-service generates an [RO-Crate](https://www.researchobject.org/ro-crate/) (`ro-crate-metadata.json`) after a run is executed. You can retrieve this RO-Crate using `GET /runs/{run_id}/ro-crate`. Additionally, you can download the entire RO-Crate package (i.e., all contents of the `run_dir`) as a zip file by using `GET /runs/{run_id}/ro-crate?download=true`. For more details, please refer to [`./tests/ro-crate`](./tests/ro-crate).
+
 ### Authentication
+
+The sapporo-service supports authentication, configurable via the [`./sapporo/auth_config.json`](./sapporo/auth_config.json). By default, this configuration is as follows:
+
+```json
+{
+  "auth_enabled": false,
+  "idp_provider": "sapporo",
+  "sapporo_auth_config": {
+    "secret_key": "sapporo_secret_key_please_change_this",
+    "expires_delta_hours": 24,
+    "users": [
+      {
+        "username": "sapporo-dev-user",
+        "password": "sapporo-dev-password"
+      }
+    ]
+  },
+  "external_config": {
+    "idp_url": "http://sapporo-keycloak-dev:8080/realms/sapporo-dev",
+    "jwt_audience": "account",
+    "client_mode": "public",
+    "client_id": "sapporo-service-dev",
+    "client_secret": "example-client-secret"
+  }
+}
+```
+
+This configuration file can be directly edited or relocated using the `--auth-config` startup argument or the `SAPPORO_AUTH_CONFIG` environment variable.
+
+#### Configuration Fields
+
+- `auth_enabled`: Determines if authentication is activated. If set to `true`, authentication is enabled.
+- `idp_provider`: Specifies the type of authentication provider, supporting `sapporo` or `external`. This allows you to switch the authentication provider.
+- `sapporo_auth_config`: Configuration for local authentication includes:
+  - `secret_key`: Secret key for signing JWTs. Changing this key is highly recommended.
+  - `expires_delta_hours`: The number of hours until the JWT expires. If null, the JWT never expires.
+  - `users`: List of users eligible for authentication, specifying username and password.
+- `external_config`: Configuration for external authentication includes:
+  - `idp_url`: URL to access the identity provider's configuration. This should be accessible from Sapporo at `{idp_url}/.well-known/openid-configuration`.
+  - `jwt_audience`: The expected audience claim in the JWT (e.g., `account`).
+  - `client_mode`: Mode of the client, either `confidential` or `public`.
+  - `client_id`: The client ID for the external authentication provider. This is used when `client_mode` is `confidential`.
+  - `client_secret`: The client secret for the external authentication provider. This is used when `client_mode` is `confidential`.
+
+From this configuration, there are two authentication modes: `sapporo` and `external`. When the mode is set to `sapporo`, Sapporo acts as an Identity Provider (IdP), issuing JWTs and handling authentication. In contrast, when the mode is set to `external`, authentication is delegated to an external IdP (e.g., Keycloak). In this scenario, Sapporo verifies the JWTs, but the JWTs are issued by the external IdP.
+
+Each mode is explained in more detail below.
+
+#### Authentication Endpoints
+
+When authentication is enabled, the following endpoints require authentication headers:
+
+- `GET /runs`
+- `POST /runs`
+- `GET /runs/{run_id}`
+- `POST /runs/{run_id}/cancel`
+- `GET /runs/{run_id}/status`
+- `GET /runs/{run_id}/data`
+- `GET /runs/{run_id}/outputs`
+- `GET /runs/{run_id}/outputs/{path:path}`
+- `GET /runs/{run_id}/ro-crate`
+- `DELETE /runs/{run_id}`
+
+Each run is associated with a `username`, ensuring that only the user who created a run can access details like `GET /runs/{run_id}`.
+
+#### Authentication: `sapporo` mode
+
+For `sapporo` mode authentication, configure `auth_config.json` as shown:
+
+```json
+{
+  "auth_enabled": true,
+  "idp_provider": "sapporo",
+  "sapporo_auth_config": {
+    "secret_key": "new_secret_key",
+    "expires_delta_hours": 24,
+    "users": [
+      {
+        "username": "user1",
+        "password": "password1"
+      }
+    ]
+  },
+  "external_config": {
+    "idp_url": "http://sapporo-keycloak-dev:8080/realms/sapporo-dev",
+    "jwt_audience": "account",
+    "client_mode": "public",
+    "client_id": "sapporo-service-dev",
+    "client_secret": "example-client-secret"
+  }
+}
+```
+
+Start the sapporo-service with this configuration. You will be able to access the `GET /service-info` endpoint, but endpoints like `GET /runs` will require authentication:
+
+```bash
+# Start sapporo-service
+sapporo
+
+# GET /service-info
+$ curl -X GET localhost:1122/service-info
+...
+"auth_instructions_url": "<https://github.com/sapporo-wes/sapporo-service/blob/main/README.md#authentication>",
+
+$ curl -X GET localhost:1122/runs
+{
+  "msg": "Not authenticated",
+  "status_code": 401
+}
+```
+
+To authenticate, obtain a JWT via `POST /token`:
+
+```bash
+# Generate JWT for authentication
+$ curl -s -X POST \
+    -H "Content-Type: multipart/form-data" \
+    -F "username=user1" \
+    -F "password=password1" \
+    localhost:1122/token
+{
+  "access_token":"<generated_jwt>",
+  "token_type":"bearer"
+}
+
+$ TOKEN=$(curl -s -X POST \
+    -H "Content-Type: multipart/form-data" \
+    -F "username=user1" \
+    -F "password=password1" \
+    localhost:1122/token | jq -r '.access_token')
+
+# Check the JWT
+$ curl -X GET \
+    -H "Authorization: Bearer $TOKEN" \
+    localhost:1122/me
+{"username":"user1"}
+```
+
+With the obtained JWT, you can access endpoints like `GET /runs`:
+
+```bash
+$ curl -X GET -H "Authorization: Bearer $TOKEN" localhost:1122/runs
+{
+  "runs": []
+}
+```
+
+#### Authentication: `external` mode
+
+In `external` mode, the sapporo-service can integrate with an external IdP such as Keycloak. In this case, user information must be registered with the IdP. The IdP issues JWTs, and the sapporo-service verifies these JWTs.
+
+As an example, a ***./compose.keycloak.dev.yml*** file is provided for Keycloak. By using this file, you can start Keycloak and configure the necessary Realm and Client settings to integrate with the sapporo-service.
+
+After obtaining a JWT from the IdP, include the `Authorization: Bearer` header in your requests to the authenticated endpoints.
 
 ## Development
 
@@ -189,7 +350,7 @@ isort ./sapporo
 pytest
 ```
 
-## Adding New Workflow Engines to Sapporo Service
+## Adding New Workflow Engines to the Sapporo-service
 
 The sapporo-service calls each workflow engine through the [`run.sh`](./sapporo/run.sh) script. Therefore, by editing `run.sh`, you can easily add new workflow engines or modify the behavior of existing ones. For an example of adding a new workflow engine, refer to the pull request that includes the addition of the `Streamflow` workflow engine: <https://github.com/sapporo-wes/sapporo-service/pull/29>
 
