@@ -1,0 +1,94 @@
+
+[1;30mINFO[0m /usr/local/bin/cwltool 3.1.20240508115724
+[1;30mINFO[0m Resolved 'trimming_and_qc.cwl' to 'file:///home/suecharo/git/github.com/sapporo-wes/sapporo-service/run/d2/d24e8b52-2838-4ef2-9410-307da38b7ac7/exe/trimming_and_qc.cwl'
+[1;30mINFO[0m [workflow ] start
+[1;30mINFO[0m [workflow ] starting step trimming
+[1;30mINFO[0m [step trimming] start
+[1;30mINFO[0m [job trimming] /tmp/l0fmolti$ docker \
+    run \
+    -i \
+    --mount=type=bind,source=/tmp/l0fmolti,target=/YMWDLG \
+    --mount=type=bind,source=/tmp/90wi4v9c,target=/tmp \
+    --mount=type=bind,source=/home/suecharo/git/github.com/sapporo-wes/sapporo-service/run/d2/d24e8b52-2838-4ef2-9410-307da38b7ac7/exe/ERR034597_1.small.fq.gz,target=/var/lib/cwl/stg47758999-3597-4998-b48d-689b75c531ae/ERR034597_1.small.fq.gz,readonly \
+    --mount=type=bind,source=/home/suecharo/git/github.com/sapporo-wes/sapporo-service/run/d2/d24e8b52-2838-4ef2-9410-307da38b7ac7/exe/ERR034597_2.small.fq.gz,target=/var/lib/cwl/stg26e1a45a-c570-4b13-88a0-5bad6b6685e4/ERR034597_2.small.fq.gz,readonly \
+    --workdir=/YMWDLG \
+    --read-only=true \
+    --log-driver=none \
+    --user=0:0 \
+    --rm \
+    --cidfile=/tmp/9141yp9z/20240709054930-875979.cid \
+    --env=TMPDIR=/tmp \
+    --env=HOME=/YMWDLG \
+    quay.io/biocontainers/trimmomatic:0.38--1 \
+    trimmomatic \
+    PE \
+    -threads \
+    2 \
+    /var/lib/cwl/stg47758999-3597-4998-b48d-689b75c531ae/ERR034597_1.small.fq.gz \
+    /var/lib/cwl/stg26e1a45a-c570-4b13-88a0-5bad6b6685e4/ERR034597_2.small.fq.gz \
+    ERR034597_1.small.fq.trimmed.1P.fq \
+    ERR034597_1.small.fq.trimmed.1U.fq \
+    ERR034597_1.small.fq.trimmed.2P.fq \
+    ERR034597_1.small.fq.trimmed.2U.fq \
+    ILLUMINACLIP:/usr/local/share/trimmomatic/adapters/TruSeq2-PE.fa:2:40:15 \
+    LEADING:20 \
+    TRAILING:20 \
+    SLIDINGWINDOW:4:15 \
+    MINLEN:36 > /tmp/l0fmolti/trimmomatic-pe-stdout.log 2> /tmp/l0fmolti/trimmomatic-pe-stderr.log
+[1;30mINFO[0m [job trimming] Max memory used: 0MiB
+[1;30mINFO[0m [job trimming] completed success
+[1;30mINFO[0m [step trimming] completed success
+[1;30mINFO[0m [workflow ] starting step qc_2
+[1;30mINFO[0m [step qc_2] start
+[1;30mINFO[0m [job qc_2] /tmp/s5dxmcip$ docker \
+    run \
+    -i \
+    --mount=type=bind,source=/tmp/s5dxmcip,target=/YMWDLG \
+    --mount=type=bind,source=/tmp/_bm0mpia,target=/tmp \
+    --mount=type=bind,source=/home/suecharo/git/github.com/sapporo-wes/sapporo-service/run/d2/d24e8b52-2838-4ef2-9410-307da38b7ac7/exe/ERR034597_2.small.fq.gz,target=/var/lib/cwl/stgc3d2634d-61df-445e-9ed2-08779c4b97be/ERR034597_2.small.fq.gz,readonly \
+    --workdir=/YMWDLG \
+    --read-only=true \
+    --log-driver=none \
+    --user=0:0 \
+    --rm \
+    --cidfile=/tmp/5qh54s7q/20240709054932-243133.cid \
+    --env=TMPDIR=/tmp \
+    --env=HOME=/YMWDLG \
+    quay.io/biocontainers/fastqc:0.11.9--0 \
+    fastqc \
+    -o \
+    . \
+    --threads \
+    2 \
+    /var/lib/cwl/stgc3d2634d-61df-445e-9ed2-08779c4b97be/ERR034597_2.small.fq.gz > /tmp/s5dxmcip/fastqc-stdout.log 2> /tmp/s5dxmcip/fastqc-stderr.log
+[1;30mINFO[0m [job qc_2] Max memory used: 136MiB
+[1;30mINFO[0m [job qc_2] completed success
+[1;30mINFO[0m [step qc_2] completed success
+[1;30mINFO[0m [workflow ] starting step qc_1
+[1;30mINFO[0m [step qc_1] start
+[1;30mINFO[0m [job qc_1] /tmp/11pb59cp$ docker \
+    run \
+    -i \
+    --mount=type=bind,source=/tmp/11pb59cp,target=/YMWDLG \
+    --mount=type=bind,source=/tmp/9_5sui_q,target=/tmp \
+    --mount=type=bind,source=/home/suecharo/git/github.com/sapporo-wes/sapporo-service/run/d2/d24e8b52-2838-4ef2-9410-307da38b7ac7/exe/ERR034597_1.small.fq.gz,target=/var/lib/cwl/stgb8481e3b-b23b-49d8-8512-397bfa8697d0/ERR034597_1.small.fq.gz,readonly \
+    --workdir=/YMWDLG \
+    --read-only=true \
+    --log-driver=none \
+    --user=0:0 \
+    --rm \
+    --cidfile=/tmp/v1nrxnag/20240709054935-188736.cid \
+    --env=TMPDIR=/tmp \
+    --env=HOME=/YMWDLG \
+    quay.io/biocontainers/fastqc:0.11.9--0 \
+    fastqc \
+    -o \
+    . \
+    --threads \
+    2 \
+    /var/lib/cwl/stgb8481e3b-b23b-49d8-8512-397bfa8697d0/ERR034597_1.small.fq.gz > /tmp/11pb59cp/fastqc-stdout.log 2> /tmp/11pb59cp/fastqc-stderr.log
+[1;30mINFO[0m [job qc_1] Max memory used: 151MiB
+[1;30mINFO[0m [job qc_1] completed success
+[1;30mINFO[0m [step qc_1] completed success
+[1;30mINFO[0m [workflow ] completed success
+[1;30mINFO[0m Final process status is success
