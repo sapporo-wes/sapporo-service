@@ -5,7 +5,7 @@
 
 <img src="https://raw.githubusercontent.com/sapporo-wes/sapporo/main/logo/sapporo-service.svg" width="400" style="display: block; margin-left: auto; margin-right: auto; margin-top: 30px; margin-bottom: 30px;" alt="sapporo-service logo">
 
-**The sapporo-service underwent a major version up (2024/07/09). While we have maintained some level of compatibility, full backward compatibility is not guaranteed. For more details, please refer to the [CHANGELOG](./CHANGELOG.md). The latest version of the previous major version is 1.5.7.**
+**The sapporo-service underwent a major version up (2024/07/09). While we have maintained some level of compatibility, full backward compatibility is not guaranteed. For more details, please refer to the ["Differences Between Sapporo Service 2.x and 1.x"](https://github.com/sapporo-wes/sapporo-service/tree/sapporo-2.0#differences-between-sapporo-service-2x-and-1x). The latest version of the previous major version is [1.7.1](https://github.com/sapporo-wes/sapporo-service/tree/1.7.1).**
 
 The sapporo-service is a standard implementation conforming to the [Global Alliance for Genomics and Health](https://www.ga4gh.org) (GA4GH) [Workflow Execution Service](https://github.com/ga4gh/workflow-execution-service-schemas) (WES) API specification.
 
