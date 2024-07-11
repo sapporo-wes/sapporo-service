@@ -86,6 +86,12 @@ options:
                         the specified number of days.
 ```
 
+### Run a Workflow
+
+Since the sapporo-service is the Workflow Execution Service (WES), you can execute workflows by specifying the workflow document and workflow parameters (i.e., by calling `POST /runs`). However, this might be challenging at first. To help you get started, there are several examples of running workflows using `curl` in the `./tests/curl_example` directory. These examples should serve as useful references.
+
+Additionally, it is recommended to review the API specifications. After starting the Sapporo service, you can access `http://localhost:1122/docs` to view the API specifications through the Swagger UI. This interface provides an easy way to understand the API and execute commands directly from the UI.
+
 ### Run Directory
 
 The sapporo-service organizes all submitted workflows, workflow parameters, output files, and related data within a specific directory on the file system. This directory is known as the "run directory." To specify a different location for the run directory, use the startup argument `--run-dir` or set the environment variable `SAPPORO_RUN_DIR`.
