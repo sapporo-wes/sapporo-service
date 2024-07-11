@@ -104,7 +104,7 @@ def validate_wf_engine_type_and_version(
 
 def validate_run_id(run_id: str, username: Optional[str]) -> None:
     """
-    Note: This function directly checks the run directory without using the database. 
+    Note: This function directly checks the run directory without using the database.
     Although this approach may seem confusing, it is based on the concept that the master data is stored in the run directory.
     """
     specific_run_dir = get_config().run_dir.joinpath(run_id[:2]).joinpath(run_id)

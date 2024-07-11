@@ -143,7 +143,7 @@ def get_config() -> AppConfig:
     base_url = args.base_url or os.environ.get("SAPPORO_BASE_URL", f"http://{host}:{port}{url_prefix}")
 
     run_remove_older_than_days = args.run_remove_older_than_days or os.environ.get(
-        "SAPPORO_run_REMOVE_OLDER_THAN_DAYS", default_config.run_remove_older_than_days)
+        "SAPPORO_RUN_REMOVE_OLDER_THAN_DAYS", default_config.run_remove_older_than_days)
     if run_remove_older_than_days is not None:
         run_remove_older_than_days = int(run_remove_older_than_days)
         if run_remove_older_than_days < 1:
