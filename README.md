@@ -5,11 +5,11 @@
 
 <img src="https://raw.githubusercontent.com/sapporo-wes/sapporo/main/logo/sapporo-service.svg" width="400" style="display: block; margin-left: auto; margin-right: auto; margin-top: 30px; margin-bottom: 30px;" alt="sapporo-service logo">
 
-**The sapporo-service underwent a major version up (2024/07/09). While we have maintained some level of compatibility, full backward compatibility is not guaranteed. For more details, please refer to the ["Differences Between Sapporo Service 2.x and 1.x"](https://github.com/sapporo-wes/sapporo-service/tree/sapporo-2.0#differences-between-sapporo-service-2x-and-1x). The latest version of the previous major version is [1.7.1](https://github.com/sapporo-wes/sapporo-service/tree/1.7.1).**
+**The sapporo-service underwent a major version up (2024/07/09). While we have maintained some level of compatibility, full backward compatibility is not guaranteed. For more details, please refer to the ["Differences Between Sapporo Service 2.x and 1.x"](https://github.com/sapporo-wes/sapporo-service?#differences-between-sapporo-service-2x-and-1x). The latest version of the previous major version is [1.7.1](https://github.com/sapporo-wes/sapporo-service/tree/1.7.1).**
 
 The sapporo-service is a standard implementation conforming to the [Global Alliance for Genomics and Health](https://www.ga4gh.org) (GA4GH) [Workflow Execution Service](https://github.com/ga4gh/workflow-execution-service-schemas) (WES) API specification.
 
-We have also extended the API specification. For more details, please refer to [`sapporo-wes-spec-2.0.0.yml`](./sapporo-wes-spec-2.0.0.yml).
+We have also extended the API specification. For more details, please refer to [`sapporo-wes-spec-2.0.0.yml`](./sapporo-wes-spec-2.0.0.yml) or [SwaggerUI - sapporo-wes-2.0.0](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo-wes-spec-2.0.0.yml).
 
 The sapporo-service is compatible with the following workflow engines:
 
@@ -171,7 +171,7 @@ Since the sapporo-service is implemented using FastAPI, Swagger UI is available.
 
 ### Generate RO-Crate
 
-The sapporo-service generates an [RO-Crate](https://www.researchobject.org/ro-crate/) (`ro-crate-metadata.json`) after a run is executed. You can retrieve this RO-Crate using `GET /runs/{run_id}/ro-crate`. Additionally, you can download the entire RO-Crate package (i.e., all contents of the `run_dir`) as a zip file by using `GET /runs/{run_id}/ro-crate?download=true`. For more details, please refer to [`./tests/ro-crate`](./tests/ro-crate).
+The sapporo-service generates an [RO-Crate](https://www.researchobject.org/ro-crate/) (i.e., `ro-crate-metadata.json`) after a run is executed. You can retrieve this RO-Crate using `GET /runs/{run_id}/ro-crate`. Additionally, you can download the entire RO-Crate package (i.e., all contents of the `run_dir`) as a zip file by using `GET /runs/{run_id}/ro-crate?download=true`. For more details, please refer to [`./tests/ro-crate`](./tests/ro-crate).
 
 ### Authentication
 
@@ -361,7 +361,7 @@ pytest
 - Organized the Python and Docker toolchain.
 - Adjusted the `run_only_registered_only_mode` specification to manage simple lists of `workflow_url`s in `executable_workflows.json`.
 - Fully supported the clean-up run directories feature.
-- For detailed API specifications, refer to [`sapporo-wes-spec-2.0.0.yml`](./sapporo-wes-spec-2.0.0.yml).
+- For detailed API specifications, refer to [`sapporo-wes-spec-2.0.0.yml`](./sapporo-wes-spec-2.0.0.yml) or [SwaggerUI - sapporo-wes-2.0.0](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo-wes-spec-2.0.0.yml).
 
 ## Adding New Workflow Engines to the Sapporo-service
 
