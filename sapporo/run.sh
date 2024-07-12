@@ -16,6 +16,24 @@ function run_wf() {
         executor_error
     fi
 
+    echo "In run.sh"
+
+    echo "=== env ========"
+
+    env
+
+    echo "=== pip list ========"
+
+    python3 -m pip list
+
+    echo "=== which ========"
+
+    which python3
+
+    echo "=== exec module ========"
+
+    python3 -c "from sapporo.run import dump_outputs_list; print(id(dump_outputs_list))"
+
     upload
     date -u +"%Y-%m-%dT%H:%M:%S" >${end_time}
     echo 0 >${exit_code}

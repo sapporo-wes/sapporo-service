@@ -36,10 +36,17 @@ jobs:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
 
-      - name: Install Python Dependencies
+      - name: echo pip list
         run: |
-          python3 -m pip install --progress-bar off -U pip
-          python3 -m pip install --progress-bar off -U .[tests]
+          python3 -m pip list
+
+      - name: env
+        run: |
+          env
+
+      - name: Run mod
+        run: |
+          python3 -c "from sapporo.dump_outputs_list import dump_outputs_list; print(id(dump_outputs_list))"
 
       - name: Run pytest
         run: |
