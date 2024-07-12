@@ -308,7 +308,7 @@ async def get_run_outputs_list(
     "/runs/{run_id}/outputs/{path:path}",
     summary="DownloadRunOutput",
     description="**sapporo-wes-2.0.0 extension:** Download a file in the outputs directory.",
-    response_model=FileResponse,
+    response_model=None,  # FileResponse
 )
 async def get_run_outputs(
     run_id: str,
