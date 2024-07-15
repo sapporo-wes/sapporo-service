@@ -1,5 +1,6 @@
 # pylint: disable=C0415, W0613, W0621
 
+import logging
 import os
 import sys
 from pathlib import Path
@@ -84,4 +85,5 @@ def test_init_app_state(mocker, tmpdir):  # type: ignore
     _client = anyhow_get_test_client(None, mocker, tmpdir)  # for clear all cache and dependencies
 
     from sapporo.app import init_app_state
+    logging.getLogger("sapporo").setLevel(logging.WARNING)
     init_app_state()  # no raise
