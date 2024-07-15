@@ -12,23 +12,23 @@ function run_wf() {
     if [[ "$(type -t ${function_name})" == "function" ]]; then
         ${function_name}
 
-        echo "In run.sh" 1>>${stdout} 2>>${stderr}
+        echo "In run.sh" 1>>${stdout} 2>>${stderr} || executor_error
 
-        echo "=== env ========" 1>>${stdout} 2>>${stderr}
+        echo "=== env ========" 1>>${stdout} 2>>${stderr} || executor_error
 
-        env 1>>${stdout} 2>>${stderr}
+        env 1>>${stdout} 2>>${stderr} || executor_error
 
-        echo "=== pip list ========" 1>>${stdout} 2>>${stderr}
+        echo "=== pip list ========" 1>>${stdout} 2>>${stderr} || executor_error
 
-        python3 -m pip list 1>>${stdout} 2>>${stderr}
+        python3 -m pip list 1>>${stdout} 2>>${stderr} || executor_error
 
-        echo "=== which ========" 1>>${stdout} 2>>${stderr}
+        echo "=== which ========" 1>>${stdout} 2>>${stderr} || executor_error
 
-        which python3 1>>${stdout} 2>>${stderr}
+        which python3 1>>${stdout} 2>>${stderr} || executor_error
 
-        echo "=== exec module ========" 1>>${stdout} 2>>${stderr}
+        echo "=== exec module ========" 1>>${stdout} 2>>${stderr} || executor_error
 
-        python3 -c "from sapporo.run import dump_outputs_list; print(id(dump_outputs_list))" 1>>${stdout} 2>>${stderr}
+        python3 -c "from sapporo.run import dump_outputs_list; print(id(dump_outputs_list))" 1>>${stdout} 2>>${stderr} || executor_error
 
         generate_outputs_list
     else
