@@ -46,7 +46,7 @@ jobs:
 
       - name: Run mod
         run: |
-          python3 -c "from sapporo.dump_outputs_list import dump_outputs_list; print(id(dump_outputs_list))"
+          python3 -c "from sapporo.run import dump_outputs_list; print(id(dump_outputs_list))"
 
       - name: Run pytest
         run: |
