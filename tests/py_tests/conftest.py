@@ -36,7 +36,7 @@ def reset_argv() -> Generator[None, None, None]:
 
 @pytest.fixture(scope="session", autouse=True)
 def reset_os_env() -> Generator[None, None, None]:
-    original_os_env = {k: v for k, v in os.environ.copy() if k.startswith("SAPPORO_")}  # type: ignore
+    original_os_env = {k: v for k, v in os.environ.items() if k.startswith("SAPPORO_")}
     keys = original_os_env.keys()
     for k in keys:
         del os.environ[k]
