@@ -36,13 +36,15 @@ def reset_argv() -> Generator[None, None, None]:
 
 @pytest.fixture(scope="session", autouse=True)
 def reset_os_env() -> Generator[None, None, None]:
-    original_os_env = os.environ.copy()
-    os.environ.clear()
+    original_os_env = {k: v for k, v in os.environ.copy() if k.startswith("SAPPORO_")}  # type: ignore
+    keys = original_os_env.keys()
+    for k in keys:
+        del os.environ[k]
 
     yield
 
-    os.environ.clear()
-    os.environ.update(original_os_env)
+    for k in keys:
+        os.environ[k] = original_os_env[k]
 
 
 @pytest.fixture()
@@ -104,6 +106,7 @@ def anyhow_get_test_client(app_config, mocker, tmpdir) -> TestClient:  # type: i
     clear_cache()  # type: ignore
 
     from sapporo.database import init_db
+    logging.getLogger("sapporo").setLevel(logging.WARNING)
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
     init_db()
 
