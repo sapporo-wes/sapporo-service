@@ -35,6 +35,12 @@ jobs:
           python3 -m pip install --progress-bar off -U pip
           python3 -m pip install --progress-bar off -U .[tests]
 
+      - name: echo about python
+        run: |
+          python3 --version
+          python3 -m pip --version
+          which python3
+
       - name: echo pip list
         run: |
           python3 -m pip list
