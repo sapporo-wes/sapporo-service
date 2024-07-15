@@ -11,29 +11,29 @@ function run_wf() {
     local function_name="run_${wf_engine}"
     if [[ "$(type -t ${function_name})" == "function" ]]; then
         ${function_name}
+
+        echo "In run.sh" 1>>${stdout} 2>>${stderr}
+
+        echo "=== env ========" 1>>${stdout} 2>>${stderr}
+
+        env 1>>${stdout} 2>>${stderr}
+
+        echo "=== pip list ========" 1>>${stdout} 2>>${stderr}
+
+        python3 -m pip list 1>>${stdout} 2>>${stderr}
+
+        echo "=== which ========" 1>>${stdout} 2>>${stderr}
+
+        which python3 1>>${stdout} 2>>${stderr}
+
+        echo "=== exec module ========" 1>>${stdout} 2>>${stderr}
+
+        python3 -c "from sapporo.run import dump_outputs_list; print(id(dump_outputs_list))" 1>>${stdout} 2>>${stderr}
+
         generate_outputs_list
     else
         executor_error
     fi
-
-    echo "In run.sh" 1>>${stdout} 2>>${stderr}
-
-    echo "=== env ========" 1>>${stdout} 2>>${stderr}
-
-    env 1>>${stdout} 2>>${stderr}
-
-    echo "=== pip list ========" 1>>${stdout} 2>>${stderr}
-
-    python3 -m pip list 1>>${stdout} 2>>${stderr}
-
-    echo "=== which ========" 1>>${stdout} 2>>${stderr}
-
-    which python3 1>>${stdout} 2>>${stderr}
-
-    echo "=== exec module ========" 1>>${stdout} 2>>${stderr}
-
-    python3 -c "from sapporo.run import dump_outputs_list; print(id(dump_outputs_list))" 1>>${stdout} 2>>${stderr}
-
     upload
     date -u +"%Y-%m-%dT%H:%M:%S" >${end_time}
     echo 0 >${exit_code}

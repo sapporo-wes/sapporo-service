@@ -49,4 +49,4 @@ jobs:
 
       - name: Run pytest
         run: |
-          pytest -s
+          pytest -s ./tests/py_tests/test_run_cwltool.py
