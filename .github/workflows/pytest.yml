@@ -30,11 +30,10 @@ jobs:
           sudo apt update
           sudo apt install -y jq
 
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+      - name: Install Python Dependencies
+        run: |
+          python3 -m pip install --progress-bar off -U pip
+          python3 -m pip install --progress-bar off -U .[tests]
 
       - name: echo pip list
         run: |
