@@ -51,7 +51,7 @@ async def get_service_info() -> ServiceInfo:
 **sapporo-wes-2.0.0 extension:**
 
 - This endpoint returns a snapshot that is aggregated every 30 minutes. It may not represent the latest state.
-- If you want to get the latest state of run, use `GET /runs/{run_id}` or `GET /runs/{run_id}/status`.
+- If you want to get the latest state of run, use `GET /runs/{run_id}` or `GET /runs/{run_id}/status` or use `latest=true` query parameter.
 """,
     response_model=RunListResponse,
 )
@@ -72,12 +72,24 @@ async def list_runs(
         None,
         description='**sapporo-wes-2.0.0 extension:**: Filter the runs based on the state (e.g., "COMPLETE", "RUNNING", etc.).',
     ),
+    run_ids: Optional[List[str]] = Query(
+        None,
+        description='**sapporo-wes-2.0.0 extension:**: A list of run IDs to retrieve specific runs.',
+    ),
+    latest: Optional[bool] = Query(
+        False,
+        description='**sapporo-wes-2.0.0 extension:**: If True, return the latest state of runs instead of the snapshot.',
+    ),
     token: Optional[str] = auth_depends_factory(),
 ) -> RunListResponse:
     username = token and extract_username(decode_token(token))
-    (db_runs, next_page_token) = list_runs_db(page_size, page_token, sort_order, state, username)
+    (db_runs, next_page_token) = list_runs_db(page_size, page_token, sort_order, state, run_ids, username)
+    if latest:
+        runs = [create_run_summary(run.run_id) for run in db_runs]
+    else:
+        runs = db_runs_to_run_summaries(db_runs)
     return RunListResponse(
-        runs=db_runs_to_run_summaries(db_runs),
+        runs=runs,
         next_page_token=next_page_token,
     )
 

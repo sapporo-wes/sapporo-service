@@ -107,3 +107,25 @@ def test_get_runs_state(mocker, tmpdir):  # type: ignore
     assert response.status_code == 200
     data = response.json()
     assert len(data["runs"]) == 2
+
+
+def test_get_runs_run_ids(mocker, tmpdir):  # type: ignore
+    client = anyhow_get_test_client(None, mocker, tmpdir)
+    add_dummy_data()  # type: ignore
+
+    response = client.get("/runs?run_ids=63d1f6b7-1cfe-44b3-9f66-1640496b1b01&run_ids=4f3de7a3-acb2-4568-b046-5bb7e63fa84c")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["runs"]) == 2
+
+
+def test_get_runs_latest(mocker, tmpdir):  # type: ignore
+    client = anyhow_get_test_client(None, mocker, tmpdir)
+    run_id = run_cwltool_remote_wf(client)  # type: ignore
+
+    response = client.get("/runs?latest=true")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data["runs"]) == 1
+    assert data["runs"][0]["run_id"] == run_id

@@ -150,6 +150,7 @@ def list_runs_db(
     page_token: Optional[str] = None,
     sort_order: Literal["asc", "desc"] = "desc",
     state: Optional[State] = None,
+    run_ids: Optional[List[str]] = None,
     username: Optional[str] = None,
 ) -> Tuple[List[Run], Optional[str]]:
     query = select(Run)
@@ -164,6 +165,9 @@ def list_runs_db(
         query = query.order_by(Run.start_time.asc(), Run.run_id.asc())  # type: ignore # pylint: disable=E1101
     else:
         query = query.order_by(Run.start_time.desc(), Run.run_id.desc())  # type: ignore # pylint: disable=E1101
+
+    if run_ids is not None:
+        query = query.where(Run.run_id.in_(run_ids))  # type: ignore  # pylint: disable=E1101
 
     if page_token is not None:
         token_data = _decode_page_token(page_token)

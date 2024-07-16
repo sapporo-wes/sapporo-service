@@ -947,9 +947,9 @@ info:
     ## Executive Summary
 
 
-    he Workflow Execution Service (WES) API provides a standard way for users to submit
-    workflow requests to workflow execution systems and monitor their execution. This
-    API lets users run a single workflow (currently [**CWL**](https://www.commonwl.org/)
+    The Workflow Execution Service (WES) API provides a standard way for users to
+    submit workflow requests to workflow execution systems and monitor their execution.
+    This API lets users run a single workflow (currently [**CWL**](https://www.commonwl.org/)
     or [**WDL**](http://www.openwdl.org/) formatted workflows, with other types potentially
     supported in the future) on multiple different platforms, clouds, and environments.
 
@@ -1094,7 +1094,7 @@ paths:
         may not represent the latest state.
 
         - If you want to get the latest state of run, use `GET /runs/{run_id}` or
-        `GET /runs/{run_id}/status`.'
+        `GET /runs/{run_id}/status` or use `latest=true` query parameter.'
       operationId: list_runs_runs_get
       parameters:
       - description: OPTIONAL The preferred number of workflow runs to return in a
@@ -1156,6 +1156,33 @@ paths:
           description: '**sapporo-wes-2.0.0 extension:**: Filter the runs based on
             the state (e.g., "COMPLETE", "RUNNING", etc.).'
           title: State
+      - description: '**sapporo-wes-2.0.0 extension:**: A list of run IDs to retrieve
+          specific runs.'
+        in: query
+        name: run_ids
+        required: false
+        schema:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          description: '**sapporo-wes-2.0.0 extension:**: A list of run IDs to retrieve
+            specific runs.'
+          title: Run Ids
+      - description: '**sapporo-wes-2.0.0 extension:**: If True, return the latest
+          state of runs instead of the snapshot.'
+        in: query
+        name: latest
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          default: false
+          description: '**sapporo-wes-2.0.0 extension:**: If True, return the latest
+            state of runs instead of the snapshot.'
+          title: Latest
       responses:
         '200':
           content:
