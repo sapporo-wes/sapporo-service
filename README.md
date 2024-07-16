@@ -129,7 +129,7 @@ $ tree run
 
 You can manage each run by physically deleting it using the `rm` command.
 
-As of the sapporo-service 2.0.0, an SQLite database (`sapporo.db`) has been added inside the run directory. This database is used to speed up `GET /runs` calls. The master data remains within each run directory, and the database is updated every 30 minutes while sapporo is running. If you need the latest run status, use `GET /runs/{run_id}` instead of `GET /runs`.
+As of the sapporo-service 2.0.0, an SQLite database (`sapporo.db`) has been added inside the run directory. This database is used to speed up `GET /runs` calls. The master data remains within each run directory, and the database is updated every 30 minutes while sapporo is running. If you need the latest run status, use `GET /runs/{run_id}` instead of `GET /runs` or use `latest=true` query parameter with `GET /runs`.
 
 ### `run.sh`
 
