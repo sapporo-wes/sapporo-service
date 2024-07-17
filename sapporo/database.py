@@ -79,6 +79,7 @@ def init_db() -> None:
     it will be deleted and regenerated from scratch.
     """
     engine = create_db_engine()
+    get_config().run_dir.mkdir(parents=True, exist_ok=True)
     if get_config().run_dir.joinpath(DATABASE_NAME).exists():
         SQLModel.metadata.drop_all(engine)
     SQLModel.metadata.create_all(engine)
