@@ -47,7 +47,15 @@ Documentation = "https://github.com/sapporo-wes/sapporo-service/blob/main/README
 Repository = "https://github.com/sapporo-wes/sapporo-service.git"
 
 [project.optional-dependencies]
-tests = ["isort", "mypy", "pylint", "pytest-cov", "pytest-mock", "pytest"]
+tests = [
+    "isort",
+    "mypy",
+    "pylint",
+    "pytest-cov",
+    "pytest-mock",
+    "pytest",
+    "types-PyYAML",
+]
 
 [project.scripts]
 sapporo = "sapporo.app:main"

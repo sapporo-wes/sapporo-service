@@ -59,7 +59,10 @@ def write_file(run_id: str, key: RunDirStructureKeys, content: Any) -> None:
     file.parent.mkdir(parents=True, exist_ok=True)
     with file.open(mode="w", encoding="utf-8") as f:
         if file.suffix == ".json":
-            content = json.dumps(content, indent=2)
+            if key == "wf_params" and isinstance(content, str):
+                pass
+            else:
+                content = json.dumps(content, indent=2)
         elif key == "state":
             content = content.value
         else:

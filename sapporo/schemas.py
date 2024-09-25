@@ -294,9 +294,14 @@ class RunListResponse(BaseModel):
 
 
 class RunRequest(BaseModel):
-    workflow_params: Dict[str, Any] = Field(
+    workflow_params: Union[Dict[str, Any], str] = Field(
         ...,
-        description=GA4GH_WES_SCHEMAS["RunRequest"]["properties"]["workflow_params"]["description"],
+        description=GA4GH_WES_SCHEMAS["RunRequest"]["properties"]["workflow_params"]["description"] + """\n
+**sapporo-wes-2.0.0 extension:**
+
+- original wes-1.1.0: Dict[str, Any]
+- sapporo-wes-2.0.0: Union[Dict[str, Any], str]
+""",
     )
     workflow_type: str = Field(
         ...,
