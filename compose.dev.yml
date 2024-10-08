@@ -19,10 +19,10 @@ services:
       - SAPPORO_DEBUG=True
       - SAPPORO_RUN_DIR=${PWD}/run
     ports:
-      - 127.0.0.1:1122:1122
+      - 127.0.0.1:1123:1122
     restart: on-failure
     working_dir: /app
-    command: ["sleep", "infinity"]
+    command: [ "sleep", "infinity" ]
     networks:
       - sapporo-dev-network
 
