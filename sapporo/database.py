@@ -22,7 +22,7 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from sapporo.config import get_config
 from sapporo.factory import create_run_summary
-from sapporo.run import glob_all_run_ids
+from sapporo.run import glob_all_run_ids, read_file
 from sapporo.schemas import RunSummary, State
 from sapporo.utils import dt_to_time_str, time_str_to_dt
 
@@ -52,6 +52,8 @@ def get_session() -> Generator[Session, None, None]:
 
 
 class Run(SQLModel, table=True):  # type: ignore
+    __tablename__ = "runs"
+
     run_id: str = Field(primary_key=True)
     username: Optional[str] = None
     state: State
@@ -86,9 +88,10 @@ def init_db() -> None:
     with get_session() as session:
         for run_id in glob_all_run_ids():
             run_summary = create_run_summary(run_id)
+            username: Optional[str] = read_file(run_id, "username")
             run = Run(
                 run_id=run_summary.run_id,
-                username=None,
+                username=username,
                 state=run_summary.state,
                 start_time=run_summary.start_time and time_str_to_dt(run_summary.start_time),
                 end_time=run_summary.end_time and time_str_to_dt(run_summary.end_time),

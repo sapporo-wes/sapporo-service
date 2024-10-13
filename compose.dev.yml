@@ -9,7 +9,7 @@ services:
       - ${PWD}/sapporo:/app/sapporo
       - ${PWD}/tests:/app/tests
       # The ones below are mounted for cwltool and DinD.
-      - ${PWD}/run:${PWD}/run
+      - ${PWD}/runs:${PWD}/runs
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp:/tmp
     environment:
@@ -17,9 +17,9 @@ services:
       - SAPPORO_HOST=0.0.0.0
       - SAPPORO_PORT=1122
       - SAPPORO_DEBUG=True
-      - SAPPORO_RUN_DIR=${PWD}/run
+      - SAPPORO_RUN_DIR=${PWD}/runs
     ports:
-      - 127.0.0.1:1123:1122
+      - 127.0.0.1:1122:1122
     restart: on-failure
     working_dir: /app
     command: [ "sleep", "infinity" ]
