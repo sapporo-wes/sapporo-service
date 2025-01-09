@@ -85,8 +85,8 @@ def wf_engine_params_to_str(run_request: RunRequestForm) -> str:
         service_info = create_service_info()
         default_wf_engine_params = service_info.default_workflow_engine_parameters.get(wf_engine or "", [])  # pylint: disable=E1101
         for param in default_wf_engine_params:
-            params.append(param.get("name", ""))
-            params.append(param.get("default_value", ""))
+            params.append(param.name or "")
+            params.append(param.default_value or "")
     else:
         for key, value in wf_engine_params.items():
             params.append(str(key))
@@ -120,9 +120,12 @@ def download_wf_attachment(run_id: str, run_request: RunRequestForm) -> None:
                     res.raise_for_status()
                     with file_path.open(mode="wb") as f:
                         f.write(res.content)
+            except httpx.HTTPStatusError as e:
+                # Because it is a background task, raise Exception instead of HTTPException
+                raise Exception(f"Failed to download workflow attachment {obj}: {res.status_code} {res.text}") from e
             except Exception as e:
                 # Because it is a background task, raise Exception instead of HTTPException
-                raise Exception(f"Failed to download workflow attachment {obj}: {res.status_code} {res.text}") from e  # pylint: disable=W0719
+                raise Exception(f"Failed to download workflow attachment {obj}: {e}") from e
 
 
 def fork_run(run_id: str) -> None:

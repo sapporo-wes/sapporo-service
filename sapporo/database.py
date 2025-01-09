@@ -51,7 +51,7 @@ def get_session() -> Generator[Session, None, None]:
 # === Models ===
 
 
-class Run(SQLModel, table=True):  # type: ignore
+class Run(SQLModel, table=True):
     __tablename__ = "runs"
 
     run_id: str = Field(primary_key=True)
@@ -125,7 +125,7 @@ def add_run_db(
 
 
 def system_state_counts() -> Dict[str, int]:
-    statement = select(Run.state, func.count(Run.run_id)).group_by(Run.state)  # pylint: disable=E1102
+    statement = select(Run.state, func.count(Run.run_id)).group_by(Run.state)  # type: ignore # pylint: disable=E1102
     with get_session() as session:
         results = session.exec(statement).all()
 
@@ -146,7 +146,7 @@ def _encode_page_token(last_run: Run) -> str:
 
 def _decode_page_token(page_token: str) -> Dict[str, str]:
     token_data = base64.urlsafe_b64decode(page_token).decode("utf-8")
-    return json.loads(token_data)
+    return json.loads(token_data)  # type: ignore
 
 
 def list_runs_db(

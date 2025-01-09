@@ -8,6 +8,8 @@ services:
     volumes:
       - ${PWD}/sapporo:/app/sapporo
       - ${PWD}/tests:/app/tests
+      - ${PWD}/pyproject.toml:/app/pyproject.toml
+      - ${PWD}/sapporo-wes-spec-2.0.0.yml:/app/sapporo-wes-spec-2.0.0.yml
       # The ones below are mounted for cwltool and DinD.
       - ${PWD}/runs:${PWD}/runs
       - /var/run/docker.sock:/var/run/docker.sock
@@ -20,11 +22,12 @@ services:
       - SAPPORO_RUN_DIR=${PWD}/runs
     ports:
       - 127.0.0.1:1122:1122
-    restart: on-failure
+    restart: always
     working_dir: /app
     command: [ "sleep", "infinity" ]
     networks:
       - sapporo-dev-network
+    init: true
 
 networks:
   sapporo-dev-network:

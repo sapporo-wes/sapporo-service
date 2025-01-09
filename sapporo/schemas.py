@@ -277,7 +277,7 @@ class RunSummary(RunStatus):
 
 
 class RunListResponse(BaseModel):
-    runs: Optional[List[Union[RunStatus, RunSummary]]] = Field(
+    runs: Optional[Union[List[RunStatus], List[RunSummary]]] = Field(
         None,
         description=GA4GH_WES_SCHEMAS["RunListResponse"]["properties"]["runs"]["description"],
     )

@@ -11,13 +11,12 @@ services:
     ports:
       - 127.0.0.1:8080:8080
     user: 0:0
-    restart: on-failure
-    command: ["start-dev"]
+    restart: always
+    command: [ "start-dev" ]
     networks:
       - sapporo-network
 
 networks:
   sapporo-network:
-    # name: sapporo-network
     name: sapporo-dev-network
     external: true

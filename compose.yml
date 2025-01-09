@@ -15,7 +15,7 @@ services:
       - SAPPORO_RUN_DIR=${PWD}/runs
     ports:
       - 127.0.0.1:1122:1122
-    restart: on-failure
+    restart: always
     working_dir: /app
     command: [ "sapporo" ]
     networks:

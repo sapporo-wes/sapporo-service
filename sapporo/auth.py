@@ -89,7 +89,7 @@ def get_auth_config() -> AuthConfig:
 
 
 class HTTPBearerCustom(HTTPBearer):
-    async def __call__(self, request: Request) -> str:
+    async def __call__(self, request: Request) -> str:  # type: ignore
         authorization = request.headers.get("Authorization")
         scheme, credentials = get_authorization_scheme_param(authorization)
         if not (authorization and scheme and credentials):
@@ -262,7 +262,7 @@ async def external_create_access_token(username: str, password: str) -> str:
         async with httpx.AsyncClient() as client:
             res = await client.post(token_url, data=data, headers=headers, follow_redirects=True)
             res.raise_for_status()
-            return res.json()["access_token"]
+            return res.json()["access_token"]  # type: ignore
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

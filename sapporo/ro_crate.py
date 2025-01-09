@@ -18,6 +18,7 @@ from urllib.parse import urlsplit
 import magic
 import multiqc
 from fastapi import UploadFile
+from multiqc.core.update_config import ClConfig
 from pydantic import BaseModel, TypeAdapter
 from rocrate.model.computationalworkflow import ComputationalWorkflow
 from rocrate.model.computerlanguage import ComputerLanguage
@@ -510,7 +511,15 @@ def add_multiqc_stats(crate: ROCrate, run_dir: Path, create_action_ins: ContextE
     stderr = io.StringIO()
     try:
         with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            multiqc.run(str(run_dir), outdir=str(run_dir), data_format="json", no_report=True, quiet=True)
+            multiqc.run(
+                str(run_dir),
+                cfg=ClConfig(
+                    output_dir=str(run_dir),
+                    data_format="json",
+                    make_report=False,
+                    quiet=True,
+                ),
+            )
     except Exception:  # pylint: disable=broad-except
         print(stderr.getvalue(), file=sys.stderr)
         return
@@ -672,7 +681,7 @@ def extract_exe_dir_file_ids(crate: ROCrate) -> List[str]:
     for entity in crate.get_entities():
         if isinstance(entity, Dataset):
             if str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['exe_dir']}/":
-                return get_norm_value(entity, "hasPart")
+                return get_norm_value(entity, "hasPart")  # type: ignore
     return []
 
 

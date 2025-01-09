@@ -9,6 +9,7 @@ LABEL org.opencontainers.image.licenses="Apache2.0"
 
 RUN apt update && \
     apt install -y --no-install-recommends \
+    curl \
     jq && \
     apt clean && \
     rm -rf /var/lib/apt/lists/*
