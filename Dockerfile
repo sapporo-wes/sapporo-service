@@ -3,7 +3,7 @@ FROM python:3.10.14-bookworm
 LABEL org.opencontainers.image.authors="Bioinformatics and DDBJ Center <tazro.ohta@chiba-u.jp>"
 LABEL org.opencontainers.image.url="https://github.com/sapporo-wes/sapporo-service"
 LABEL org.opencontainers.image.source="https://github.com/sapporo-wes/sapporo-service/blob/main/Dockerfile"
-LABEL org.opencontainers.image.version="2.0.6"
+LABEL org.opencontainers.image.version="2.0.7"
 LABEL org.opencontainers.image.description="The sapporo-service is a standard implementation conforming to the Global Alliance for Genomics and Health (GA4GH) Workflow Execution Service (WES) API specification."
 LABEL org.opencontainers.image.licenses="Apache2.0"
 
