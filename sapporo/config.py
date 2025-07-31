@@ -237,6 +237,7 @@ RUN_DIR_STRUCTURE: Dict[str, str] = {
     "system_logs": "system_logs.json",
     "username": "username.txt",
     "ro_crate": "ro-crate-metadata.json",
+    "multiqc_stats": "multiqc_general_stats.json",
 }
 
 

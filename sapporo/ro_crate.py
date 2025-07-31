@@ -524,8 +524,12 @@ def add_multiqc_stats(crate: ROCrate, run_dir: Path, create_action_ins: ContextE
         print(stderr.getvalue(), file=sys.stderr)
         return
 
+    # Note: As shown below, the message may go to stderr and the function itself may produce no output.
+    # multiqc | No analysis results found. Cleaning up…
+
     multiqc_data_dir = run_dir.joinpath("multiqc_data")
     multiqc_stats = run_dir.joinpath(RUN_DIR_STRUCTURE["multiqc_stats"])
+
     if multiqc_data_dir.exists() and multiqc_data_dir.joinpath("multiqc_general_stats.json").exists():
         shutil.move(str(multiqc_data_dir.joinpath("multiqc_general_stats.json")), str(multiqc_stats))
         shutil.rmtree(str(multiqc_data_dir))
