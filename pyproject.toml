@@ -28,6 +28,7 @@ classifiers = [
 ]
 dependencies = [
     "apscheduler",
+    "argon2-cffi",
     "fastapi",
     "httpx",
     "multiqc",
@@ -73,7 +74,7 @@ sapporo = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "--cov=sapporo --cov-report=html:tests/htmlcov --cov-report=xml:tests/coverage.xml --cov-report=term-missing --cov-fail-under=65"
+addopts = "--cov=sapporo --cov-report=html:tests/htmlcov --cov-report=xml:tests/coverage.xml --cov-report=term-missing --cov-fail-under=80"
 testpaths = ["tests/py_tests"]
 asyncio_default_fixture_loop_scope = "function"
 
@@ -82,14 +83,10 @@ branch = true
 source = ["sapporo"]
 
 [tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "if TYPE_CHECKING:",
-]
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:"]
 
 [tool.mypy]
-files = ["./sapporo/**/*.py", "./tests/**/*.py"]
-exclude = ["tests/resources/"]
+files = ["./sapporo/**/*.py", "./tests/py_tests/**/*.py"]
 follow_imports = "silent"
 strict = true
 ignore_missing_imports = true

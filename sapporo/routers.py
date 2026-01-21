@@ -35,12 +35,16 @@ router = APIRouter()
 **sapporo-wes-2.0.0 extension:**
 
 - `system_state_count` is a snapshot that is aggregated every 30 minutes. It may not represent the latest state.
+- When authentication is enabled and a valid token is provided, `system_state_counts` shows only the runs belonging to the authenticated user.
 """,
     response_model=ServiceInfo,
 )
-async def get_service_info() -> ServiceInfo:
+async def get_service_info(
+    token: Optional[str] = auth_depends_factory(),
+) -> ServiceInfo:
     service_info = create_service_info()
-    service_info.system_state_counts = system_state_counts()
+    username = token and extract_username(decode_token(token))
+    service_info.system_state_counts = system_state_counts(username)
     return service_info
 
 
@@ -287,7 +291,26 @@ def list_executable_wfs() -> ExecutableWorkflows:
     "/runs/{run_id}/outputs",
     summary="ListRunOutputs",
     description="**sapporo-wes-2.0.0 extension:** List the files in the outputs directory. If the download option is specified, download all outputs as a zip file.",
-    response_model=None,  # Union[OutputsListResponse, FileResponse],
+    response_model=None,
+    responses={
+        200: {
+            "description": "Successful response",
+            "content": {
+                "application/json": {
+                    "schema": {"$ref": "#/components/schemas/OutputsListResponse"},
+                    "example": {
+                        "outputs": [
+                            {"file_name": "output.txt", "file_url": "http://localhost:1122/runs/abc123/outputs/output.txt"}
+                        ]
+                    }
+                },
+                "application/zip": {
+                    "schema": {"type": "string", "format": "binary"},
+                    "description": "ZIP archive of all outputs (when download=true)"
+                }
+            }
+        }
+    },
 )
 async def get_run_outputs_list(
     run_id: str,
@@ -314,7 +337,17 @@ async def get_run_outputs_list(
     "/runs/{run_id}/outputs/{path:path}",
     summary="DownloadRunOutput",
     description="**sapporo-wes-2.0.0 extension:** Download a file in the outputs directory.",
-    response_model=None,  # FileResponse
+    response_model=None,
+    responses={
+        200: {
+            "description": "File content",
+            "content": {
+                "application/octet-stream": {
+                    "schema": {"type": "string", "format": "binary"}
+                }
+            }
+        }
+    },
 )
 async def get_run_outputs(
     run_id: str,
@@ -333,7 +366,22 @@ async def get_run_outputs(
     "/runs/{run_id}/ro-crate",
     summary="DownloadRO-Crate",
     description="**sapporo-wes-2.0.0 extension:** Download the RO-Crate (ro-crate-metadata.json) of the run. If the download option is specified, download the entire Crate as a zip file.",
-    response_model=None,  # Union[JSONResponse, FileResponse],
+    response_model=None,
+    responses={
+        200: {
+            "description": "Successful response",
+            "content": {
+                "application/ld+json": {
+                    "schema": {"type": "object"},
+                    "description": "RO-Crate metadata in JSON-LD format"
+                },
+                "application/zip": {
+                    "schema": {"type": "string", "format": "binary"},
+                    "description": "ZIP archive of the entire RO-Crate (when download=true)"
+                }
+            }
+        }
+    },
 )
 async def get_run_ro_crate(
     run_id: str,
@@ -364,17 +412,53 @@ async def get_run_ro_crate(
     summary="CreateToken",
     description="""\
 **sapporo-wes-2.0.0 extension:**
-This endpoint is used when Sapporo acts as an OpenID Connect Identity Provider (IdP)
-or when an external IdP is used as a "Confidential Client".
-Upon successful authentication, it issues a JWT access token.
-This token is necessary for accessing other endpoints, and should be included in the "Authorization: Bearer <token>" header.
+
+Authenticate user and create an access token.
+
+This endpoint supports both authentication modes:
+
+- **Sapporo IdP mode**: Authenticates against local user credentials defined in `auth_config.json`.
+  Passwords are verified using Argon2 hash comparison.
+- **External IdP mode (confidential client)**: Forwards credentials to the external IdP's token endpoint.
+
+The returned JWT token should be included in subsequent requests using the `Authorization: Bearer <token>` header.
+
+**Security notes:**
+- Tokens have a configurable expiration time (default: 24 hours, max: 168 hours)
+- All tokens include `iat` (issued at) and `exp` (expiration) claims
+- Passwords are never logged or stored in plaintext
 """,
     response_model=TokenResponse,
+    responses={
+        200: {
+            "description": "Successful authentication",
+            "content": {
+                "application/json": {
+                    "example": {"access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", "token_type": "bearer"}
+                }
+            }
+        },
+        401: {"description": "Invalid username or password"},
+    },
 )
 async def create_token(
     username: str = Form(..., description="The username for authentication."),
     password: str = Form(..., description="The password for authentication."),
 ) -> TokenResponse:
+    """
+    Authenticate user and create JWT access token.
+
+    Args:
+        username: User's username
+        password: User's password (verified against Argon2 hash)
+
+    Returns:
+        TokenResponse containing the JWT access token
+
+    Raises:
+        HTTPException 401: Invalid credentials
+        HTTPException 400: Token creation disabled (public client mode)
+    """
     is_create_token_endpoint_enabled()
     access_token = await create_access_token(username, password)
     return TokenResponse(access_token=access_token)
@@ -385,14 +469,47 @@ async def create_token(
     summary="Me",
     description="""\
 **sapporo-wes-2.0.0 extension:**
-This endpoint returns the username of the authenticated user.
-If authentication is not enabled, an error will be returned.
+
+Returns information about the currently authenticated user.
+
+This endpoint is useful for:
+- Verifying that a token is valid
+- Retrieving the username associated with the current session
+- Testing authentication configuration
+
+The username is extracted from the JWT token's `preferred_username` claim (if present)
+or falls back to the `sub` (subject) claim.
 """,
     response_model=MeResponse,
+    responses={
+        200: {
+            "description": "Authenticated user information",
+            "content": {
+                "application/json": {
+                    "example": {"username": "user1"}
+                }
+            }
+        },
+        400: {"description": "Authentication is not enabled"},
+        401: {"description": "Invalid or expired token"},
+    },
 )
 async def get_me(
     token: Optional[str] = auth_depends_factory(),
 ) -> MeResponse:
+    """
+    Get the current authenticated user's information.
+
+    Args:
+        token: JWT access token (injected via auth_depends_factory)
+
+    Returns:
+        MeResponse containing the username
+
+    Raises:
+        HTTPException 400: Authentication not enabled
+        HTTPException 401: Invalid or missing token
+    """
     if token is None:
         raise_bad_request("Authentication is not enabled.")
     payload = decode_token(token)

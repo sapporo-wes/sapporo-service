@@ -1,9 +1,13 @@
 import datetime
+import os
+import re
 from functools import lru_cache
 from typing import Any, Dict, List, Literal, Optional
 
 import httpx
 import jwt
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.security.utils import get_authorization_scheme_param
@@ -16,6 +20,13 @@ from sapporo.exceptions import (raise_bad_request, raise_internal_error,
                                 raise_invalid_credentials, raise_invalid_token,
                                 raise_unauthorized)
 from sapporo.utils import user_agent
+
+# Password hasher instance
+_password_hasher = PasswordHasher()
+
+# Username validation pattern: alphanumeric, underscore, hyphen, dot, at-sign
+# Max length 128 characters to prevent abuse
+_USERNAME_PATTERN = re.compile(r"^[a-zA-Z0-9_\-.@]{1,128}$")
 
 # === Schema ===
 
@@ -31,7 +42,7 @@ class MeResponse(BaseModel):
 
 class AuthUser(BaseModel):
     username: str
-    password: str
+    password_hash: str
 
 
 SAPPORO_AUDIENCE = "account"
@@ -160,27 +171,78 @@ def decode_token(token: str) -> TokenPayload:
     return external_decode_token(token)
 
 
+def sanitize_username(username: str) -> str:
+    """
+    Sanitize and validate a username from external sources.
+
+    Validates that the username:
+    - Contains only allowed characters (alphanumeric, _, -, ., @)
+    - Is not empty and not too long (max 128 characters)
+    - Does not contain path traversal sequences
+
+    Args:
+        username: The username to sanitize
+
+    Returns:
+        The sanitized username
+
+    Raises:
+        HTTPException 400: If username is invalid
+    """
+    # Check for path traversal attempts
+    if ".." in username or "/" in username or "\\" in username:
+        raise_bad_request("Invalid username: contains forbidden characters")
+
+    # Validate against allowed pattern
+    if not _USERNAME_PATTERN.match(username):
+        raise_bad_request(
+            "Invalid username: must contain only alphanumeric characters, "
+            "underscore, hyphen, dot, or at-sign, and be 1-128 characters long"
+        )
+
+    return username
+
+
 def extract_username(payload: TokenPayload) -> str:
+    """Extract and sanitize username from token payload."""
     payload_dict = payload.model_dump()
     if "preferred_username" in payload_dict:
-        return str(payload_dict["preferred_username"])
-    return payload.sub
+        username = str(payload_dict["preferred_username"])
+    else:
+        username = payload.sub
+
+    return sanitize_username(username)
 
 
 # === Sapporo Mode Functions ===
 
 
+# JWT expiration constants
+DEFAULT_JWT_EXPIRES_HOURS = 24  # Default expiration if not specified
+MAX_JWT_EXPIRES_HOURS = 168  # Maximum allowed expiration (1 week)
+
+
 def spr_create_access_token(username: str, password: str) -> str:
+    """
+    Create a JWT access token for the authenticated user.
+
+    JWT tokens always have an expiration time for security:
+    - If expires_delta_hours is None, uses default (24 hours)
+    - If expires_delta_hours exceeds maximum, caps at 168 hours (1 week)
+    """
     spr_check_user(username, password)
 
     auth_config = get_auth_config()
     secret_key = auth_config.sapporo_auth_config.secret_key
     expires_delta = auth_config.sapporo_auth_config.expires_delta_hours
 
-    iat, exp = None, None
-    if expires_delta is not None:
-        iat = datetime.datetime.now(datetime.timezone.utc)
-        exp = iat + datetime.timedelta(hours=expires_delta)
+    # Enforce expiration: use default if None, cap at maximum
+    if expires_delta is None:
+        expires_delta = DEFAULT_JWT_EXPIRES_HOURS
+    expires_delta = min(expires_delta, MAX_JWT_EXPIRES_HOURS)
+
+    iat = datetime.datetime.now(datetime.timezone.utc)
+    exp = iat + datetime.timedelta(hours=expires_delta)
 
     payload = TokenPayload(
         sub=username,
@@ -194,12 +256,33 @@ def spr_create_access_token(username: str, password: str) -> str:
 
 
 def spr_check_user(username: str, password: str) -> None:
-    auth_config = get_auth_config()
-    for user in auth_config.sapporo_auth_config.users:
-        if user.username == username and user.password == password:
-            return
+    """
+    Check if username and password are valid.
 
-    raise_invalid_credentials()
+    Uses argon2 for constant-time password comparison to prevent timing attacks.
+    """
+    auth_config = get_auth_config()
+
+    # Find user by username
+    target_user = None
+    for user in auth_config.sapporo_auth_config.users:
+        if user.username == username:
+            target_user = user
+            break
+
+    if target_user is None:
+        # Perform a dummy hash verification to prevent timing attacks
+        # that could reveal whether a username exists
+        try:
+            _password_hasher.verify("$argon2id$v=19$m=65536,t=3,p=4$dummy$dummy", password)
+        except Exception:  # nosec B110  # pylint: disable=broad-exception-caught
+            pass
+        raise_invalid_credentials()
+
+    try:
+        _password_hasher.verify(target_user.password_hash, password)
+    except VerifyMismatchError:
+        raise_invalid_credentials()
 
 
 def spr_decode_token(token: str) -> TokenPayload:
@@ -220,16 +303,42 @@ def check_valid_username(username: str) -> None:
 # === External Mode Functions ===
 
 
+def _is_insecure_idp_allowed() -> bool:
+    """Check if insecure (HTTP) IdP connections are allowed via environment variable."""
+    return os.environ.get("SAPPORO_ALLOW_INSECURE_IDP", "").lower() in ("true", "1", "yes")
+
+
+def _validate_https_url(url: str, context: str) -> None:
+    """Validate that a URL uses HTTPS protocol unless insecure connections are explicitly allowed."""
+    if not _is_insecure_idp_allowed() and not url.startswith("https://"):
+        raise_bad_request(
+            f"{context} must use HTTPS for security. "
+            f"Got: {url}. "
+            "Set SAPPORO_ALLOW_INSECURE_IDP=true to allow insecure connections (not recommended for production)."
+        )
+
+
 @lru_cache(maxsize=None)
 def fetch_endpoint_metadata() -> ExternalEndpointMetadata:
     auth_config = get_auth_config()
     idp_url = auth_config.external_config.idp_url
+
+    # Validate HTTPS for IdP URL
+    _validate_https_url(idp_url, "External IdP URL")
+
     well_known_url = f"{idp_url}/.well-known/openid-configuration"
     try:
         with httpx.Client() as client:
             res = client.get(well_known_url, follow_redirects=True, headers={"User-Agent": user_agent()})
             res.raise_for_status()
-            return ExternalEndpointMetadata.model_validate(res.json())
+            metadata = ExternalEndpointMetadata.model_validate(res.json())
+
+            # Also validate endpoints returned by the IdP
+            _validate_https_url(metadata.token_endpoint, "Token endpoint")
+            _validate_https_url(metadata.jwks_uri, "JWKS URI")
+            _validate_https_url(metadata.authorization_endpoint, "Authorization endpoint")
+
+            return metadata
     except (httpx.HTTPError, ValueError, KeyError):
         raise_internal_error("Failed to fetch IdP metadata from the well-known endpoint")
 

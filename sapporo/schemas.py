@@ -45,6 +45,11 @@ class ExecutableWorkflows(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "description": "**sapporo-wes-2.0.0 extension:** Schema for executable_workflows.json. List of workflows that can be executed in this service.",
+            "example": {
+                "workflows": [
+                    "https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/main/v1.0/examples/1st-tool.cwl"
+                ]
+            }
         }
     )
 
@@ -224,6 +229,26 @@ class ServiceInfo(Service):
         description=GA4GH_WES_SCHEMAS["ServiceInfo"]["allOf"][1]["properties"]["tags"]["additionalProperties"]["description"],
     )
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "id": "org.sapporo.service",
+                "name": "Sapporo WES",
+                "type": {"group": "org.ga4gh", "artifact": "wes", "version": "1.1.0"},
+                "organization": {"name": "Sapporo Project", "url": "https://github.com/sapporo-wes"},
+                "version": "2.0.0",
+                "workflow_type_versions": {"CWL": {"workflow_type_version": ["v1.0", "v1.1", "v1.2"]}},
+                "supported_wes_versions": ["1.0.0", "1.1.0"],
+                "supported_filesystem_protocols": ["http", "https", "file"],
+                "workflow_engine_versions": {"cwltool": {"workflow_engine_version": ["3.1"]}},
+                "default_workflow_engine_parameters": {},
+                "system_state_counts": {"COMPLETE": 10, "RUNNING": 2, "QUEUED": 0},
+                "auth_instructions_url": "https://github.com/sapporo-wes/sapporo-service#authentication",
+                "tags": {}
+            }
+        }
+    )
+
 
 class State(str, Enum):
     UNKNOWN = "UNKNOWN"
@@ -289,6 +314,18 @@ class RunListResponse(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "description": GA4GH_WES_SCHEMAS["RunListResponse"]["description"],
+            "example": {
+                "runs": [
+                    {
+                        "run_id": "abc123-def456-ghi789",
+                        "state": "COMPLETE",
+                        "start_time": "2024-01-15T10:30:00Z",
+                        "end_time": "2024-01-15T10:35:00Z",
+                        "tags": {"project": "example"}
+                    }
+                ],
+                "next_page_token": None
+            }
         }
     )
 

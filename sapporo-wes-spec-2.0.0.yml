@@ -116,6 +116,9 @@ components:
     ExecutableWorkflows:
       description: '**sapporo-wes-2.0.0 extension:** Schema for executable_workflows.json.
         List of workflows that can be executed in this service.'
+      example:
+        workflows:
+        - https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/main/v1.0/examples/1st-tool.cwl
       properties:
         workflows:
           description: List of executable workflows. Each workflow is a URL to the
@@ -281,6 +284,14 @@ components:
         instead.
 
         '
+      example:
+        runs:
+        - end_time: '2024-01-15T10:35:00Z'
+          run_id: abc123-def456-ghi789
+          start_time: '2024-01-15T10:30:00Z'
+          state: COMPLETE
+          tags:
+            project: example
       properties:
         next_page_token:
           anyOf:
@@ -293,9 +304,10 @@ components:
         runs:
           anyOf:
           - items:
-              anyOf:
-              - $ref: '#/components/schemas/RunStatus'
-              - $ref: '#/components/schemas/RunSummary'
+              $ref: '#/components/schemas/RunStatus'
+            type: array
+          - items:
+              $ref: '#/components/schemas/RunSummary'
             type: array
           - type: 'null'
           description: A list of workflow runs that the service has executed or is
@@ -404,12 +416,24 @@ components:
             multiple versions of the requested engine.
           title: Workflow Engine Version
         workflow_params:
+          anyOf:
+          - type: object
+          - type: string
           description: 'REQUIRED
 
             The workflow run parameterizations (JSON encoded), including input and
-            output file locations'
+            output file locations
+
+
+            **sapporo-wes-2.0.0 extension:**
+
+
+            - original wes-1.1.0: Dict[str, Any]
+
+            - sapporo-wes-2.0.0: Union[Dict[str, Any], str]
+
+            '
           title: Workflow Params
-          type: object
         workflow_type:
           description: 'REQUIRED
 
@@ -532,7 +556,41 @@ components:
       title: RunSummary
       type: object
     ServiceInfo:
-      description: GA4GH service.
+      example:
+        auth_instructions_url: https://github.com/sapporo-wes/sapporo-service#authentication
+        default_workflow_engine_parameters: {}
+        id: org.sapporo.service
+        name: Sapporo WES
+        organization:
+          name: Sapporo Project
+          url: https://github.com/sapporo-wes
+        supported_filesystem_protocols:
+        - http
+        - https
+        - file
+        supported_wes_versions:
+        - 1.0.0
+        - 1.1.0
+        system_state_counts:
+          COMPLETE: 10
+          QUEUED: 0
+          RUNNING: 2
+        tags: {}
+        type:
+          artifact: wes
+          group: org.ga4gh
+          version: 1.1.0
+        version: 2.0.0
+        workflow_engine_versions:
+          cwltool:
+            workflow_engine_version:
+            - '3.1'
+        workflow_type_versions:
+          CWL:
+            workflow_type_version:
+            - v1.0
+            - v1.1
+            - v1.2
       properties:
         auth_instructions_url:
           description: A web page URL with human-readable instructions on how to get
@@ -661,8 +719,7 @@ components:
           title: Tags
           type: object
         type:
-          allOf:
-          - $ref: '#/components/schemas/ServiceType'
+          $ref: '#/components/schemas/ServiceType'
           description: GA4GH service.
         updatedAt:
           anyOf:
@@ -936,6 +993,19 @@ components:
           title: Workflow Type Version
       title: WorkflowTypeVersion
       type: object
+  securitySchemes:
+    bearerAuth:
+      bearerFormat: JWT
+      description: JWT token obtained from POST /token endpoint
+      scheme: bearer
+      type: http
+    oauth2PasswordFlow:
+      description: OAuth2 password flow for sapporo authentication
+      flows:
+        password:
+          scopes: {}
+          tokenUrl: /token
+      type: oauth2
 info:
   contact:
     name: Sapporo-WES Project Team
@@ -1036,29 +1106,37 @@ paths:
     get:
       description: '**sapporo-wes-2.0.0 extension:**
 
-        This endpoint returns the username of the authenticated user.
 
-        If authentication is not enabled, an error will be returned.'
+        Returns information about the currently authenticated user.
+
+
+        This endpoint is useful for:
+
+        - Verifying that a token is valid
+
+        - Retrieving the username associated with the current session
+
+        - Testing authentication configuration
+
+
+        The username is extracted from the JWT token''s `preferred_username` claim
+        (if present)
+
+        or falls back to the `sub` (subject) claim.'
       operationId: get_me_me_get
       responses:
         '200':
           content:
             application/json:
+              example:
+                username: user1
               schema:
                 $ref: '#/components/schemas/MeResponse'
-          description: Successful Response
+          description: Authenticated user information
         '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: The request is malformed.
+          description: Authentication is not enabled
         '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: The request is unauthorized.
+          description: Invalid or expired token
         '403':
           content:
             application/json:
@@ -1532,8 +1610,18 @@ paths:
         '200':
           content:
             application/json:
-              schema: {}
-          description: Successful Response
+              example:
+                outputs:
+                - file_name: output.txt
+                  file_url: http://localhost:1122/runs/abc123/outputs/output.txt
+              schema:
+                $ref: '#/components/schemas/OutputsListResponse'
+            application/zip:
+              description: ZIP archive of all outputs (when download=true)
+              schema:
+                format: binary
+                type: string
+          description: Successful response
         '400':
           content:
             application/json:
@@ -1594,7 +1682,11 @@ paths:
           content:
             application/json:
               schema: {}
-          description: Successful Response
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+          description: File content
         '400':
           content:
             application/json:
@@ -1659,7 +1751,16 @@ paths:
           content:
             application/json:
               schema: {}
-          description: Successful Response
+            application/ld+json:
+              description: RO-Crate metadata in JSON-LD format
+              schema:
+                type: object
+            application/zip:
+              description: ZIP archive of the entire RO-Crate (when download=true)
+              schema:
+                format: binary
+                type: string
+          description: Successful response
         '400':
           content:
             application/json:
@@ -1936,7 +2037,10 @@ paths:
 
 
         - `system_state_count` is a snapshot that is aggregated every 30 minutes.
-        It may not represent the latest state.'
+        It may not represent the latest state.
+
+        - When authentication is enabled and a valid token is provided, `system_state_counts`
+        shows only the runs belonging to the authenticated user.'
       operationId: get_service_info_service_info_get
       responses:
         '200':
@@ -1978,17 +2082,16 @@ paths:
       summary: GetServiceInfo
   /token:
     post:
-      description: '**sapporo-wes-2.0.0 extension:**
-
-        This endpoint is used when Sapporo acts as an OpenID Connect Identity Provider
-        (IdP)
-
-        or when an external IdP is used as a "Confidential Client".
-
-        Upon successful authentication, it issues a JWT access token.
-
-        This token is necessary for accessing other endpoints, and should be included
-        in the "Authorization: Bearer <token>" header.'
+      description: "**sapporo-wes-2.0.0 extension:**\n\nAuthenticate user and create\
+        \ an access token.\n\nThis endpoint supports both authentication modes:\n\n\
+        - **Sapporo IdP mode**: Authenticates against local user credentials defined\
+        \ in `auth_config.json`.\n  Passwords are verified using Argon2 hash comparison.\n\
+        - **External IdP mode (confidential client)**: Forwards credentials to the\
+        \ external IdP's token endpoint.\n\nThe returned JWT token should be included\
+        \ in subsequent requests using the `Authorization: Bearer <token>` header.\n\
+        \n**Security notes:**\n- Tokens have a configurable expiration time (default:\
+        \ 24 hours, max: 168 hours)\n- All tokens include `iat` (issued at) and `exp`\
+        \ (expiration) claims\n- Passwords are never logged or stored in plaintext"
       operationId: create_token_token_post
       requestBody:
         content:
@@ -2000,9 +2103,12 @@ paths:
         '200':
           content:
             application/json:
+              example:
+                access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                token_type: bearer
               schema:
                 $ref: '#/components/schemas/TokenResponse'
-          description: Successful Response
+          description: Successful authentication
         '400':
           content:
             application/json:
@@ -2010,11 +2116,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
           description: The request is malformed.
         '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: The request is unauthorized.
+          description: Invalid username or password
         '403':
           content:
             application/json:

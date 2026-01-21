@@ -10,18 +10,23 @@ Init DB script:
 """
 
 import base64
+import binascii
+import hashlib
+import hmac
 import json
+import threading
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import Dict, Generator, List, Literal, Optional, Tuple
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sqlalchemy import func
 from sqlalchemy.engine.base import Engine
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from sapporo.config import get_config
+from sapporo.exceptions import raise_bad_request
 from sapporo.factory import create_run_summary
 from sapporo.run import glob_all_run_ids, read_file
 from sapporo.schemas import RunSummary, State
@@ -29,6 +34,9 @@ from sapporo.utils import dt_to_time_str, time_str_to_dt
 
 SNAPSHOT_INTERVAL = 30  # minutes
 DATABASE_NAME = "sapporo.db"
+
+# Thread lock for SQLite operations to ensure thread safety
+_db_lock = threading.Lock()
 
 
 class PageTokenData(BaseModel):
@@ -47,11 +55,18 @@ def create_db_engine() -> Engine:
 
 @contextmanager
 def get_session() -> Generator[Session, None, None]:
-    session = Session(create_db_engine())
-    try:
-        yield session
-    finally:
-        session.close()
+    """
+    Get a database session with thread-safe access.
+
+    Uses a threading lock to ensure only one thread can access
+    the SQLite database at a time, preventing potential data corruption.
+    """
+    with _db_lock:
+        session = Session(create_db_engine())
+        try:
+            yield session
+        finally:
+            session.close()
 
 
 # === Models ===
@@ -130,10 +145,20 @@ def add_run_db(
     return run
 
 
-def system_state_counts() -> Dict[str, int]:
-    statement = select(Run.state, func.count(Run.run_id)).group_by(Run.state)  # type: ignore # pylint: disable=E1102
+def system_state_counts(username: Optional[str] = None) -> Dict[str, int]:
+    """
+    Get the count of runs in each state.
+
+    Args:
+        username: If provided, only count runs belonging to this user.
+                  If None, count all runs (for backward compatibility).
+    """
+    query = select(Run.state, func.count(Run.run_id)).group_by(Run.state)  # type: ignore # pylint: disable=E1102
+    if username is not None:
+        query = query.where(Run.username == username)
+
     with get_session() as session:
-        results = session.exec(statement).all()
+        results = session.exec(query).all()
 
     state_counts = {state.value: 0 for state in State}
     for state, count in results:
@@ -142,17 +167,52 @@ def system_state_counts() -> Dict[str, int]:
     return state_counts
 
 
+def _get_page_token_secret() -> str:
+    """Get the secret key for signing page tokens."""
+    # Import here to avoid circular imports
+    from sapporo.auth import \
+        get_auth_config  # pylint: disable=import-outside-toplevel
+    return get_auth_config().sapporo_auth_config.secret_key
+
+
+def _sign_data(data: str) -> str:
+    """Create HMAC-SHA256 signature for the given data."""
+    secret = _get_page_token_secret().encode("utf-8")
+    signature = hmac.new(secret, data.encode("utf-8"), hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(signature).decode("utf-8")
+
+
 def _encode_page_token(last_run: Run) -> str:
+    """Encode a page token with HMAC signature for tamper protection."""
     token_data = {
         "start_time": last_run.start_time.isoformat(),
         "run_id": last_run.run_id,
     }
-    return base64.urlsafe_b64encode(json.dumps(token_data).encode("utf-8")).decode("utf-8")
+    data = json.dumps(token_data)
+    signature = _sign_data(data)
+    # Format: base64(data).signature
+    encoded_data = base64.urlsafe_b64encode(data.encode("utf-8")).decode("utf-8")
+    return f"{encoded_data}.{signature}"
 
 
 def _decode_page_token(page_token: str) -> PageTokenData:
-    token_data = base64.urlsafe_b64decode(page_token).decode("utf-8")
-    return PageTokenData.model_validate_json(token_data)
+    """Decode and verify a page token's HMAC signature."""
+    try:
+        parts = page_token.split(".")
+        if len(parts) != 2:
+            raise_bad_request("Invalid page token format")
+
+        encoded_data, provided_signature = parts
+        data = base64.urlsafe_b64decode(encoded_data).decode("utf-8")
+
+        # Verify signature using constant-time comparison
+        expected_signature = _sign_data(data)
+        if not hmac.compare_digest(provided_signature, expected_signature):
+            raise_bad_request("Invalid page token signature")
+
+        return PageTokenData.model_validate_json(data)
+    except (ValueError, UnicodeDecodeError, binascii.Error, ValidationError):
+        raise_bad_request("Invalid page token")
 
 
 def list_runs_db(

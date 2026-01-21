@@ -301,6 +301,43 @@ def add_openapi_info(app: FastAPI) -> None:
         "url": "https://github.com/sapporo-wes/sapporo-service/issues",
     }
 
+    # Store original openapi function
+    original_openapi = app.openapi
+
+    # Add security schemes to OpenAPI
+    def custom_openapi() -> Dict[str, Any]:
+        if app.openapi_schema:
+            return app.openapi_schema
+
+        # Temporarily restore original to avoid recursion
+        app.openapi = original_openapi  # type: ignore
+        openapi_schema = app.openapi()
+        app.openapi = custom_openapi  # type: ignore
+
+        openapi_schema["components"] = openapi_schema.get("components", {})
+        openapi_schema["components"]["securitySchemes"] = {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "JWT token obtained from POST /token endpoint"
+            },
+            "oauth2PasswordFlow": {
+                "type": "oauth2",
+                "flows": {
+                    "password": {
+                        "tokenUrl": "/token",
+                        "scopes": {}
+                    }
+                },
+                "description": "OAuth2 password flow for sapporo authentication"
+            }
+        }
+        app.openapi_schema = openapi_schema
+        return openapi_schema
+
+    app.openapi = custom_openapi  # type: ignore
+
 
 def dump_openapi_schema(app: FastAPI) -> str:
     return yaml.dump(app.openapi())

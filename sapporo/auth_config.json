@@ -7,7 +7,7 @@
     "users": [
       {
         "username": "sapporo-dev-user",
-        "password": "sapporo-dev-password"
+        "password_hash": "$argon2id$v=19$m=65536,t=3,p=4$za1VdbeBi9GL97lMBN7JoA$TTJNo3Su1xNKXUZkITLdNgbms2ipqjPl8ZXCcEebiG0"
       }
     ]
   },

@@ -146,6 +146,31 @@ def init_app_state() -> None:
             if auth_config.idp_provider == "external" and auth_config.external_config.client_mode == "confidential":
                 if auth_config.external_config.client_id is None or auth_config.external_config.client_secret is None:
                     raise ValueError("Client ID and Client Secret must be specified in confidential mode in the auth_config.json file.")
+
+            # Validate secret_key strength for sapporo mode
+            if auth_config.idp_provider == "sapporo":
+                secret_key = auth_config.sapporo_auth_config.secret_key
+                weak_keys = [
+                    "sapporo_secret_key_please_change_this",
+                    "secret",
+                    "changeme",
+                    "password",
+                ]
+                is_weak = (
+                    secret_key in weak_keys or
+                    len(secret_key) < 32
+                )
+                if is_weak:
+                    warning_msg = (
+                        "WARNING: Weak secret_key detected in auth_config.json. "
+                        "Please generate a strong secret key using: python -m sapporo.cli generate-secret"
+                    )
+                    LOGGER.warning(warning_msg)
+                    if not get_config().debug:
+                        raise ValueError(
+                            "Weak secret_key is not allowed in production mode. "
+                            "Generate a strong secret key using: python -m sapporo.cli generate-secret"
+                        )
     except Exception as e:
         raise ValueError(f"Auth config file is invalid: {auth_config_path}") from e
     LOGGER.info("Auth config: %s", auth_config)
