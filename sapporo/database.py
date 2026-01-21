@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import Dict, Generator, List, Literal, Optional, Tuple
 
+from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.engine.base import Engine
 from sqlmodel import Field, Session, SQLModel, create_engine, select
@@ -28,6 +29,11 @@ from sapporo.utils import dt_to_time_str, time_str_to_dt
 
 SNAPSHOT_INTERVAL = 30  # minutes
 DATABASE_NAME = "sapporo.db"
+
+
+class PageTokenData(BaseModel):
+    start_time: str
+    run_id: str
 
 
 @lru_cache(maxsize=None)
@@ -144,9 +150,9 @@ def _encode_page_token(last_run: Run) -> str:
     return base64.urlsafe_b64encode(json.dumps(token_data).encode("utf-8")).decode("utf-8")
 
 
-def _decode_page_token(page_token: str) -> Dict[str, str]:
+def _decode_page_token(page_token: str) -> PageTokenData:
     token_data = base64.urlsafe_b64decode(page_token).decode("utf-8")
-    return json.loads(token_data)  # type: ignore
+    return PageTokenData.model_validate_json(token_data)
 
 
 def list_runs_db(
@@ -166,17 +172,17 @@ def list_runs_db(
         query = query.where(Run.username == username)
 
     if sort_order == "asc":
-        query = query.order_by(Run.start_time.asc(), Run.run_id.asc())  # type: ignore # pylint: disable=E1101
+        query = query.order_by(Run.start_time.asc(), Run.run_id.asc())  # type: ignore[attr-defined] # pylint: disable=E1101
     else:
-        query = query.order_by(Run.start_time.desc(), Run.run_id.desc())  # type: ignore # pylint: disable=E1101
+        query = query.order_by(Run.start_time.desc(), Run.run_id.desc())  # type: ignore[attr-defined] # pylint: disable=E1101
 
     if run_ids is not None:
-        query = query.where(Run.run_id.in_(run_ids))  # type: ignore  # pylint: disable=E1101
+        query = query.where(Run.run_id.in_(run_ids))  # type: ignore[attr-defined] # pylint: disable=E1101
 
     if page_token is not None:
         token_data = _decode_page_token(page_token)
-        start_time = datetime.fromisoformat(token_data["start_time"])
-        run_id = token_data["run_id"]
+        start_time = datetime.fromisoformat(token_data.start_time)
+        run_id = token_data.run_id
         if sort_order == "asc":
             query = query.where(
                 (Run.start_time > start_time) |

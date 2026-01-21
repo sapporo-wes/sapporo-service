@@ -1,17 +1,20 @@
 import datetime
 from functools import lru_cache
-from typing import Any, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import httpx
 import jwt
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, OAuth2PasswordBearer
+from fastapi import Depends
+from fastapi.security import OAuth2PasswordBearer
 from fastapi.security.utils import get_authorization_scheme_param
 from jwt import PyJWKSet
 from pydantic import BaseModel, ConfigDict
 from starlette.requests import Request
 
 from sapporo.config import get_config
+from sapporo.exceptions import (raise_bad_request, raise_internal_error,
+                                raise_invalid_credentials, raise_invalid_token,
+                                raise_unauthorized)
 from sapporo.utils import user_agent
 
 # === Schema ===
@@ -88,20 +91,23 @@ def get_auth_config() -> AuthConfig:
     return auth_config
 
 
-class HTTPBearerCustom(HTTPBearer):
-    async def __call__(self, request: Request) -> str:  # type: ignore
+class HTTPBearerCustom:
+    def __init__(self, scheme_name: str, description: str) -> None:
+        self.scheme_name = scheme_name
+        self.description = description
+        self.model = type(
+            "HTTPBearer",
+            (),
+            {"__annotations__": {"scheme_name": str, "description": str}},
+        )
+
+    async def __call__(self, request: Request) -> str:
         authorization = request.headers.get("Authorization")
         scheme, credentials = get_authorization_scheme_param(authorization)
         if not (authorization and scheme and credentials):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authorization header is missing or invalid.",
-            )
+            raise_unauthorized("Authorization header is missing or invalid.")
         if scheme.lower() != "bearer":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication scheme.",
-            )
+            raise_unauthorized("Invalid authentication scheme.")
         return credentials
 
 
@@ -135,10 +141,7 @@ def is_create_token_endpoint_enabled() -> None:
     auth_config = get_auth_config()
     if auth_config.idp_provider == "external":
         if auth_config.external_config.client_mode == "public":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Token creation is not allowed for public client mode.",
-            )
+            raise_bad_request("Token creation is not allowed for public client mode.")
 
 
 async def create_access_token(username: str, password: str) -> str:
@@ -196,10 +199,7 @@ def spr_check_user(username: str, password: str) -> None:
         if user.username == username and user.password == password:
             return
 
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid username or password",
-    )
+    raise_invalid_credentials()
 
 
 def spr_decode_token(token: str) -> TokenPayload:
@@ -207,20 +207,14 @@ def spr_decode_token(token: str) -> TokenPayload:
     secret_key = auth_config.sapporo_auth_config.secret_key
     try:
         return TokenPayload.model_validate(jwt.decode(token, secret_key, algorithms=[SAPPORO_SIGNATURE_ALGORITHM], audience=SAPPORO_AUDIENCE))
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-        ) from e
+    except (jwt.PyJWTError, ValueError, KeyError):
+        raise_invalid_token()
 
 
 def check_valid_username(username: str) -> None:
     auth_config = get_auth_config()
     if username not in [user.username for user in auth_config.sapporo_auth_config.users]:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username",
-        )
+        raise_unauthorized("Invalid username")
 
 
 # === External Mode Functions ===
@@ -236,17 +230,14 @@ def fetch_endpoint_metadata() -> ExternalEndpointMetadata:
             res = client.get(well_known_url, follow_redirects=True, headers={"User-Agent": user_agent()})
             res.raise_for_status()
             return ExternalEndpointMetadata.model_validate(res.json())
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to fetch IdP metadata from the well-known endpoint",
-        ) from e
+    except (httpx.HTTPError, ValueError, KeyError):
+        raise_internal_error("Failed to fetch IdP metadata from the well-known endpoint")
 
 
 async def external_create_access_token(username: str, password: str) -> str:
     auth_config = get_auth_config()
     token_url = fetch_endpoint_metadata().token_endpoint
-    data = {
+    data: Dict[str, Optional[str]] = {
         "grant_type": "password",
         "client_id": auth_config.external_config.client_id,
         "client_secret": auth_config.external_config.client_secret,
@@ -262,12 +253,9 @@ async def external_create_access_token(username: str, password: str) -> str:
         async with httpx.AsyncClient() as client:
             res = await client.post(token_url, data=data, headers=headers, follow_redirects=True)
             res.raise_for_status()
-            return res.json()["access_token"]  # type: ignore
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password",
-        ) from e
+            return str(res.json().get("access_token", ""))
+    except (httpx.HTTPError, ValueError, KeyError):
+        raise_invalid_credentials()
 
 
 def external_decode_token(token: str) -> TokenPayload:
@@ -280,10 +268,7 @@ def external_decode_token(token: str) -> TokenPayload:
 
     jwk_key = next((k.key for k in jwks.keys if k.key_id == kid), None)
     if jwk_key is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-        )
+        raise_invalid_token()
 
     auth_config = get_auth_config()
     jwt_audience = auth_config.external_config.jwt_audience
@@ -292,11 +277,8 @@ def external_decode_token(token: str) -> TokenPayload:
         return TokenPayload.model_validate(
             jwt.decode(token, jwk_key, algorithms=[alg], audience=jwt_audience)
         )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-        ) from e
+    except (jwt.PyJWTError, ValueError, KeyError):
+        raise_invalid_token()
 
 
 @lru_cache(maxsize=None)
@@ -307,8 +289,5 @@ def fetch_jwks() -> PyJWKSet:
             res = client.get(jwks_uri, follow_redirects=True, headers={"User-Agent": user_agent()})
             res.raise_for_status()
             return PyJWKSet.from_dict(res.json())
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to fetch JWKS from the IdP",
-        ) from e
+    except (httpx.HTTPError, ValueError, KeyError):
+        raise_internal_error("Failed to fetch JWKS from the IdP")

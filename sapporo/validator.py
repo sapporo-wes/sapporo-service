@@ -1,9 +1,11 @@
 import json
 from typing import List, Optional, Tuple
 
-from fastapi import HTTPException, UploadFile, status
+from fastapi import UploadFile
 
 from sapporo.config import get_config
+from sapporo.exceptions import (raise_bad_request, raise_forbidden,
+                                raise_not_found)
 from sapporo.factory import create_executable_wfs, create_service_info
 from sapporo.run import read_file
 from sapporo.schemas import RunRequestForm
@@ -40,10 +42,7 @@ def validate_run_request(
     if len(executable_wfs.workflows) != 0:
         # Need to check if the wf_url is in the executable_wfs
         if wf_url not in executable_wfs.workflows:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid workflow_url: {wf_url}. Sapporo is currently operating in the mode where only registered workflows can be executed. Please refer to GET /executable_workflows to see the list of executable workflows.",
-            )
+            raise_bad_request(f"Invalid workflow_url: {wf_url}. Sapporo is currently operating in the mode where only registered workflows can be executed. Please refer to GET /executable_workflows to see the list of executable workflows.")
 
     return RunRequestForm(
         workflow_params=_wf_params,
@@ -71,14 +70,14 @@ def validate_wf_type_and_version(
     wf_types = service_info.workflow_type_versions.keys()  # pylint: disable=E1101
 
     if wf_type not in wf_types:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid workflow_type: {wf_type}, please select from {wf_types}",
-        )
-    if wf_type_version is None:
-        wf_type_version = service_info.workflow_type_versions[wf_type].workflow_type_version[0]  # type: ignore # pylint: disable=E1136
+        raise_bad_request(f"Invalid workflow_type: {wf_type}, please select from {wf_types}")
+    wf_type_versions_entry = service_info.workflow_type_versions.get(wf_type)  # pylint: disable=E1101
+    if wf_type_version is None and wf_type_versions_entry is not None:
+        wf_type_version_list = wf_type_versions_entry.workflow_type_version
+        if wf_type_version_list is not None and len(wf_type_version_list) > 0:
+            wf_type_version = wf_type_version_list[0]
 
-    return wf_type, wf_type_version
+    return wf_type, wf_type_version or ""
 
 
 def validate_wf_engine_type_and_version(
@@ -92,14 +91,14 @@ def validate_wf_engine_type_and_version(
     service_info = create_service_info()
     wf_engines = service_info.workflow_engine_versions.keys()  # pylint: disable=E1101
     if wf_engine not in wf_engines:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid workflow_engine: {wf_engine}, please select from {wf_engines}",
-        )
-    if wf_engine_version is None:
-        wf_engine_version = service_info.workflow_engine_versions[wf_engine].workflow_engine_version[0]  # type: ignore # pylint: disable=E1136
+        raise_bad_request(f"Invalid workflow_engine: {wf_engine}, please select from {wf_engines}")
+    wf_engine_versions_entry = service_info.workflow_engine_versions.get(wf_engine)  # pylint: disable=E1101
+    if wf_engine_version is None and wf_engine_versions_entry is not None:
+        wf_engine_version_list = wf_engine_versions_entry.workflow_engine_version
+        if wf_engine_version_list is not None and len(wf_engine_version_list) > 0:
+            wf_engine_version = wf_engine_version_list[0]
 
-    return wf_engine, wf_engine_version
+    return wf_engine, wf_engine_version or ""
 
 
 def validate_run_id(run_id: str, username: Optional[str]) -> None:
@@ -109,15 +108,9 @@ def validate_run_id(run_id: str, username: Optional[str]) -> None:
     """
     specific_run_dir = get_config().run_dir.joinpath(run_id[:2]).joinpath(run_id)
     if not specific_run_dir.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Run ID {run_id} not found.",
-        )
+        raise_not_found("Run ID", run_id)
 
     if username is not None:
         run_username = read_file(run_id, "username")
         if run_username != username:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Your username is not allowed to access run ID {run_id}.",
-            )
+            raise_forbidden(f"Your username is not allowed to access run ID {run_id}.")

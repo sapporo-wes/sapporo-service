@@ -73,14 +73,29 @@ sapporo = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "--cov=sapporo --cov-report=html:tests/htmlcov"
+addopts = "--cov=sapporo --cov-report=html:tests/htmlcov --cov-report=xml:tests/coverage.xml --cov-report=term-missing --cov-fail-under=65"
 testpaths = ["tests/py_tests"]
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.coverage.run]
+branch = true
+source = ["sapporo"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+]
 
 [tool.mypy]
-files = ["./sapporo/**/*.py"]
+files = ["./sapporo/**/*.py", "./tests/**/*.py"]
+exclude = ["tests/resources/"]
 follow_imports = "silent"
 strict = true
 ignore_missing_imports = true
+
+[tool.pylint.main]
+ignore-paths = ["tests/resources"]
 
 [tool.pylint.messages_control]
 disable = [
@@ -89,6 +104,7 @@ disable = [
     "C0116", # Missing function or method docstring
     "C0301", # Line too long
     "R0401", # Cyclic import
+    "R0801", # Similar lines in files (duplicate-code)
     "R0903", # Too few public methods
     "R0911", # Too many return statements
     "R0912", # Too many branches
@@ -97,5 +113,6 @@ disable = [
     "R0915", # Too many statements
     "R0917", # Too many positional arguments
     "R1705", # Unnecessary "else" after "return"
+    "R1732", # Consider using 'with' for resource-allocating operations
     "W0719", # Raising too general exception
 ]

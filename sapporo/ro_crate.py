@@ -685,7 +685,7 @@ def extract_exe_dir_file_ids(crate: ROCrate) -> List[str]:
     for entity in crate.get_entities():
         if isinstance(entity, Dataset):
             if str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['exe_dir']}/":
-                return get_norm_value(entity, "hasPart")  # type: ignore
+                return get_norm_value(entity, "hasPart")  # type: ignore[no-any-return]
     return []
 
 

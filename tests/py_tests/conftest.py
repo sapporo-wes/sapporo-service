@@ -8,12 +8,17 @@ import tempfile
 from functools import lru_cache
 from pathlib import Path
 from time import sleep
-from typing import Any, Dict, Generator, Optional
+from typing import TYPE_CHECKING, Any, Dict, Generator, Optional
 
 import pytest
 from fastapi.testclient import TestClient
 from httpx import Response
 from httpx._types import RequestFiles
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
+
+    from sapporo.config import AppConfig
 
 
 @lru_cache(maxsize=None)
@@ -58,11 +63,11 @@ def tmpdir() -> Generator[Path, None, None]:
 
 
 @pytest.fixture(scope="function", autouse=True)
-def clear_cache_fixture():  # type: ignore
-    clear_cache()  # type: ignore
+def clear_cache_fixture() -> None:
+    clear_cache()
 
 
-def clear_cache():  # type: ignore
+def clear_cache() -> None:
     from sapporo.config import get_config
     get_config.cache_clear()
 
@@ -80,7 +85,7 @@ def clear_cache():  # type: ignore
     create_db_engine.cache_clear()
 
 
-def mock_get_config(mocker, app_config):  # type: ignore
+def mock_get_config(mocker: "MockerFixture", app_config: "AppConfig") -> None:
     mocker.patch("sapporo.app.get_config", return_value=app_config)
     mocker.patch("sapporo.auth.get_config", return_value=app_config)
     mocker.patch("sapporo.config.get_config", return_value=app_config)
@@ -90,7 +95,11 @@ def mock_get_config(mocker, app_config):  # type: ignore
     mocker.patch("sapporo.validator.get_config", return_value=app_config)
 
 
-def anyhow_get_test_client(app_config, mocker, tmpdir) -> TestClient:  # type: ignore
+def anyhow_get_test_client(
+    app_config: "Optional[AppConfig]",
+    mocker: "MockerFixture",
+    tmpdir: Path,
+) -> TestClient:
     """\
     To perform a proper test, it is necessary to set the run directory in the app_config to a temporary directory, mock the get_config function, and initialize the database. Without following these steps and calling create_app(), errors often occur due to caching issues and other problems.
     This function handles all these tedious steps at once, making it easier to get a test client for testing purposes.
@@ -98,12 +107,14 @@ def anyhow_get_test_client(app_config, mocker, tmpdir) -> TestClient:  # type: i
     It could have been a fixture, but next time, the order problem of the fixture will occur, so I defined it as a function.
     """
     from sapporo.config import AppConfig
+    resolved_config: AppConfig
     if app_config is None:
-        app_config = AppConfig(run_dir=tmpdir)
+        resolved_config = AppConfig(run_dir=tmpdir)
     else:
         app_config.run_dir = tmpdir
-    mock_get_config(mocker, app_config)  # type: ignore
-    clear_cache()  # type: ignore
+        resolved_config = app_config
+    mock_get_config(mocker, resolved_config)
+    clear_cache()
 
     from sapporo.database import init_db
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
@@ -126,7 +137,7 @@ def post_run(
     workflow_attachment: Optional[RequestFiles] = None,
     workflow_attachment_obj: Optional[str] = None,
 ) -> Response:
-    data = {
+    data_raw: Dict[str, Optional[str]] = {
         "workflow_params": workflow_params,
         "workflow_type": workflow_type,
         "workflow_type_version": workflow_type_version,
@@ -137,24 +148,26 @@ def post_run(
         "workflow_url": workflow_url,
         "workflow_attachment_obj": workflow_attachment_obj,
     }
-    data = {k: v for k, v in data.items() if v is not None}
+    data: Dict[str, str] = {k: v for k, v in data_raw.items() if v is not None}
 
-    return client.post("/runs", data=data, files=workflow_attachment)  # type: ignore
+    response: Response = client.post("/runs", data=data, files=workflow_attachment)
+    return response
 
 
 def wait_for_run(client: TestClient, run_id: str) -> str:
     count = 0
+    state: str = ""
     while count <= 120:
         sleep(3)
         response = client.get(f"/runs/{run_id}")
-        state = response.json()["state"]
+        state = str(response.json()["state"])
         if state in ["COMPLETE", "EXECUTOR_ERROR", "SYSTEM_ERROR", "CANCELED", "DELETED"]:
             break
         count += 1
     if count > 120:
         raise TimeoutError("The run did not complete within the expected time.")
 
-    return state  # type: ignore
+    return state
 
 
 def assert_run_complete(run_id: str, data: Dict[str, Any]) -> None:

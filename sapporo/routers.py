@@ -1,8 +1,7 @@
 from typing import List, Literal, Optional, Union
 from uuid import uuid4
 
-from fastapi import (APIRouter, BackgroundTasks, File, Form, HTTPException,
-                     Query, UploadFile, status)
+from fastapi import APIRouter, BackgroundTasks, File, Form, Query, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 from sapporo.auth import (MeResponse, TokenResponse, auth_depends_factory,
@@ -11,6 +10,7 @@ from sapporo.auth import (MeResponse, TokenResponse, auth_depends_factory,
 from sapporo.config import GA4GH_WES_SPEC
 from sapporo.database import (add_run_db, db_runs_to_run_summaries,
                               list_runs_db, system_state_counts)
+from sapporo.exceptions import raise_bad_request, raise_not_found
 from sapporo.factory import (create_executable_wfs,
                              create_outputs_list_response,
                              create_ro_crate_response, create_run_log,
@@ -196,20 +196,17 @@ async def get_run_status(
     response_model=TaskListResponse,
 )
 async def list_tasks(
-    run_id: str,
-    page_size: Optional[int] = Query(
+    run_id: str,  # pylint: disable=unused-argument
+    page_size: Optional[int] = Query(  # pylint: disable=unused-argument
         None,
         description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/tasks"]["get"]["parameters"][1]["description"],
     ),
-    page_token: Optional[str] = Query(
+    page_token: Optional[str] = Query(  # pylint: disable=unused-argument
         None,
         description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/tasks"]["get"]["parameters"][2]["description"],
     )
 ) -> TaskListResponse:
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Sorry, this endpoint is not implemented and there are no plans to implement it.",
-    )
+    raise_bad_request("Sorry, this endpoint is not implemented and there are no plans to implement it.")
 
 
 @router.get(
@@ -223,13 +220,10 @@ async def list_tasks(
     response_model=TaskLog,
 )
 async def get_task(
-    run_id: str,
-    task_id: str
+    run_id: str,  # pylint: disable=unused-argument
+    task_id: str  # pylint: disable=unused-argument
 ) -> TaskLog:
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Sorry, this endpoint is not implemented and there are no plans to implement it.",
-    )
+    raise_bad_request("Sorry, this endpoint is not implemented and there are no plans to implement it.")
 
 
 @router.post(
@@ -331,10 +325,7 @@ async def get_run_outputs(
     validate_run_id(run_id, username)
     file_path = resolve_content_path(run_id, "outputs_dir").joinpath(secure_filepath(path))
     if not file_path.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"File {path} is not found.",
-        )
+        raise_not_found("File", path)
     return FileResponse(file_path)
 
 
@@ -403,9 +394,6 @@ async def get_me(
     token: Optional[str] = auth_depends_factory(),
 ) -> MeResponse:
     if token is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Authentication is not enabled.",
-        )
+        raise_bad_request("Authentication is not enabled.")
     payload = decode_token(token)
     return MeResponse(username=extract_username(payload))

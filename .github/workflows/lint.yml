@@ -43,15 +43,12 @@ jobs:
 
       - name: Run pylint
         run: |
-          pylint ./sapporo
-        continue-on-error: true
+          pylint ./sapporo ./tests
 
       - name: Run mypy
         run: |
-          mypy ./sapporo
-        continue-on-error: true
+          mypy ./sapporo ./tests
 
       - name: Run isort
         run: |
-          isort --check-only ./sapporo
-        continue-on-error: true
+          isort --check-only ./sapporo ./tests
