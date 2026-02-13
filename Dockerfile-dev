@@ -1,4 +1,6 @@
-FROM python:3.10.14-bookworm
+FROM python:3.12-bookworm
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 RUN apt update && \
     apt install -y --no-install-recommends \
@@ -14,8 +16,7 @@ RUN curl -Lo docker.tgz https://download.docker.com/linux/static/stable/x86_64/d
 
 WORKDIR /app
 COPY . .
-RUN python3 -m pip install --no-cache-dir --progress-bar off -U pip && \
-    python3 -m pip install --no-cache-dir --progress-bar off -e .[tests]
+RUN uv pip install --system --no-cache -e ".[tests]"
 
 EXPOSE 1122
 

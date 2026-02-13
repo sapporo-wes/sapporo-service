@@ -1,8 +1,9 @@
+import contextlib
 import datetime
 import os
 import re
-from functools import lru_cache
-from typing import Any, Dict, List, Literal, Optional
+from functools import cache
+from typing import Any, Literal
 
 import httpx
 import jwt
@@ -16,9 +17,13 @@ from pydantic import BaseModel, ConfigDict
 from starlette.requests import Request
 
 from sapporo.config import get_config
-from sapporo.exceptions import (raise_bad_request, raise_internal_error,
-                                raise_invalid_credentials, raise_invalid_token,
-                                raise_unauthorized)
+from sapporo.exceptions import (
+    raise_bad_request,
+    raise_internal_error,
+    raise_invalid_credentials,
+    raise_invalid_token,
+    raise_unauthorized,
+)
 from sapporo.utils import user_agent
 
 # Password hasher instance
@@ -51,16 +56,16 @@ SAPPORO_SIGNATURE_ALGORITHM = "HS256"
 
 class SapporoAuthConfig(BaseModel):
     secret_key: str
-    expires_delta_hours: Optional[int]
-    users: List[AuthUser]
+    expires_delta_hours: int | None
+    users: list[AuthUser]
 
 
 class ExternalAuthConfig(BaseModel):
     idp_url: str  # Access to {idp_url}/.well-known/openid-configuration, accessible from the Sapporo
     jwt_audience: str  # e.g., "account"
     client_mode: Literal["confidential", "public"]
-    client_id: Optional[str]
-    client_secret: Optional[str]
+    client_id: str | None
+    client_secret: str | None
 
 
 class AuthConfig(BaseModel):
@@ -72,14 +77,12 @@ class AuthConfig(BaseModel):
 
 class TokenPayload(BaseModel):
     sub: str
-    exp: Optional[datetime.datetime]
-    iat: Optional[datetime.datetime]
+    exp: datetime.datetime | None
+    iat: datetime.datetime | None
     aud: str
     iss: str
 
-    model_config = ConfigDict(
-        extra="allow"
-    )
+    model_config = ConfigDict(extra="allow")
 
 
 class ExternalEndpointMetadata(BaseModel):
@@ -87,19 +90,16 @@ class ExternalEndpointMetadata(BaseModel):
     token_endpoint: str
     jwks_uri: str
 
-    model_config = ConfigDict(
-        extra="ignore"
-    )
+    model_config = ConfigDict(extra="ignore")
 
 
 # === General Functions ===
 
 
-@lru_cache(maxsize=None)
+@cache
 def get_auth_config() -> AuthConfig:
     with get_config().auth_config.open(mode="r", encoding="utf-8") as f:
-        auth_config = AuthConfig.model_validate_json(f.read())
-    return auth_config
+        return AuthConfig.model_validate_json(f.read())
 
 
 class HTTPBearerCustom:
@@ -130,19 +130,18 @@ password_bearer = OAuth2PasswordBearer(tokenUrl="/token")
 
 
 def auth_depends_factory() -> Any:
-    """\
-    Function to inject authorization into each endpoint.
+    """Inject authorization into each endpoint.
+
     Use like `token: Optional[str] = auth_depends_factory`.
     """
     auth_config = get_auth_config()
     if auth_config.auth_enabled:
         if auth_config.idp_provider == "sapporo":
             return Depends(password_bearer)
+        elif auth_config.external_config.client_mode == "confidential":
+            return Depends(password_bearer)
         else:
-            if auth_config.external_config.client_mode == "confidential":
-                return Depends(password_bearer)
-            else:
-                return Depends(http_bearer_custom)
+            return Depends(http_bearer_custom)
 
     # do nothing
     return Depends(lambda: None)
@@ -150,9 +149,8 @@ def auth_depends_factory() -> Any:
 
 def is_create_token_endpoint_enabled() -> None:
     auth_config = get_auth_config()
-    if auth_config.idp_provider == "external":
-        if auth_config.external_config.client_mode == "public":
-            raise_bad_request("Token creation is not allowed for public client mode.")
+    if auth_config.idp_provider == "external" and auth_config.external_config.client_mode == "public":
+        raise_bad_request("Token creation is not allowed for public client mode.")
 
 
 async def create_access_token(username: str, password: str) -> str:
@@ -172,8 +170,7 @@ def decode_token(token: str) -> TokenPayload:
 
 
 def sanitize_username(username: str) -> str:
-    """
-    Sanitize and validate a username from external sources.
+    """Sanitize and validate a username from external sources.
 
     Validates that the username:
     - Contains only allowed characters (alphanumeric, _, -, ., @)
@@ -188,6 +185,7 @@ def sanitize_username(username: str) -> str:
 
     Raises:
         HTTPException 400: If username is invalid
+
     """
     # Check for path traversal attempts
     if ".." in username or "/" in username or "\\" in username:
@@ -206,10 +204,7 @@ def sanitize_username(username: str) -> str:
 def extract_username(payload: TokenPayload) -> str:
     """Extract and sanitize username from token payload."""
     payload_dict = payload.model_dump()
-    if "preferred_username" in payload_dict:
-        username = str(payload_dict["preferred_username"])
-    else:
-        username = payload.sub
+    username = str(payload_dict["preferred_username"]) if "preferred_username" in payload_dict else payload.sub
 
     return sanitize_username(username)
 
@@ -223,8 +218,7 @@ MAX_JWT_EXPIRES_HOURS = 168  # Maximum allowed expiration (1 week)
 
 
 def spr_create_access_token(username: str, password: str) -> str:
-    """
-    Create a JWT access token for the authenticated user.
+    """Create a JWT access token for the authenticated user.
 
     JWT tokens always have an expiration time for security:
     - If expires_delta_hours is None, uses default (24 hours)
@@ -256,8 +250,7 @@ def spr_create_access_token(username: str, password: str) -> str:
 
 
 def spr_check_user(username: str, password: str) -> None:
-    """
-    Check if username and password are valid.
+    """Check if username and password are valid.
 
     Uses argon2 for constant-time password comparison to prevent timing attacks.
     """
@@ -273,10 +266,8 @@ def spr_check_user(username: str, password: str) -> None:
     if target_user is None:
         # Perform a dummy hash verification to prevent timing attacks
         # that could reveal whether a username exists
-        try:
+        with contextlib.suppress(Exception):  # nosec B110
             _password_hasher.verify("$argon2id$v=19$m=65536,t=3,p=4$dummy$dummy", password)
-        except Exception:  # nosec B110  # pylint: disable=broad-exception-caught
-            pass
         raise_invalid_credentials()
 
     try:
@@ -289,7 +280,9 @@ def spr_decode_token(token: str) -> TokenPayload:
     auth_config = get_auth_config()
     secret_key = auth_config.sapporo_auth_config.secret_key
     try:
-        return TokenPayload.model_validate(jwt.decode(token, secret_key, algorithms=[SAPPORO_SIGNATURE_ALGORITHM], audience=SAPPORO_AUDIENCE))
+        return TokenPayload.model_validate(
+            jwt.decode(token, secret_key, algorithms=[SAPPORO_SIGNATURE_ALGORITHM], audience=SAPPORO_AUDIENCE)
+        )
     except (jwt.PyJWTError, ValueError, KeyError):
         raise_invalid_token()
 
@@ -318,7 +311,7 @@ def _validate_https_url(url: str, context: str) -> None:
         )
 
 
-@lru_cache(maxsize=None)
+@cache
 def fetch_endpoint_metadata() -> ExternalEndpointMetadata:
     auth_config = get_auth_config()
     idp_url = auth_config.external_config.idp_url
@@ -346,7 +339,7 @@ def fetch_endpoint_metadata() -> ExternalEndpointMetadata:
 async def external_create_access_token(username: str, password: str) -> str:
     auth_config = get_auth_config()
     token_url = fetch_endpoint_metadata().token_endpoint
-    data: Dict[str, Optional[str]] = {
+    data: dict[str, str | None] = {
         "grant_type": "password",
         "client_id": auth_config.external_config.client_id,
         "client_secret": auth_config.external_config.client_secret,
@@ -383,14 +376,12 @@ def external_decode_token(token: str) -> TokenPayload:
     jwt_audience = auth_config.external_config.jwt_audience
 
     try:
-        return TokenPayload.model_validate(
-            jwt.decode(token, jwk_key, algorithms=[alg], audience=jwt_audience)
-        )
+        return TokenPayload.model_validate(jwt.decode(token, jwk_key, algorithms=[alg], audience=jwt_audience))
     except (jwt.PyJWTError, ValueError, KeyError):
         raise_invalid_token()
 
 
-@lru_cache(maxsize=None)
+@cache
 def fetch_jwks() -> PyJWKSet:
     jwks_uri = fetch_endpoint_metadata().jwks_uri
     try:

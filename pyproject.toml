@@ -1,16 +1,16 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "sapporo"
 version = "2.1.0"
 authors = [
-    { name = "DDBJ (Bioinfomatics and DDBJ Center)", email = "tazro.ohta@chiba-u.jp" },
+    { name = "DDBJ (Bioinformatics and DDBJ Center)", email = "tazro.ohta@chiba-u.jp" },
 ]
 description = "The sapporo-service is a standard implementation conforming to the Global Alliance for Genomics and Health (GA4GH) Workflow Execution Service (WES) API specification."
 readme = { file = "README.md", content-type = "text/markdown" }
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 keywords = ["workflow", "WES", "GA4GH-WES", "bioinformatics"]
 license = { text = "Apache-2.0" }
 classifiers = [
@@ -19,11 +19,10 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
@@ -48,30 +47,13 @@ Documentation = "https://github.com/sapporo-wes/sapporo-service/blob/main/README
 Repository = "https://github.com/sapporo-wes/sapporo-service.git"
 
 [project.optional-dependencies]
-tests = [
-    "isort",
-    "mypy",
-    "pylint",
-    "pytest-cov",
-    "pytest-mock",
-    "pytest",
-    "types-PyYAML",
-]
+tests = ["mypy", "pytest-cov", "pytest-mock", "pytest", "ruff", "types-PyYAML"]
 
 [project.scripts]
 sapporo = "sapporo.app:main"
 
-[tool.setuptools]
+[tool.hatch.build.targets.wheel]
 packages = ["sapporo"]
-
-[tool.setuptools.package-data]
-sapporo = [
-    "service_info.json",
-    "executable_workflows.json",
-    "auth_config.json",
-    "run.sh",
-    "ga4gh-wes-spec-1.1.0.yml",
-]
 
 [tool.pytest.ini_options]
 addopts = "--cov=sapporo --cov-report=html:tests/htmlcov --cov-report=xml:tests/coverage.xml --cov-report=term-missing --cov-fail-under=80"
@@ -91,25 +73,93 @@ follow_imports = "silent"
 strict = true
 ignore_missing_imports = true
 
-[tool.pylint.main]
-ignore-paths = ["tests/resources"]
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+exclude = ["tests/resources/"]
 
-[tool.pylint.messages_control]
-disable = [
-    "C0114", # Missing module docstring
-    "C0115", # Missing class docstring
-    "C0116", # Missing function or method docstring
-    "C0301", # Line too long
-    "R0401", # Cyclic import
-    "R0801", # Similar lines in files (duplicate-code)
-    "R0903", # Too few public methods
-    "R0911", # Too many return statements
-    "R0912", # Too many branches
-    "R0913", # Too many arguments
-    "R0914", # Too many local variables
-    "R0915", # Too many statements
-    "R0917", # Too many positional arguments
-    "R1705", # Unnecessary "else" after "return"
-    "R1732", # Consider using 'with' for resource-allocating operations
-    "W0719", # Raising too general exception
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    # Docstring (not required in this project)
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D107",
+    "D203", # conflicts with D211
+    "D213", # conflicts with D212
+
+    # Type annotations (mypy handles this)
+    "ANN",
+
+    # Complexity (same policy as previous pylint config)
+    "C901",
+    "PLR0911",
+    "PLR0912",
+    "PLR0913",
+    "PLR0914",
+    "PLR0915",
+    "PLR0917",
+
+    # Style preferences
+    "RET505", # Unnecessary else after return (project convention)
+    "SIM114", # If with same arms (preserves per-branch comments)
+    "SIM115", # Use context manager for opening files (Popen)
+    "E501",   # Line too long (formatter handles this)
+
+    # Exception handling (would need custom exception hierarchy)
+    "BLE001", # Do not catch blind exception
+    "TRY002", # Create your own exception
+    "TRY003", # Avoid long messages outside exception class
+    "TRY301", # Raise within try
+
+    # Import style (circular import workaround, fix in Phase 9)
+    "PLC0415",
+
+    # Boolean arguments (conflicts with FastAPI Query pattern)
+    "FBT001", # Boolean type hint positional argument
+    "FBT002", # Boolean default value positional argument
+    "FBT003", # Boolean positional value in call
+
+    # FastAPI patterns (framework constraints)
+    "B008",    # Function call in default argument (Depends/Query)
+    "FAST001", # Redundant response_model (intentional for API docs)
+    "FAST002", # Non-annotated dependency (existing pattern)
+    "ARG001",  # Unused function argument (unimplemented endpoints)
+
+    # Security (false positives / intentional)
+    "S104", # Hardcoded bind all interfaces (server)
+    "S105", # Hardcoded password string (field names)
+    "S108", # Hardcoded temp file
+    "S110", # Try-except-pass (intentional)
+    "S603", # Subprocess without shell (intentional)
+
+    # Miscellaneous
+    "N815",   # Mixed case variable in class scope (Pydantic)
+    "RUF001", # Ambiguous unicode character (intentional test data)
+
+    # Formatter conflicts
+    "COM812",
+    "ISC001",
+
+    # TODO comments
+    "FIX002",
+    "TD003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"sapporo/cli.py" = ["T201"]  # print is intentional CLI output
+"tests/**/*.py" = [
+    "INP001",  # Implicit namespace package
+    "PIE804",  # Unnecessary dict kwargs (type: ignore on dict spread)
+    "PLR2004", # Magic value in comparison
+    "PT003",   # Extraneous scope function
+    "PT006",   # Wrong type for parametrize names
+    "PT011",   # Pytest raises too broad
+    "S101",    # Use of assert
+    "SLF001",  # Private member access
+    "T201",    # Print for debugging output
 ]

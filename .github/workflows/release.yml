@@ -13,28 +13,22 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.10"
-
-      - name: Install Python Build Module and Twine
-        run: |
-          python3 -m pip install --progress-bar off -U pip
-          python3 -m pip install build twine
+          python-version: "3.12"
 
       - name: Build Binary Wheel and Source Tarball
-        run: |
-          python3 -m build
+        run: uv build
 
       - name: Check Distribution Validity with Twine
-        run: twine check dist/*
+        run: uvx twine check dist/*
 
       - name: Publish Package to PyPI
         env:
-          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: twine upload dist/*
+          UV_PUBLISH_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          UV_PUBLISH_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: uv publish
 
       - name: Upload sdist as Artifact
         uses: actions/upload-artifact@v4

@@ -1,10 +1,10 @@
-"""
-CLI tools for sapporo-service.
+"""CLI tools for sapporo-service.
 
 Usage:
     python -m sapporo.cli hash-password
     python -m sapporo.cli generate-secret
 """
+
 import secrets
 import sys
 from argparse import ArgumentParser, Namespace
@@ -29,7 +29,7 @@ def hash_password(args: Namespace) -> None:
     print(f"Password hash: {password_hash}")
 
 
-def generate_secret(args: Namespace) -> None:  # pylint: disable=unused-argument
+def generate_secret(_args: Namespace) -> None:
     """Generate a cryptographically secure secret key."""
     secret = secrets.token_urlsafe(32)
     print(f"Secret key: {secret}")

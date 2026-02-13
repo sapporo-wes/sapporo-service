@@ -1,15 +1,11 @@
-# pylint: disable=C0415, W0613, W0621
-
-"""\
-Tests for authentication and security features.
+"""Tests for authentication and security features.
 
 Some tests (like external IdP integration) require external services
 and may be skipped in basic test runs.
 """
 
-
 import json
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 from argon2 import PasswordHasher
@@ -23,7 +19,7 @@ _TEST_PASSWORD = "sapporo-dev-password"
 _TEST_PASSWORD_HASH = _ph.hash(_TEST_PASSWORD)
 
 
-def default_auth_config() -> Dict[str, Any]:
+def default_auth_config() -> dict[str, Any]:
     """Default auth config with password hash (not plaintext)."""
     return {
         "auth_enabled": False,
@@ -31,24 +27,19 @@ def default_auth_config() -> Dict[str, Any]:
         "sapporo_auth_config": {
             "secret_key": "sapporo_secret_key_please_change_this",
             "expires_delta_hours": 24,
-            "users": [
-                {
-                    "username": "sapporo-dev-user",
-                    "password_hash": _TEST_PASSWORD_HASH
-                }
-            ]
+            "users": [{"username": "sapporo-dev-user", "password_hash": _TEST_PASSWORD_HASH}],
         },
         "external_config": {
             "idp_url": "http://sapporo-keycloak-dev:8080/realms/sapporo-dev",
             "jwt_audience": "account",
             "client_mode": "public",
             "client_id": "sapporo-service-dev",
-            "client_secret": "example-client-secret"
-        }
+            "client_secret": "example-client-secret",
+        },
     }
 
 
-def test_no_auth_get_runs(mocker, tmpdir):  # type: ignore
+def test_no_auth_get_runs(mocker, tmpdir):  # type: ignore[no-untyped-def]
     from sapporo.config import AppConfig
 
     auth_config = tmpdir.joinpath("auth_config.json")
@@ -61,7 +52,7 @@ def test_no_auth_get_runs(mocker, tmpdir):  # type: ignore
     assert response.status_code == 200
 
 
-def test_no_auth_post_runs(mocker, tmpdir):  # type: ignore
+def test_no_auth_post_runs(mocker, tmpdir):  # type: ignore[no-untyped-def]
     from sapporo.config import AppConfig
 
     auth_config = tmpdir.joinpath("auth_config.json")
@@ -70,7 +61,7 @@ def test_no_auth_post_runs(mocker, tmpdir):  # type: ignore
     app_config = AppConfig(auth_config=auth_config)
     client = anyhow_get_test_client(app_config, mocker, tmpdir)
 
-    response = post_run(client, **remote_wf_run_request)  # type: ignore
+    response = post_run(client, **remote_wf_run_request)  # type: ignore[arg-type]
     assert response.status_code == 200
     data = response.json()
     run_id = data["run_id"]
@@ -80,7 +71,7 @@ def test_no_auth_post_runs(mocker, tmpdir):  # type: ignore
 # === Password Hashing Tests ===
 
 
-def test_password_hash_verification():  # type: ignore
+def test_password_hash_verification():  # type: ignore[no-untyped-def]
     """Test that password hashing works correctly."""
     from sapporo.auth import _password_hasher
 
@@ -92,11 +83,12 @@ def test_password_hash_verification():  # type: ignore
 
     # Verify wrong password raises exception
     from argon2.exceptions import VerifyMismatchError
+
     with pytest.raises(VerifyMismatchError):
         _password_hasher.verify(hashed, "wrong_password")
 
 
-def test_auth_with_hashed_password(mocker, tmpdir):  # type: ignore
+def test_auth_with_hashed_password(mocker, tmpdir):  # type: ignore[no-untyped-def]
     """Test authentication with hashed password."""
     from sapporo.config import AppConfig
 
@@ -117,7 +109,7 @@ def test_auth_with_hashed_password(mocker, tmpdir):  # type: ignore
         data={
             "username": "sapporo-dev-user",
             "password": _TEST_PASSWORD,
-        }
+        },
     )
     assert response.status_code == 200
     token_data = response.json()
@@ -130,7 +122,7 @@ def test_auth_with_hashed_password(mocker, tmpdir):  # type: ignore
         data={
             "username": "sapporo-dev-user",
             "password": "wrong_password",
-        }
+        },
     )
     assert response.status_code == 401
 
@@ -138,7 +130,7 @@ def test_auth_with_hashed_password(mocker, tmpdir):  # type: ignore
 # === Username Validation Tests ===
 
 
-def test_username_sanitization():  # type: ignore
+def test_username_sanitization():  # type: ignore[no-untyped-def]
     """Test username sanitization function."""
     from fastapi import HTTPException
 
@@ -177,7 +169,7 @@ def test_username_sanitization():  # type: ignore
 # === JWT Expiration Tests ===
 
 
-def test_jwt_always_has_expiration(mocker, tmpdir):  # type: ignore
+def test_jwt_always_has_expiration(mocker, tmpdir):  # type: ignore[no-untyped-def]
     """Test that JWT tokens always have an expiration time."""
     from sapporo.config import AppConfig
 
@@ -197,17 +189,15 @@ def test_jwt_always_has_expiration(mocker, tmpdir):  # type: ignore
         data={
             "username": "sapporo-dev-user",
             "password": _TEST_PASSWORD,
-        }
+        },
     )
     assert response.status_code == 200
     token_data = response.json()
 
     # Decode and verify the token has an expiration
     import jwt
-    decoded = jwt.decode(
-        token_data["access_token"],
-        options={"verify_signature": False}
-    )
+
+    decoded = jwt.decode(token_data["access_token"], options={"verify_signature": False})
     assert "exp" in decoded
     assert decoded["exp"] is not None
 
@@ -215,7 +205,7 @@ def test_jwt_always_has_expiration(mocker, tmpdir):  # type: ignore
 # === Page Token Signature Tests ===
 
 
-def test_page_token_signature(mocker, tmpdir):  # type: ignore
+def test_page_token_signature(mocker, tmpdir):  # type: ignore[no-untyped-def]
     """Test that page tokens are signed and verified."""
     from sapporo.config import AppConfig
 
@@ -227,7 +217,7 @@ def test_page_token_signature(mocker, tmpdir):  # type: ignore
 
     # Create some runs to get a page token
     for _ in range(3):
-        response = post_run(client, **remote_wf_run_request)  # type: ignore
+        response = post_run(client, **remote_wf_run_request)  # type: ignore[arg-type]
         assert response.status_code == 200
 
     # Get runs with page_size=1 to get a next_page_token
@@ -251,7 +241,7 @@ def test_page_token_signature(mocker, tmpdir):  # type: ignore
 # === HTTPS Validation Tests ===
 
 
-def test_https_validation_for_external_idp():  # type: ignore
+def test_https_validation_for_external_idp():  # type: ignore[no-untyped-def]
     """Test that external IdP URLs are validated for HTTPS."""
     import os
 
@@ -292,7 +282,7 @@ def test_https_validation_for_external_idp():  # type: ignore
 # === User Isolation Tests ===
 
 
-def test_user_isolation_in_state_counts(mocker, tmpdir):  # type: ignore
+def test_user_isolation_in_state_counts(mocker, tmpdir):  # type: ignore[no-untyped-def]
     """Test that system_state_counts can be filtered by username."""
     from sapporo.config import AppConfig
     from sapporo.database import add_run_db, system_state_counts
@@ -305,10 +295,12 @@ def test_user_isolation_in_state_counts(mocker, tmpdir):  # type: ignore
 
     # Initialize
     from .conftest import clear_cache, mock_get_config
+
     mock_get_config(mocker, app_config)
     clear_cache()
 
     from sapporo.database import init_db
+
     init_db()
 
     # Add runs for different users

@@ -1,6 +1,6 @@
 import logging.config
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 import uvicorn
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -13,8 +13,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import Message, Receive, Scope, Send
 
 from sapporo.auth import get_auth_config
-from sapporo.config import (LOGGER, PKG_DIR, add_openapi_info, get_config,
-                            logging_config)
+from sapporo.config import LOGGER, PKG_DIR, add_openapi_info, get_config, logging_config
 from sapporo.database import SNAPSHOT_INTERVAL, init_db
 from sapporo.factory import create_executable_wfs, create_service_info
 from sapporo.routers import router
@@ -33,7 +32,7 @@ def fix_error_handler(app: FastAPI) -> None:
             content=ErrorResponse(
                 msg=exc.detail,
                 status_code=exc.status_code,
-            ).model_dump()
+            ).model_dump(),
         )
 
     @app.exception_handler(RequestValidationError)
@@ -46,7 +45,7 @@ def fix_error_handler(app: FastAPI) -> None:
             content=ErrorResponse(
                 msg=str(exc.errors()),
                 status_code=400,
-            ).model_dump()
+            ).model_dump(),
         )
 
     @app.exception_handler(Exception)
@@ -57,14 +56,12 @@ def fix_error_handler(app: FastAPI) -> None:
             content=ErrorResponse(
                 msg="The server encountered an internal error and was unable to complete your request.",
                 status_code=500,
-            ).model_dump()
+            ).model_dump(),
         )
 
 
 class CustomCORSMiddleware(CORSMiddleware):
-    """\
-    CORSMiddleware that returns CORS headers even if the Origin header is not present
-    """
+    """CORSMiddleware that returns CORS headers even if the Origin header is not present."""
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -81,9 +78,7 @@ class CustomCORSMiddleware(CORSMiddleware):
 
         await self.simple_response(scope, receive, send, request_headers=headers)
 
-    async def send(
-        self, message: Message, send: Send, request_headers: Headers
-    ) -> None:
+    async def send(self, message: Message, send: Send, request_headers: Headers) -> None:
         if message["type"] != "http.response.start":
             await send(message)
             return
@@ -108,8 +103,8 @@ class CustomCORSMiddleware(CORSMiddleware):
 
 
 def init_app_state() -> None:
-    """
-    Perform validation, initialize the cache, and log the configuration contents.
+    """Perform validation, initialize the cache, and log the configuration contents.
+
     Specifically, validate the configuration files such as service_info.json, auth_config.json,
     executable_workflows.json, etc., and the initial state of the application.
     """
@@ -117,11 +112,13 @@ def init_app_state() -> None:
 
     service_info_path = get_config().service_info
     if not service_info_path.exists():
-        raise FileNotFoundError(f"Service info file not found: {service_info_path}")
+        msg = f"Service info file not found: {service_info_path}"
+        raise FileNotFoundError(msg)
     try:
         service_info = create_service_info()  # Cache and validate
     except Exception as e:
-        raise ValueError(f"Service info file is invalid: {service_info_path}") from e
+        msg = f"Service info file is invalid: {service_info_path}"
+        raise ValueError(msg) from e
     LOGGER.info("Service info: %s", service_info)
 
     executable_wfs_path = get_config().executable_workflows
@@ -131,21 +128,28 @@ def init_app_state() -> None:
             # Check wf_url is http or https
             for wf_url in executable_wfs.workflows:
                 if not wf_url.startswith("http://") and not wf_url.startswith("https://"):
-                    raise ValueError(f"Invalid workflow_url: {wf_url} in executable_workflows.json. The workflow_url must start with 'http://' or 'https://'.")
+                    msg = f"Invalid workflow_url: {wf_url} in executable_workflows.json. The workflow_url must start with 'http://' or 'https://'."
+                    raise ValueError(msg)
     except Exception as e:
-        raise ValueError(f"Executable workflows file is invalid: {executable_wfs_path}") from e
+        msg = f"Executable workflows file is invalid: {executable_wfs_path}"
+        raise ValueError(msg) from e
     LOGGER.info("Executable workflows: %s", executable_wfs)
 
     auth_config_path = get_config().auth_config
     if not auth_config_path.exists():
-        raise FileNotFoundError(f"Auth config file not found: {auth_config_path}")
+        msg = f"Auth config file not found: {auth_config_path}"
+        raise FileNotFoundError(msg)
     try:
         auth_config = get_auth_config()  # Cache and validate
         # Extra validation
         if auth_config.auth_enabled:
-            if auth_config.idp_provider == "external" and auth_config.external_config.client_mode == "confidential":
-                if auth_config.external_config.client_id is None or auth_config.external_config.client_secret is None:
-                    raise ValueError("Client ID and Client Secret must be specified in confidential mode in the auth_config.json file.")
+            if (
+                auth_config.idp_provider == "external"
+                and auth_config.external_config.client_mode == "confidential"
+                and (auth_config.external_config.client_id is None or auth_config.external_config.client_secret is None)
+            ):
+                msg = "Client ID and Client Secret must be specified in confidential mode in the auth_config.json file."
+                raise ValueError(msg)
 
             # Validate secret_key strength for sapporo mode
             if auth_config.idp_provider == "sapporo":
@@ -156,10 +160,8 @@ def init_app_state() -> None:
                     "changeme",
                     "password",
                 ]
-                is_weak = (
-                    secret_key in weak_keys or
-                    len(secret_key) < 32
-                )
+                min_secret_key_length = 32
+                is_weak = secret_key in weak_keys or len(secret_key) < min_secret_key_length
                 if is_weak:
                     warning_msg = (
                         "WARNING: Weak secret_key detected in auth_config.json. "
@@ -167,12 +169,14 @@ def init_app_state() -> None:
                     )
                     LOGGER.warning(warning_msg)
                     if not get_config().debug:
-                        raise ValueError(
+                        msg = (
                             "Weak secret_key is not allowed in production mode. "
                             "Generate a strong secret key using: python -m sapporo.cli generate-secret"
                         )
+                        raise ValueError(msg)
     except Exception as e:
-        raise ValueError(f"Auth config file is invalid: {auth_config_path}") from e
+        msg = f"Auth config file is invalid: {auth_config_path}"
+        raise ValueError(msg) from e
     LOGGER.info("Auth config: %s", auth_config)
 
     LOGGER.info("=== App state initialized. ===")
@@ -190,7 +194,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
     try:
         yield
-    except Exception as e:  # pylint: disable=W0718
+    except Exception as e:
         LOGGER.exception("An unexpected error occurred.", exc_info=e)
         # do not raise
     finally:

@@ -1,30 +1,27 @@
 import json
-from typing import List, Optional, Tuple
 
 from fastapi import UploadFile
 
 from sapporo.config import get_config
-from sapporo.exceptions import (raise_bad_request, raise_forbidden,
-                                raise_not_found)
+from sapporo.exceptions import raise_bad_request, raise_forbidden, raise_not_found
 from sapporo.factory import create_executable_wfs, create_service_info
 from sapporo.run import read_file
 from sapporo.schemas import RunRequestForm
 
 
 def validate_run_request(
-    wf_params: Optional[str],
+    wf_params: str | None,
     wf_type: str,
-    wf_type_version: Optional[str],
-    tags: Optional[str],
+    wf_type_version: str | None,
+    tags: str | None,
     wf_engine: str,
-    wf_engine_version: Optional[str],
-    wf_engine_parameters: Optional[str],
-    wf_url: Optional[str],
-    wf_attachment: List[UploadFile],
-    wf_attachment_obj: Optional[str],
+    wf_engine_version: str | None,
+    wf_engine_parameters: str | None,
+    wf_url: str | None,
+    wf_attachment: list[UploadFile],
+    wf_attachment_obj: str | None,
 ) -> RunRequestForm:
-    """\
-    Validate and convert the form-data request sent to POST /runs.
+    """Validate and convert the form-data request sent to POST /runs.
 
     The form data is validated and converted into an intermediate RunRequestForm schema,
     which is then used to create the final RunRequest schema for internal use.
@@ -39,10 +36,10 @@ def validate_run_request(
 
     # Check executable_wfs
     executable_wfs = create_executable_wfs()
-    if len(executable_wfs.workflows) != 0:
-        # Need to check if the wf_url is in the executable_wfs
-        if wf_url not in executable_wfs.workflows:
-            raise_bad_request(f"Invalid workflow_url: {wf_url}. Sapporo is currently operating in the mode where only registered workflows can be executed. Please refer to GET /executable_workflows to see the list of executable workflows.")
+    if len(executable_wfs.workflows) != 0 and wf_url not in executable_wfs.workflows:
+        raise_bad_request(
+            f"Invalid workflow_url: {wf_url}. Sapporo is currently operating in the mode where only registered workflows can be executed. Please refer to GET /executable_workflows to see the list of executable workflows."
+        )
 
     return RunRequestForm(
         workflow_params=_wf_params,
@@ -60,18 +57,18 @@ def validate_run_request(
 
 def validate_wf_type_and_version(
     wf_type: str,
-    wf_type_version: Optional[str] = None,
-) -> Tuple[str, str]:
-    """\
-    Validate the wf_type and wf_type_version.
+    wf_type_version: str | None = None,
+) -> tuple[str, str]:
+    """Validate the wf_type and wf_type_version.
+
     If wf_type_version is None, get the first item from service-info.
     """
     service_info = create_service_info()
-    wf_types = service_info.workflow_type_versions.keys()  # pylint: disable=E1101
+    wf_types = service_info.workflow_type_versions.keys()
 
     if wf_type not in wf_types:
         raise_bad_request(f"Invalid workflow_type: {wf_type}, please select from {wf_types}")
-    wf_type_versions_entry = service_info.workflow_type_versions.get(wf_type)  # pylint: disable=E1101
+    wf_type_versions_entry = service_info.workflow_type_versions.get(wf_type)
     if wf_type_version is None and wf_type_versions_entry is not None:
         wf_type_version_list = wf_type_versions_entry.workflow_type_version
         if wf_type_version_list is not None and len(wf_type_version_list) > 0:
@@ -82,17 +79,17 @@ def validate_wf_type_and_version(
 
 def validate_wf_engine_type_and_version(
     wf_engine: str,
-    wf_engine_version: Optional[str] = None,
-) -> Tuple[str, str]:
-    """\
-    Validate the wf_engine and wf_engine_version.
+    wf_engine_version: str | None = None,
+) -> tuple[str, str]:
+    """Validate the wf_engine and wf_engine_version.
+
     If wf_engine_version is None, get the first item from service-info.
     """
     service_info = create_service_info()
-    wf_engines = service_info.workflow_engine_versions.keys()  # pylint: disable=E1101
+    wf_engines = service_info.workflow_engine_versions.keys()
     if wf_engine not in wf_engines:
         raise_bad_request(f"Invalid workflow_engine: {wf_engine}, please select from {wf_engines}")
-    wf_engine_versions_entry = service_info.workflow_engine_versions.get(wf_engine)  # pylint: disable=E1101
+    wf_engine_versions_entry = service_info.workflow_engine_versions.get(wf_engine)
     if wf_engine_version is None and wf_engine_versions_entry is not None:
         wf_engine_version_list = wf_engine_versions_entry.workflow_engine_version
         if wf_engine_version_list is not None and len(wf_engine_version_list) > 0:
@@ -101,8 +98,9 @@ def validate_wf_engine_type_and_version(
     return wf_engine, wf_engine_version or ""
 
 
-def validate_run_id(run_id: str, username: Optional[str]) -> None:
-    """
+def validate_run_id(run_id: str, username: str | None) -> None:
+    """Validate that a run ID exists and the user has access to it.
+
     Note: This function directly checks the run directory without using the database.
     Although this approach may seem confusing, it is based on the concept that the master data is stored in the run directory.
     """

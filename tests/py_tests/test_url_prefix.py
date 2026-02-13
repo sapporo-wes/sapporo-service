@@ -1,9 +1,7 @@
-# pylint: disable=C0415, W0613, W0621
-
 from .conftest import anyhow_get_test_client
 
 
-def test_url_prefix(mocker, tmpdir):  # type: ignore
+def test_url_prefix(mocker, tmpdir):  # type: ignore[no-untyped-def]
     from sapporo.config import AppConfig
 
     url_prefix = "/api"

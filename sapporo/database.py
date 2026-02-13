@@ -1,5 +1,5 @@
-"""\
-Module for creating an SQLite database, `{run_dir}/sapporo.db`, within the run directory.
+"""Module for creating an SQLite database, `{run_dir}/sapporo.db`, within the run directory.
+
 All run-related information stored under the each run directory serves as the master data.
 To avoid performance degradation when listing runs or aggregating state counts, etc., this database is used as an index.
 This database can be safely deleted if necessary, without impacting the master data.
@@ -15,10 +15,11 @@ import hashlib
 import hmac
 import json
 import threading
+from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime, timedelta
-from functools import lru_cache
-from typing import Dict, Generator, List, Literal, Optional, Tuple
+from datetime import datetime, timedelta, timezone
+from functools import cache
+from typing import Literal
 
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import func
@@ -44,7 +45,7 @@ class PageTokenData(BaseModel):
     run_id: str
 
 
-@lru_cache(maxsize=None)
+@cache
 def create_db_engine() -> Engine:
     return create_engine(
         f"sqlite:///{get_config().run_dir}/{DATABASE_NAME}",
@@ -55,8 +56,7 @@ def create_db_engine() -> Engine:
 
 @contextmanager
 def get_session() -> Generator[Session, None, None]:
-    """
-    Get a database session with thread-safe access.
+    """Get a database session with thread-safe access.
 
     Uses a threading lock to ensure only one thread can access
     the SQLite database at a time, preventing potential data corruption.
@@ -76,28 +76,32 @@ class Run(SQLModel, table=True):
     __tablename__ = "runs"
 
     run_id: str = Field(primary_key=True)
-    username: Optional[str] = None
+    username: str | None = None
     state: State
     start_time: datetime
-    end_time: Optional[datetime] = None
+    end_time: datetime | None = None
     tags: str  # JSON string, Dict[str, str]
 
 
-def db_runs_to_run_summaries(runs: List[Run]) -> List[RunSummary]:
-    return [RunSummary(
-        run_id=run.run_id,
-        state=run.state,
-        start_time=dt_to_time_str(run.start_time),
-        end_time=dt_to_time_str(run.end_time) if run.end_time is not None else None,
-        tags=json.loads(run.tags),
-    ) for run in runs]
+def db_runs_to_run_summaries(runs: list[Run]) -> list[RunSummary]:
+    return [
+        RunSummary(
+            run_id=run.run_id,
+            state=run.state,
+            start_time=dt_to_time_str(run.start_time),
+            end_time=dt_to_time_str(run.end_time) if run.end_time is not None else None,
+            tags=json.loads(run.tags),
+        )
+        for run in runs
+    ]
 
 
 # === CRUD func ===
 
 
 def init_db() -> None:
-    """\
+    """Regenerate the database from scratch if an existing one is found.
+
     Master data is stored under the each run directory, so if an existing database is found,
     it will be deleted and regenerated from scratch.
     """
@@ -109,7 +113,7 @@ def init_db() -> None:
     with get_session() as session:
         for run_id in glob_all_run_ids():
             run_summary = create_run_summary(run_id)
-            username: Optional[str] = read_file(run_id, "username")
+            username: str | None = read_file(run_id, "username")
             run = Run(
                 run_id=run_summary.run_id,
                 username=username,
@@ -124,9 +128,10 @@ def init_db() -> None:
 
 def add_run_db(
     run_summary: RunSummary,
-    username: Optional[str] = None,
+    username: str | None = None,
 ) -> Run:
-    """\
+    """Add a run record to the database.
+
     Called at POST /runs. Since it is called after generating a uuid (run_id), id conflicts are unlikely to occur.
     """
     run = Run(
@@ -145,33 +150,29 @@ def add_run_db(
     return run
 
 
-def system_state_counts(username: Optional[str] = None) -> Dict[str, int]:
-    """
-    Get the count of runs in each state.
+def system_state_counts(username: str | None = None) -> dict[str, int]:
+    """Get the count of runs in each state.
 
     Args:
         username: If provided, only count runs belonging to this user.
                   If None, count all runs (for backward compatibility).
+
     """
-    query = select(Run.state, func.count(Run.run_id)).group_by(Run.state)  # type: ignore # pylint: disable=E1102
+    query = select(Run.state, func.count(Run.run_id)).group_by(Run.state)  # type: ignore[arg-type]
     if username is not None:
         query = query.where(Run.username == username)
 
     with get_session() as session:
         results = session.exec(query).all()
 
-    state_counts = {state.value: 0 for state in State}
-    for state, count in results:
-        state_counts[state] = count
-
-    return state_counts
+    return {state.value: 0 for state in State} | dict(results)
 
 
 def _get_page_token_secret() -> str:
     """Get the secret key for signing page tokens."""
     # Import here to avoid circular imports
-    from sapporo.auth import \
-        get_auth_config  # pylint: disable=import-outside-toplevel
+    from sapporo.auth import get_auth_config
+
     return get_auth_config().sapporo_auth_config.secret_key
 
 
@@ -190,7 +191,6 @@ def _encode_page_token(last_run: Run) -> str:
     }
     data = json.dumps(token_data)
     signature = _sign_data(data)
-    # Format: base64(data).signature
     encoded_data = base64.urlsafe_b64encode(data.encode("utf-8")).decode("utf-8")
     return f"{encoded_data}.{signature}"
 
@@ -198,8 +198,9 @@ def _encode_page_token(last_run: Run) -> str:
 def _decode_page_token(page_token: str) -> PageTokenData:
     """Decode and verify a page token's HMAC signature."""
     try:
+        expected_parts = 2
         parts = page_token.split(".")
-        if len(parts) != 2:
+        if len(parts) != expected_parts:
             raise_bad_request("Invalid page token format")
 
         encoded_data, provided_signature = parts
@@ -217,12 +218,12 @@ def _decode_page_token(page_token: str) -> PageTokenData:
 
 def list_runs_db(
     page_size: int,
-    page_token: Optional[str] = None,
+    page_token: str | None = None,
     sort_order: Literal["asc", "desc"] = "desc",
-    state: Optional[State] = None,
-    run_ids: Optional[List[str]] = None,
-    username: Optional[str] = None,
-) -> Tuple[List[Run], Optional[str]]:
+    state: State | None = None,
+    run_ids: list[str] | None = None,
+    username: str | None = None,
+) -> tuple[list[Run], str | None]:
     query = select(Run)
 
     if state is not None:
@@ -232,12 +233,12 @@ def list_runs_db(
         query = query.where(Run.username == username)
 
     if sort_order == "asc":
-        query = query.order_by(Run.start_time.asc(), Run.run_id.asc())  # type: ignore[attr-defined] # pylint: disable=E1101
+        query = query.order_by(Run.start_time.asc(), Run.run_id.asc())  # type: ignore[attr-defined]
     else:
-        query = query.order_by(Run.start_time.desc(), Run.run_id.desc())  # type: ignore[attr-defined] # pylint: disable=E1101
+        query = query.order_by(Run.start_time.desc(), Run.run_id.desc())  # type: ignore[attr-defined]
 
     if run_ids is not None:
-        query = query.where(Run.run_id.in_(run_ids))  # type: ignore[attr-defined] # pylint: disable=E1101
+        query = query.where(Run.run_id.in_(run_ids))  # type: ignore[attr-defined]
 
     if page_token is not None:
         token_data = _decode_page_token(page_token)
@@ -245,13 +246,11 @@ def list_runs_db(
         run_id = token_data.run_id
         if sort_order == "asc":
             query = query.where(
-                (Run.start_time > start_time) |
-                ((Run.start_time == start_time) & (Run.run_id > run_id))
+                (Run.start_time > start_time) | ((Run.start_time == start_time) & (Run.run_id > run_id))
             )
         else:
             query = query.where(
-                (Run.start_time < start_time) |
-                ((Run.start_time == start_time) & (Run.run_id < run_id))
+                (Run.start_time < start_time) | ((Run.start_time == start_time) & (Run.run_id < run_id))
             )
 
     query = query.limit(page_size + 1)
@@ -270,9 +269,9 @@ def list_runs_db(
 
 def list_old_runs_db(
     older_than_days: int,
-) -> List[Run]:
+) -> list[Run]:
     with get_session() as session:
-        cutoff_date = datetime.now() - timedelta(days=older_than_days)
+        cutoff_date = datetime.now(tz=timezone.utc) - timedelta(days=older_than_days)
         query = select(Run).where(Run.start_time < cutoff_date)
         results = session.exec(query).all()
 

@@ -1,27 +1,51 @@
-from typing import List, Literal, Optional, Union
+from typing import Literal
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, Query, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
-from sapporo.auth import (MeResponse, TokenResponse, auth_depends_factory,
-                          create_access_token, decode_token, extract_username,
-                          is_create_token_endpoint_enabled)
+from sapporo.auth import (
+    MeResponse,
+    TokenResponse,
+    auth_depends_factory,
+    create_access_token,
+    decode_token,
+    extract_username,
+    is_create_token_endpoint_enabled,
+)
 from sapporo.config import GA4GH_WES_SPEC
-from sapporo.database import (add_run_db, db_runs_to_run_summaries,
-                              list_runs_db, system_state_counts)
+from sapporo.database import add_run_db, db_runs_to_run_summaries, list_runs_db, system_state_counts
 from sapporo.exceptions import raise_bad_request, raise_not_found
-from sapporo.factory import (create_executable_wfs,
-                             create_outputs_list_response,
-                             create_ro_crate_response, create_run_log,
-                             create_run_status, create_run_summary,
-                             create_service_info)
-from sapporo.run import (cancel_run_task, delete_run_task, outputs_zip_stream,
-                         post_run_task, prepare_run_dir, resolve_content_path,
-                         ro_crate_zip_stream)
-from sapporo.schemas import (ExecutableWorkflows, OutputsListResponse, RunId,
-                             RunListResponse, RunLog, RunStatus, ServiceInfo,
-                             State, TaskListResponse, TaskLog)
+from sapporo.factory import (
+    create_executable_wfs,
+    create_outputs_list_response,
+    create_ro_crate_response,
+    create_run_log,
+    create_run_status,
+    create_run_summary,
+    create_service_info,
+)
+from sapporo.run import (
+    cancel_run_task,
+    delete_run_task,
+    outputs_zip_stream,
+    post_run_task,
+    prepare_run_dir,
+    resolve_content_path,
+    ro_crate_zip_stream,
+)
+from sapporo.schemas import (
+    ExecutableWorkflows,
+    OutputsListResponse,
+    RunId,
+    RunListResponse,
+    RunLog,
+    RunStatus,
+    ServiceInfo,
+    State,
+    TaskListResponse,
+    TaskLog,
+)
 from sapporo.utils import secure_filepath
 from sapporo.validator import validate_run_id, validate_run_request
 
@@ -31,7 +55,8 @@ router = APIRouter()
 @router.get(
     "/service-info",
     summary=GA4GH_WES_SPEC["paths"]["/service-info"]["get"]["summary"],
-    description=GA4GH_WES_SPEC["paths"]["/service-info"]["get"]["description"] + """\n
+    description=GA4GH_WES_SPEC["paths"]["/service-info"]["get"]["description"]
+    + """\n
 **sapporo-wes-2.0.0 extension:**
 
 - `system_state_count` is a snapshot that is aggregated every 30 minutes. It may not represent the latest state.
@@ -40,7 +65,7 @@ router = APIRouter()
     response_model=ServiceInfo,
 )
 async def get_service_info(
-    token: Optional[str] = auth_depends_factory(),
+    token: str | None = auth_depends_factory(),
 ) -> ServiceInfo:
     service_info = create_service_info()
     username = token and extract_username(decode_token(token))
@@ -51,7 +76,8 @@ async def get_service_info(
 @router.get(
     "/runs",
     summary=GA4GH_WES_SPEC["paths"]["/runs"]["get"]["summary"],
-    description=GA4GH_WES_SPEC["paths"]["/runs"]["get"]["description"] + """\n
+    description=GA4GH_WES_SPEC["paths"]["/runs"]["get"]["description"]
+    + """\n
 **sapporo-wes-2.0.0 extension:**
 
 - This endpoint returns a snapshot that is aggregated every 30 minutes. It may not represent the latest state.
@@ -64,7 +90,7 @@ async def list_runs(
         10,
         description=GA4GH_WES_SPEC["paths"]["/runs"]["get"]["parameters"][0]["description"],
     ),
-    page_token: Optional[str] = Query(
+    page_token: str | None = Query(
         None,
         description=GA4GH_WES_SPEC["paths"]["/runs"]["get"]["parameters"][1]["description"],
     ),
@@ -72,23 +98,23 @@ async def list_runs(
         "desc",
         description="**sapporo-wes-2.0.0 extension:** Sort order of the runs based on start_time.",
     ),
-    state: Optional[State] = Query(
+    state: State | None = Query(
         None,
         description='**sapporo-wes-2.0.0 extension:**: Filter the runs based on the state (e.g., "COMPLETE", "RUNNING", etc.).',
     ),
-    run_ids: Optional[List[str]] = Query(
+    run_ids: list[str] | None = Query(
         None,
-        description='**sapporo-wes-2.0.0 extension:**: A list of run IDs to retrieve specific runs.',
+        description="**sapporo-wes-2.0.0 extension:**: A list of run IDs to retrieve specific runs.",
     ),
-    latest: Optional[bool] = Query(
+    latest: bool | None = Query(
         False,
-        description='**sapporo-wes-2.0.0 extension:**: If True, return the latest state of runs instead of the snapshot.',
+        description="**sapporo-wes-2.0.0 extension:**: If True, return the latest state of runs instead of the snapshot.",
     ),
-    token: Optional[str] = auth_depends_factory(),
+    token: str | None = auth_depends_factory(),
 ) -> RunListResponse:
     username = token and extract_username(decode_token(token))
     (db_runs, next_page_token) = list_runs_db(page_size, page_token, sort_order, state, run_ids, username)
-    if latest:
+    if latest:  # noqa: SIM108
         runs = [create_run_summary(run.run_id) for run in db_runs]
     else:
         runs = db_runs_to_run_summaries(db_runs)
@@ -101,7 +127,8 @@ async def list_runs(
 @router.post(
     "/runs",
     summary=GA4GH_WES_SPEC["paths"]["/runs"]["post"]["summary"],
-    description=GA4GH_WES_SPEC["paths"]["/runs"]["post"]["description"] + """\n
+    description=GA4GH_WES_SPEC["paths"]["/runs"]["post"]["description"]
+    + """\n
 **sapporo-wes-2.0.0 extension:**
 
 - Added a field `workflow_attachment_obj`. With this field, download files from remote locations directly to the execution directory.
@@ -110,26 +137,26 @@ async def list_runs(
 )
 async def run_workflow(
     background_tasks: BackgroundTasks,
-    workflow_params: Optional[str] = Form(None),
+    workflow_params: str | None = Form(None),
     workflow_type: str = Form(
         ...,
         description="Optional in original WES 1.1.0, but required in sapporo-wes-2.0.0.",
     ),
-    workflow_type_version: Optional[str] = Form(None),
-    tags: Optional[str] = Form(None),
+    workflow_type_version: str | None = Form(None),
+    tags: str | None = Form(None),
     workflow_engine: str = Form(
         ...,
         description="Optional in original WES 1.1.0, but required in sapporo-wes-2.0.0.",
     ),
-    workflow_engine_version: Optional[str] = Form(None),
-    workflow_engine_parameters: Optional[str] = Form(None),
-    workflow_url: Optional[str] = Form(None),
-    workflow_attachment: List[UploadFile] = File(default_factory=list),
-    workflow_attachment_obj: Optional[str] = Form(
+    workflow_engine_version: str | None = Form(None),
+    workflow_engine_parameters: str | None = Form(None),
+    workflow_url: str | None = Form(None),
+    workflow_attachment: list[UploadFile] = File(default_factory=list),
+    workflow_attachment_obj: str | None = Form(
         None,
         description='Extension specific to sapporo-wes-2.0.0: e.g., [{ "file_name": "path/to/file", "file_url": "https://example.com/path/to/file" }]',
     ),
-    token: Optional[str] = auth_depends_factory(),
+    token: str | None = auth_depends_factory(),
 ) -> RunId:
     username = token and extract_username(decode_token(token))
     run_id = str(uuid4())
@@ -154,7 +181,8 @@ async def run_workflow(
 @router.get(
     "/runs/{run_id}",
     summary=GA4GH_WES_SPEC["paths"]["/runs/{run_id}"]["get"]["summary"],
-    description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}"]["get"]["description"] + """\n
+    description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}"]["get"]["description"]
+    + """\n
 **sapporo-wes-2.0.0 extension:**
 
 - Always check the contents of the run dir and return the latest state of the run.
@@ -163,7 +191,7 @@ async def run_workflow(
 )
 async def get_run_log(
     run_id: str,
-    token: Optional[str] = auth_depends_factory(),
+    token: str | None = auth_depends_factory(),
 ) -> RunLog:
     username = token and extract_username(decode_token(token))
     validate_run_id(run_id, username)
@@ -173,7 +201,8 @@ async def get_run_log(
 @router.get(
     "/runs/{run_id}/status",
     summary=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/status"]["get"]["summary"],
-    description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/status"]["get"]["description"] + """\n
+    description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/status"]["get"]["description"]
+    + """\n
 **sapporo-wes-2.0.0 extension:**
 
 - Always check the contents of the run dir and return the latest state of the run.
@@ -182,7 +211,7 @@ async def get_run_log(
 )
 async def get_run_status(
     run_id: str,
-    token: Optional[str] = auth_depends_factory(),
+    token: str | None = auth_depends_factory(),
 ) -> RunStatus:
     username = token and extract_username(decode_token(token))
     validate_run_id(run_id, username)
@@ -192,7 +221,8 @@ async def get_run_status(
 @router.get(
     "/runs/{run_id}/tasks",
     summary=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/tasks"]["get"]["summary"],
-    description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/tasks"]["get"]["description"] + """\n
+    description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/tasks"]["get"]["description"]
+    + """\n
 **sapporo-wes-2.0.0 extension:**
 
 - This endpoint is not implemented and there are no plans to implement it.
@@ -200,15 +230,15 @@ async def get_run_status(
     response_model=TaskListResponse,
 )
 async def list_tasks(
-    run_id: str,  # pylint: disable=unused-argument
-    page_size: Optional[int] = Query(  # pylint: disable=unused-argument
+    run_id: str,
+    page_size: int | None = Query(
         None,
         description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/tasks"]["get"]["parameters"][1]["description"],
     ),
-    page_token: Optional[str] = Query(  # pylint: disable=unused-argument
+    page_token: str | None = Query(
         None,
         description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/tasks"]["get"]["parameters"][2]["description"],
-    )
+    ),
 ) -> TaskListResponse:
     raise_bad_request("Sorry, this endpoint is not implemented and there are no plans to implement it.")
 
@@ -216,17 +246,15 @@ async def list_tasks(
 @router.get(
     "/runs/{run_id}/tasks/{task_id}",
     summary=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/tasks/{task_id}"]["get"]["summary"],
-    description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/tasks/{task_id}"]["get"]["description"] + """\n
+    description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/tasks/{task_id}"]["get"]["description"]
+    + """\n
 **sapporo-wes-2.0.0 extension:**
 
 - This endpoint is not implemented and there are no plans to implement it.
 """,
     response_model=TaskLog,
 )
-async def get_task(
-    run_id: str,  # pylint: disable=unused-argument
-    task_id: str  # pylint: disable=unused-argument
-) -> TaskLog:
+async def get_task(run_id: str, task_id: str) -> TaskLog:
     raise_bad_request("Sorry, this endpoint is not implemented and there are no plans to implement it.")
 
 
@@ -239,7 +267,7 @@ async def get_task(
 async def cancel_run(
     run_id: str,
     background_tasks: BackgroundTasks,
-    token: Optional[str] = auth_depends_factory(),
+    token: str | None = auth_depends_factory(),
 ) -> RunId:
     username = token and extract_username(decode_token(token))
     validate_run_id(run_id, username)
@@ -265,7 +293,7 @@ This is because the information that the run has been deleted should be retained
 async def delete_run(
     run_id: str,
     background_tasks: BackgroundTasks,
-    token: Optional[str] = auth_depends_factory(),
+    token: str | None = auth_depends_factory(),
 ) -> RunId:
     username = token and extract_username(decode_token(token))
     validate_run_id(run_id, username)
@@ -281,7 +309,7 @@ async def delete_run(
 Return the list of workflows that can be executed in this service.
 If `workflows: []`, it indicates that there are no restrictions, and any workflow can be executed.
 If `workflows` contains workflow urls, only those workflows can be executed.
-"""
+""",
 )
 def list_executable_wfs() -> ExecutableWorkflows:
     return create_executable_wfs()
@@ -300,15 +328,18 @@ def list_executable_wfs() -> ExecutableWorkflows:
                     "schema": {"$ref": "#/components/schemas/OutputsListResponse"},
                     "example": {
                         "outputs": [
-                            {"file_name": "output.txt", "file_url": "http://localhost:1122/runs/abc123/outputs/output.txt"}
+                            {
+                                "file_name": "output.txt",
+                                "file_url": "http://localhost:1122/runs/abc123/outputs/output.txt",
+                            }
                         ]
-                    }
+                    },
                 },
                 "application/zip": {
                     "schema": {"type": "string", "format": "binary"},
-                    "description": "ZIP archive of all outputs (when download=true)"
-                }
-            }
+                    "description": "ZIP archive of all outputs (when download=true)",
+                },
+            },
         }
     },
 )
@@ -318,17 +349,15 @@ async def get_run_outputs_list(
         False,
         description="Download all outputs as a zip file.",
     ),
-    token: Optional[str] = auth_depends_factory(),
-) -> Union[OutputsListResponse, StreamingResponse]:
+    token: str | None = auth_depends_factory(),
+) -> OutputsListResponse | StreamingResponse:
     username = token and extract_username(decode_token(token))
     validate_run_id(run_id, username)
     if download:
         return StreamingResponse(
             outputs_zip_stream(run_id),
             media_type="application/zip",
-            headers={
-                "Content-Disposition": f"attachment; filename=sapporo_{run_id}_outputs.zip"
-            }
+            headers={"Content-Disposition": f"attachment; filename=sapporo_{run_id}_outputs.zip"},
         )
     return create_outputs_list_response(run_id)
 
@@ -341,18 +370,14 @@ async def get_run_outputs_list(
     responses={
         200: {
             "description": "File content",
-            "content": {
-                "application/octet-stream": {
-                    "schema": {"type": "string", "format": "binary"}
-                }
-            }
+            "content": {"application/octet-stream": {"schema": {"type": "string", "format": "binary"}}},
         }
     },
 )
 async def get_run_outputs(
     run_id: str,
     path: str,
-    token: Optional[str] = auth_depends_factory(),
+    token: str | None = auth_depends_factory(),
 ) -> FileResponse:
     username = token and extract_username(decode_token(token))
     validate_run_id(run_id, username)
@@ -373,13 +398,13 @@ async def get_run_outputs(
             "content": {
                 "application/ld+json": {
                     "schema": {"type": "object"},
-                    "description": "RO-Crate metadata in JSON-LD format"
+                    "description": "RO-Crate metadata in JSON-LD format",
                 },
                 "application/zip": {
                     "schema": {"type": "string", "format": "binary"},
-                    "description": "ZIP archive of the entire RO-Crate (when download=true)"
-                }
-            }
+                    "description": "ZIP archive of the entire RO-Crate (when download=true)",
+                },
+            },
         }
     },
 )
@@ -389,17 +414,15 @@ async def get_run_ro_crate(
         False,
         description="Download the entire Crate as a zip file.",
     ),
-    token: Optional[str] = auth_depends_factory(),
-) -> Union[JSONResponse, StreamingResponse]:
+    token: str | None = auth_depends_factory(),
+) -> JSONResponse | StreamingResponse:
     username = token and extract_username(decode_token(token))
     validate_run_id(run_id, username)
     if download:
         return StreamingResponse(
             ro_crate_zip_stream(run_id),
             media_type="application/zip",
-            headers={
-                "Content-Disposition": f"attachment; filename=sapporo_{run_id}_ro_crate.zip"
-            }
+            headers={"Content-Disposition": f"attachment; filename=sapporo_{run_id}_ro_crate.zip"},
         )
     return JSONResponse(
         content=create_ro_crate_response(run_id),
@@ -436,7 +459,7 @@ The returned JWT token should be included in subsequent requests using the `Auth
                 "application/json": {
                     "example": {"access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", "token_type": "bearer"}
                 }
-            }
+            },
         },
         401: {"description": "Invalid username or password"},
     },
@@ -445,8 +468,7 @@ async def create_token(
     username: str = Form(..., description="The username for authentication."),
     password: str = Form(..., description="The password for authentication."),
 ) -> TokenResponse:
-    """
-    Authenticate user and create JWT access token.
+    """Authenticate user and create JWT access token.
 
     Args:
         username: User's username
@@ -458,6 +480,7 @@ async def create_token(
     Raises:
         HTTPException 401: Invalid credentials
         HTTPException 400: Token creation disabled (public client mode)
+
     """
     is_create_token_endpoint_enabled()
     access_token = await create_access_token(username, password)
@@ -484,21 +507,16 @@ or falls back to the `sub` (subject) claim.
     responses={
         200: {
             "description": "Authenticated user information",
-            "content": {
-                "application/json": {
-                    "example": {"username": "user1"}
-                }
-            }
+            "content": {"application/json": {"example": {"username": "user1"}}},
         },
         400: {"description": "Authentication is not enabled"},
         401: {"description": "Invalid or expired token"},
     },
 )
 async def get_me(
-    token: Optional[str] = auth_depends_factory(),
+    token: str | None = auth_depends_factory(),
 ) -> MeResponse:
-    """
-    Get the current authenticated user's information.
+    """Get the current authenticated user's information.
 
     Args:
         token: JWT access token (injected via auth_depends_factory)
@@ -509,6 +527,7 @@ async def get_me(
     Raises:
         HTTPException 400: Authentication not enabled
         HTTPException 401: Invalid or missing token
+
     """
     if token is None:
         raise_bad_request("Authentication is not enabled.")

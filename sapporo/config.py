@@ -2,9 +2,9 @@ import logging
 import os
 import sys
 from argparse import ArgumentParser, Namespace
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 import yaml
 from fastapi import FastAPI
@@ -16,7 +16,7 @@ PKG_DIR = Path(__file__).resolve().parent
 
 
 GA4GH_WES_SPEC_PATH = PKG_DIR.joinpath("ga4gh-wes-spec-1.1.0.yml")
-GA4GH_WES_SPEC: Dict[str, Any] = yaml.safe_load(GA4GH_WES_SPEC_PATH.read_text(encoding="utf-8"))
+GA4GH_WES_SPEC: dict[str, Any] = yaml.safe_load(GA4GH_WES_SPEC_PATH.read_text(encoding="utf-8"))
 
 
 # === Global configuration ===
@@ -34,96 +34,57 @@ class AppConfig(BaseModel):
     base_url: str = f"http://{'0.0.0.0' if inside_docker() else '127.0.0.1'}:1122"
     allow_origin: str = "*"
     auth_config: Path = PKG_DIR.joinpath("auth_config.json")
-    run_remove_older_than_days: Optional[int] = None
+    run_remove_older_than_days: int | None = None
 
 
 default_config = AppConfig()
 
 
-def parse_args(args: Optional[List[str]] = None) -> Namespace:
+def parse_args(args: list[str] | None = None) -> Namespace:
     parser = ArgumentParser(
         description="The sapporo-service is a standard implementation conforming to the Global Alliance for Genomics and Health (GA4GH) Workflow Execution Service (WES) API specification.",
     )
 
+    parser.add_argument("--host", type=str, metavar="", help="Host address for the service. (default: 127.0.0.1)")
+    parser.add_argument("--port", type=int, metavar="", help="Port number for the service. (default: 1122)")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode.")
     parser.add_argument(
-        "--host",
-        type=str,
-        metavar="",
-        help="Host address for the service. (default: 127.0.0.1)"
+        "--run-dir", type=Path, metavar="", help="Directory where the runs are stored. (default: ./runs)"
     )
+    parser.add_argument("--service-info", type=Path, metavar="", help="Path to the service_info.json file.")
     parser.add_argument(
-        "--port",
-        type=int,
-        metavar="",
-        help="Port number for the service. (default: 1122)"
+        "--executable-workflows", type=Path, metavar="", help="Path to the executable_workflows.json file."
     )
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Enable debug mode."
-    )
-    parser.add_argument(
-        "--run-dir",
-        type=Path,
-        metavar="",
-        help="Directory where the runs are stored. (default: ./runs)"
-    )
-    parser.add_argument(
-        "--service-info",
-        type=Path,
-        metavar="",
-        help="Path to the service_info.json file."
-    )
-    parser.add_argument(
-        "--executable-workflows",
-        type=Path,
-        metavar="",
-        help="Path to the executable_workflows.json file."
-    )
-    parser.add_argument(
-        "--run-sh",
-        type=Path,
-        metavar="",
-        help="Path to the run.sh script."
-    )
+    parser.add_argument("--run-sh", type=Path, metavar="", help="Path to the run.sh script.")
     parser.add_argument(
         "--url-prefix",
         type=str,
         metavar="",
-        help="URL prefix for the service endpoints. (default: '', e.g., /sapporo/api)"
+        help="URL prefix for the service endpoints. (default: '', e.g., /sapporo/api)",
     )
     parser.add_argument(
         "--base-url",
         type=str,
         metavar="",
-        help="Base URL for downloading the output files of the executed runs. The files can be downloaded using the format: {base_url}/runs/{run_id}/outputs/{path}. (default: http://{host}:{port}{url_prefix})"
+        help="Base URL for downloading the output files of the executed runs. The files can be downloaded using the format: {base_url}/runs/{run_id}/outputs/{path}. (default: http://{host}:{port}{url_prefix})",
     )
     parser.add_argument(
-        "--allow-origin",
-        type=str,
-        metavar="",
-        help="Access-Control-Allow-Origin header value. (default: *)"
+        "--allow-origin", type=str, metavar="", help="Access-Control-Allow-Origin header value. (default: *)"
     )
-    parser.add_argument(
-        "--auth-config",
-        type=Path,
-        metavar="",
-        help="Path to the auth_config.json file."
-    )
+    parser.add_argument("--auth-config", type=Path, metavar="", help="Path to the auth_config.json file.")
     parser.add_argument(
         "--run-remove-older-than-days",
         type=int,
         metavar="",
-        help="Clean up run directories with a start time older than the specified number of days."
+        help="Clean up run directories with a start time older than the specified number of days.",
     )
 
     return parser.parse_args(args)
 
 
-@lru_cache(maxsize=None)
+@cache
 def get_config() -> AppConfig:
-    """
-    Get the configuration for the application.
+    """Get the configuration for the application.
 
     This function initializes and returns the configuration used throughout the application.
     The initial state is cached using `lru_cache` to ensure that the configuration is only loaded once when the application starts.
@@ -143,11 +104,13 @@ def get_config() -> AppConfig:
     base_url = args.base_url or os.environ.get("SAPPORO_BASE_URL", f"http://{host}:{port}{url_prefix}")
 
     run_remove_older_than_days = args.run_remove_older_than_days or os.environ.get(
-        "SAPPORO_RUN_REMOVE_OLDER_THAN_DAYS", default_config.run_remove_older_than_days)
+        "SAPPORO_RUN_REMOVE_OLDER_THAN_DAYS", default_config.run_remove_older_than_days
+    )
     if run_remove_older_than_days is not None:
         run_remove_older_than_days = int(run_remove_older_than_days)
         if run_remove_older_than_days < 1:
-            raise ValueError("The value of --run-remove-older-than-days (SAPPORO_RUN_REMOVE_OLDER_THAN_DAYS) must be greater than or equal to 1.")
+            msg = "The value of --run-remove-older-than-days (SAPPORO_RUN_REMOVE_OLDER_THAN_DAYS) must be greater than or equal to 1."
+            raise ValueError(msg)
 
     return AppConfig(
         host=host,
@@ -155,7 +118,8 @@ def get_config() -> AppConfig:
         debug=args.debug or str2bool(os.environ.get("SAPPORO_DEBUG", default_config.debug)),
         run_dir=args.run_dir or Path(os.environ.get("SAPPORO_RUN_DIR", default_config.run_dir)),
         service_info=args.service_info or Path(os.environ.get("SAPPORO_SERVICE_INFO", default_config.service_info)),
-        executable_workflows=args.executable_workflows or Path(os.environ.get("SAPPORO_EXECUTABLE_WORKFLOWS", default_config.executable_workflows)),
+        executable_workflows=args.executable_workflows
+        or Path(os.environ.get("SAPPORO_EXECUTABLE_WORKFLOWS", default_config.executable_workflows)),
         run_sh=args.run_sh or Path(os.environ.get("SAPPORO_RUN_SH", default_config.run_sh)),
         url_prefix=url_prefix,
         base_url=base_url,
@@ -169,7 +133,7 @@ def get_config() -> AppConfig:
 
 
 # Ref.: https://github.com/encode/uvicorn/blob/master/uvicorn/config.py
-def logging_config(debug: bool = False) -> Dict[str, Any]:
+def logging_config(debug: bool = False) -> dict[str, Any]:
     return {
         "version": 1,
         "disable_existing_loggers": False,
@@ -198,17 +162,13 @@ def logging_config(debug: bool = False) -> Dict[str, Any]:
             },
         },
         "loggers": {
-            "sapporo": {
-                "handlers": ["default"],
-                "level": "DEBUG" if debug else "INFO",
-                "propagate": False
-            },
+            "sapporo": {"handlers": ["default"], "level": "DEBUG" if debug else "INFO", "propagate": False},
             "sqlalchemy.engine": {
                 "handlers": ["sqlalchemy"],
                 "level": "INFO" if debug else "WARNING",
-                "propagate": False
+                "propagate": False,
             },
-        }
+        },
     }
 
 
@@ -218,7 +178,7 @@ LOGGER = logging.getLogger("sapporo")
 # === Const ===
 
 
-RUN_DIR_STRUCTURE: Dict[str, str] = {
+RUN_DIR_STRUCTURE: dict[str, str] = {
     "runtime_info": "runtime_info.json",
     "run_request": "run_request.json",
     "state": "state.txt",
@@ -305,14 +265,14 @@ def add_openapi_info(app: FastAPI) -> None:
     original_openapi = app.openapi
 
     # Add security schemes to OpenAPI
-    def custom_openapi() -> Dict[str, Any]:
+    def custom_openapi() -> dict[str, Any]:
         if app.openapi_schema:
             return app.openapi_schema
 
         # Temporarily restore original to avoid recursion
-        app.openapi = original_openapi  # type: ignore
+        app.openapi = original_openapi  # type: ignore[method-assign]
         openapi_schema = app.openapi()
-        app.openapi = custom_openapi  # type: ignore
+        app.openapi = custom_openapi  # type: ignore[method-assign]
 
         openapi_schema["components"] = openapi_schema.get("components", {})
         openapi_schema["components"]["securitySchemes"] = {
@@ -320,23 +280,18 @@ def add_openapi_info(app: FastAPI) -> None:
                 "type": "http",
                 "scheme": "bearer",
                 "bearerFormat": "JWT",
-                "description": "JWT token obtained from POST /token endpoint"
+                "description": "JWT token obtained from POST /token endpoint",
             },
             "oauth2PasswordFlow": {
                 "type": "oauth2",
-                "flows": {
-                    "password": {
-                        "tokenUrl": "/token",
-                        "scopes": {}
-                    }
-                },
-                "description": "OAuth2 password flow for sapporo authentication"
-            }
+                "flows": {"password": {"tokenUrl": "/token", "scopes": {}}},
+                "description": "OAuth2 password flow for sapporo authentication",
+            },
         }
         app.openapi_schema = openapi_schema
         return openapi_schema
 
-    app.openapi = custom_openapi  # type: ignore
+    app.openapi = custom_openapi  # type: ignore[method-assign]
 
 
 def dump_openapi_schema(app: FastAPI) -> str:
@@ -345,6 +300,7 @@ def dump_openapi_schema(app: FastAPI) -> str:
 
 if __name__ == "__main__":
     from sapporo.app import create_app
+
     f_app = create_app()
     with PKG_DIR.joinpath("../sapporo-wes-spec-2.0.0.yml").open("w", encoding="utf-8") as f:
         f.write(dump_openapi_schema(f_app))

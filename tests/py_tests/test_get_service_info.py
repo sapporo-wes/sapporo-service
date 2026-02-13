@@ -1,17 +1,15 @@
-# pylint: disable=C0415, W0613, W0621
-
 import json
 
 from .conftest import anyhow_get_test_client
 
 
-def test_get_service_info(mocker, tmpdir):  # type: ignore
+def test_get_service_info(mocker, tmpdir):  # type: ignore[no-untyped-def]
     client = anyhow_get_test_client(None, mocker, tmpdir)
     response = client.get("/service-info")
     assert response.status_code == 200
 
 
-def test_get_service_info_from_file(mocker, tmpdir):  # type: ignore
+def test_get_service_info_from_file(mocker, tmpdir):  # type: ignore[no-untyped-def]
     from sapporo.config import AppConfig
 
     service_info = tmpdir.joinpath("service-info.json")

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# coding: utf-8
 import contextlib
 import gc
 import hashlib
@@ -10,9 +8,9 @@ import shlex
 import shutil
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from urllib.parse import urlsplit
 
 import magic
@@ -45,71 +43,53 @@ class EDAM(BaseModel):
     name: str
 
 
-EDAM_MAPPING: Dict[str, EDAM] = {
-    ".bam": EDAM(**{
-        "url": "http://edamontology.org/format_2572",
-        "name": "BAM format, the binary, BGZF-formatted compressed version of SAM format for alignment of nucleotide sequences (e.g. sequencing reads) to (a) reference sequence(s). May contain base-call and alignment qualities and other data.",
-    }),
-    ".bb": EDAM(**{
-        "url": "http://edamontology.org/format_3004",
-        "name": "bigBed format for large sequence annotation tracks, similar to textual BED format.",
-    }),
-    ".bed": EDAM(**{
-        "url": "http://edamontology.org/format_3003",
-        "name": "Browser Extensible Data (BED) format of sequence annotation track, typically to be displayed in a genome browser.",
-    }),
-    ".bw": EDAM(**{
-        "url": "http://edamontology.org/format_3006",
-        "name": "bigWig format for large sequence annotation tracks that consist of a value for each sequence position. Similar to textual WIG format.",
-    }),
-    ".fa": EDAM(**{
-        "url": "http://edamontology.org/format_1929",
-        "name": "FASTA format including NCBI-style IDs.",
-    }),
-    ".fasta": EDAM(**{
-        "url": "http://edamontology.org/format_1929",
-        "name": "FASTA format including NCBI-style IDs.",
-    }),
-    ".fastq": EDAM(**{
-        "url": "http://edamontology.org/format_1930",
-        "name": "FASTQ short read format ignoring quality scores.",
-    }),
-    ".fastq.gz": EDAM(**{
-        "url": "http://edamontology.org/format_1930",
-        "name": "FASTQ short read format ignoring quality scores.",
-    }),
-    ".fq": EDAM(**{
-        "url": "http://edamontology.org/format_1930",
-        "name": "FASTQ short read format ignoring quality scores.",
-    }),
-    ".fq.gz": EDAM(**{
-        "url": "http://edamontology.org/format_1930",
-        "name": "FASTQ short read format ignoring quality scores.",
-    }),
-    ".gtf": EDAM(**{
-        "url": "http://edamontology.org/format_2306",
-        "name": "Gene Transfer Format (GTF), a restricted version of GFF.",
-    }),
-    ".gff": EDAM(**{
-        "url": "http://edamontology.org/format_1975",
-        "name": "Generic Feature Format version 3 (GFF3) of sequence features.",
-    }),
-    ".sam": EDAM(**{
-        "url": "http://edamontology.org/format_2573",
-        "name": "Sequence Alignment/Map (SAM) format for alignment of nucleotide sequences (e.g. sequencing reads) to (a) reference sequence(s). May contain base-call and alignment qualities and other data.",
-    }),
-    ".vcf": EDAM(**{
-        "url": "http://edamontology.org/format_3016",
-        "name": "Variant Call Format (VCF) for sequence variation (indels, polymorphisms, structural variation).",
-    }),
-    ".vcf.gz": EDAM(**{
-        "url": "http://edamontology.org/format_3016",
-        "name": "Variant Call Format (VCF) for sequence variation (indels, polymorphisms, structural variation).",
-    }),
-    ".wig": EDAM(**{
-        "url": "http://edamontology.org/format_3005",
-        "name": "Wiggle format (WIG) of a sequence annotation track that consists of a value for each sequence position. Typically to be displayed in a genome browser.",
-    }),
+EDAM_MAPPING: dict[str, EDAM] = {
+    ".bam": EDAM(
+        url="http://edamontology.org/format_2572",
+        name="BAM format, the binary, BGZF-formatted compressed version of SAM format for alignment of nucleotide sequences (e.g. sequencing reads) to (a) reference sequence(s). May contain base-call and alignment qualities and other data.",
+    ),
+    ".bb": EDAM(
+        url="http://edamontology.org/format_3004",
+        name="bigBed format for large sequence annotation tracks, similar to textual BED format.",
+    ),
+    ".bed": EDAM(
+        url="http://edamontology.org/format_3003",
+        name="Browser Extensible Data (BED) format of sequence annotation track, typically to be displayed in a genome browser.",
+    ),
+    ".bw": EDAM(
+        url="http://edamontology.org/format_3006",
+        name="bigWig format for large sequence annotation tracks that consist of a value for each sequence position. Similar to textual WIG format.",
+    ),
+    ".fa": EDAM(url="http://edamontology.org/format_1929", name="FASTA format including NCBI-style IDs."),
+    ".fasta": EDAM(url="http://edamontology.org/format_1929", name="FASTA format including NCBI-style IDs."),
+    ".fastq": EDAM(url="http://edamontology.org/format_1930", name="FASTQ short read format ignoring quality scores."),
+    ".fastq.gz": EDAM(
+        url="http://edamontology.org/format_1930", name="FASTQ short read format ignoring quality scores."
+    ),
+    ".fq": EDAM(url="http://edamontology.org/format_1930", name="FASTQ short read format ignoring quality scores."),
+    ".fq.gz": EDAM(url="http://edamontology.org/format_1930", name="FASTQ short read format ignoring quality scores."),
+    ".gtf": EDAM(
+        url="http://edamontology.org/format_2306", name="Gene Transfer Format (GTF), a restricted version of GFF."
+    ),
+    ".gff": EDAM(
+        url="http://edamontology.org/format_1975", name="Generic Feature Format version 3 (GFF3) of sequence features."
+    ),
+    ".sam": EDAM(
+        url="http://edamontology.org/format_2573",
+        name="Sequence Alignment/Map (SAM) format for alignment of nucleotide sequences (e.g. sequencing reads) to (a) reference sequence(s). May contain base-call and alignment qualities and other data.",
+    ),
+    ".vcf": EDAM(
+        url="http://edamontology.org/format_3016",
+        name="Variant Call Format (VCF) for sequence variation (indels, polymorphisms, structural variation).",
+    ),
+    ".vcf.gz": EDAM(
+        url="http://edamontology.org/format_3016",
+        name="Variant Call Format (VCF) for sequence variation (indels, polymorphisms, structural variation).",
+    ),
+    ".wig": EDAM(
+        url="http://edamontology.org/format_3005",
+        name="Wiggle format (WIG) of a sequence annotation track that consists of a value for each sequence position. Typically to be displayed in a genome browser.",
+    ),
 }
 
 
@@ -117,8 +97,9 @@ EDAM_MAPPING: Dict[str, EDAM] = {
 
 
 def generate_ro_crate(inputted_run_dir: str) -> None:
-    """\
-    This function can be an entry point of this `ro_crate.py` module
+    """Generate an RO-Crate metadata file for the given run directory.
+
+    This function can be an entry point of this `ro_crate.py` module.
     Executed in run.sh as:
 
     `python3 -c "from sapporo.ro_crate import generate_ro_crate; generate_ro_crate('${run_dir}')" || echo "{}" >"${run_dir}/ro-crate-metadata.json" || true`
@@ -128,7 +109,8 @@ def generate_ro_crate(inputted_run_dir: str) -> None:
     """
     run_dir = Path(inputted_run_dir).resolve(strict=True)
     if not run_dir.is_dir():
-        raise NotADirectoryError(f"{run_dir} is not a directory.")
+        msg = f"{run_dir} is not a directory."
+        raise NotADirectoryError(msg)
 
     crate = ROCrate(init=False, gen_preview=False)
 
@@ -149,14 +131,9 @@ def generate_ro_crate(inputted_run_dir: str) -> None:
         json.dump(jsonld, f, indent=2, sort_keys=True)
 
 
-def read_file(
-        run_dir: Path,
-        key: RunDirStructureKeys,
-        one_line: bool = False,
-        raw: bool = False
-) -> Any:
-    """\
-    Read a file in run_dir.
+def read_file(run_dir: Path, key: RunDirStructureKeys, one_line: bool = False, raw: bool = False) -> Any:
+    """Read a file in run_dir.
+
     There is a function with the same name in `config.py`, but this one takes `run_dir` instead of `run_id` as an argument.
     """
     if "dir" in key:
@@ -178,14 +155,15 @@ def read_file(
             return f.read()
 
 
-def load_run_request(obj: Dict[str, Any]) -> RunRequestForm:
+def load_run_request(obj: dict[str, Any]) -> RunRequestForm:
     wf_attachment = [
         UploadFile(
             file=io.BytesIO(b""),
             filename=f["filename"],
             headers=f["headers"],
             size=f["size"],
-        ) for f in obj["workflow_attachment"]
+        )
+        for f in obj["workflow_attachment"]
     ]
     obj["workflow_attachment"] = wf_attachment
     return RunRequestForm.model_validate(obj)
@@ -193,36 +171,45 @@ def load_run_request(obj: Dict[str, Any]) -> RunRequestForm:
 
 def add_crate_metadata(crate: ROCrate) -> None:
     # @id: ro-crate-metadata.json
-    profiles = set(_.rstrip("/") for _ in get_norm_value(crate.metadata, "conformsTo"))
+    profiles = {_.rstrip("/") for _ in get_norm_value(crate.metadata, "conformsTo")}
     profiles.add(WORKFLOW_PROFILE)
     crate.metadata["conformsTo"] = [{"@id": _} for _ in sorted(profiles)]
 
     # @id: ./
-    crate.root_dataset.append_to("conformsTo", [
-        {"@id": "https://w3id.org/ro/wfrun/process/0.1"},
-        {"@id": "https://w3id.org/ro/wfrun/workflow/0.1"},
-        {"@id": WORKFLOW_PROFILE},
-    ])
+    crate.root_dataset.append_to(
+        "conformsTo",
+        [
+            {"@id": "https://w3id.org/ro/wfrun/process/0.1"},
+            {"@id": "https://w3id.org/ro/wfrun/workflow/0.1"},
+            {"@id": WORKFLOW_PROFILE},
+        ],
+    )
 
 
 def add_run_crate_profile(crate: ROCrate) -> None:
-    crate.add(CreativeWork(crate, "https://w3id.org/ro/wfrun/process/0.1", properties={
-        "name": "Process Run Crate",
-        "version": "0.1"
-    }))
-    crate.add(CreativeWork(crate, "https://w3id.org/ro/wfrun/workflow/0.1", properties={
-        "name": "Workflow Run Crate",
-        "version": "0.1"
-    }))
-    crate.add(CreativeWork(crate, "https://w3id.org/workflowhub/workflow-ro-crate/1.0", properties={
-        "name": "Workflow RO-Crate",
-        "version": "1.0"
-    }))
+    crate.add(
+        CreativeWork(
+            crate, "https://w3id.org/ro/wfrun/process/0.1", properties={"name": "Process Run Crate", "version": "0.1"}
+        )
+    )
+    crate.add(
+        CreativeWork(
+            crate, "https://w3id.org/ro/wfrun/workflow/0.1", properties={"name": "Workflow Run Crate", "version": "0.1"}
+        )
+    )
+    crate.add(
+        CreativeWork(
+            crate,
+            "https://w3id.org/workflowhub/workflow-ro-crate/1.0",
+            properties={"name": "Workflow RO-Crate", "version": "1.0"},
+        )
+    )
 
 
 def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequestForm) -> None:
-    """\
-    Modified from crate.add_workflow()
+    """Add a workflow entity to the RO-Crate.
+
+    Modified from crate.add_workflow().
 
     RunRequest:
       - wf_url: Remote location, or local file path attached as workflow_attachment and downloaded to exe_dir
@@ -242,39 +229,36 @@ def add_workflow(crate: ROCrate, run_dir: Path, run_request: RunRequestForm) -> 
     wf_ins.lang = generate_wf_lang(crate, run_request)
 
 
-def update_local_file_stat(file_ins: File, file_path: Path, include_content: bool = True, include_force: bool = False) -> None:
-    """\
-    Add file stat such as `contentSize` and `sha512` to the file instance given as an argument.
+def update_local_file_stat(
+    file_ins: File, file_path: Path, include_content: bool = True, include_force: bool = False
+) -> None:
+    """Add file stat such as `contentSize` and `sha512` to the file instance given as an argument.
+
     The instance itself is updated.
     """
     if file_path.is_file() is False:
-        return None
+        return
     if file_path.exists() is False:
-        return None
+        return
 
     # From file stat
     stat_result = file_path.stat()
 
     # https://schema.org/MediaObject
     file_ins["contentSize"] = stat_result.st_size
-    file_ins["dateModified"] = datetime.fromtimestamp(stat_result.st_mtime).isoformat()
+    file_ins["dateModified"] = datetime.fromtimestamp(stat_result.st_mtime, tz=timezone.utc).isoformat()
 
     # add file line count
-    try:
+    with contextlib.suppress(UnicodeDecodeError):
         file_ins["lineCount"] = count_lines(file_path)
-    except UnicodeDecodeError:
-        pass
 
     # checksum using sha512 (https://www.researchobject.org/ro-crate/1.1/appendix/implementation-notes.html#combining-with-other-packaging-schemes)
     file_ins["sha512"] = generate_sha512(file_path)
 
-    if include_content:
+    if include_content and (include_force or file_ins["contentSize"] < 10 * 1024):
         # under 10kb, attach as text
-        if include_force or file_ins["contentSize"] < 10 * 1024:
-            try:
-                file_ins["text"] = file_path.read_text()
-            except UnicodeDecodeError:
-                pass
+        with contextlib.suppress(UnicodeDecodeError):
+            file_ins["text"] = file_path.read_text()
 
     edam = inspect_edam_format(file_path)
     if edam is not None:
@@ -283,14 +267,13 @@ def update_local_file_stat(file_ins: File, file_path: Path, include_content: boo
         # https://pypi.org/project/python-magic/
         file_ins["encodingFormat"] = magic.from_file(str(file_path), mime=True)
 
-    return None
+    return
 
 
 def append_exe_dir_dataset(crate: ROCrate, ins: DataEntity) -> None:
     for entity in crate.get_entities():
-        if isinstance(entity, Dataset):
-            if str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['exe_dir']}/":
-                entity.append_to("hasPart", ins, compact=True)
+        if isinstance(entity, Dataset) and str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['exe_dir']}/":
+            entity.append_to("hasPart", ins, compact=True)
 
 
 def count_lines(file_path: Path) -> int:
@@ -326,8 +309,9 @@ def generate_sha512(file_path: Path) -> str:
     return hash_
 
 
-def inspect_edam_format(file_path: Path) -> Optional[EDAM]:
-    """\
+def inspect_edam_format(file_path: Path) -> EDAM | None:
+    """Inspect the EDAM format of the file based on its extension.
+
     TODO: use tataki (https://github.com/suecharo/tataki)
     """
     for ext, edam in EDAM_MAPPING.items():
@@ -338,7 +322,8 @@ def inspect_edam_format(file_path: Path) -> Optional[EDAM]:
 
 
 def generate_wf_lang(crate: ROCrate, run_request: RunRequestForm) -> ComputerLanguage:
-    """\
+    """Generate a ComputerLanguage instance for the workflow type.
+
     wf_type: "CWL", "WDL", "NFL", "SMK" or others
     wf_type_version: str
     """
@@ -356,14 +341,16 @@ def generate_wf_lang(crate: ROCrate, run_request: RunRequestForm) -> ComputerLan
         lang_ins = ro_crate_get_lang(crate, lang_type_for_ro_crate, wf_type_version)
         for filed in ["identifier", "url"]:
             id_ = get_norm_value(lang_ins, filed)[0]
-            cxt = ContextEntity(crate, id_, properties={
-                "@type": ["WebPage"],
-            })
+            cxt = ContextEntity(
+                crate,
+                id_,
+                properties={
+                    "@type": ["WebPage"],
+                },
+            )
             crate.add(cxt)
-            # lang_ins.append_to(filed, cxt) # bug of ro_crate_py
     except ValueError as e:
         if "Unknown language" in str(e):
-            # case: WDL or others
             if wf_type.lower() == "wdl":
                 id_ = "https://openwdl.org"
                 lang_ins = ComputerLanguage(
@@ -373,10 +360,15 @@ def generate_wf_lang(crate: ROCrate, run_request: RunRequestForm) -> ComputerLan
                         "name": "Workflow Description Language",
                         "alternateName": "WDL",
                         "version": wf_type_version,
-                    })
-                ctx = ContextEntity(crate, id_, properties={
-                    "@type": ["WebPage"],
-                })
+                    },
+                )
+                ctx = ContextEntity(
+                    crate,
+                    id_,
+                    properties={
+                        "@type": ["WebPage"],
+                    },
+                )
                 lang_ins.append_to("identifier", ctx, compact=True)
                 lang_ins.append_to("url", ctx, compact=True)
                 crate.add(ctx)
@@ -387,24 +379,24 @@ def generate_wf_lang(crate: ROCrate, run_request: RunRequestForm) -> ComputerLan
                     properties={
                         "name": wf_type,
                         "version": wf_type_version,
-                    })
+                    },
+                )
         else:
-            raise e
+            raise
 
     crate.add(lang_ins)
 
     return lang_ins
 
 
-outputs_adapter = TypeAdapter(List[FileObject])
+outputs_adapter = TypeAdapter(list[FileObject])
 
 
 def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequestForm, run_id: str) -> None:
     # Run metadata
-    create_action_ins = ContextEntity(crate, identifier=run_id, properties={
-        "@type": "CreateAction",
-        "name": "Sapporo workflow run " + run_id
-    })
+    create_action_ins = ContextEntity(
+        crate, identifier=run_id, properties={"@type": "CreateAction", "name": "Sapporo workflow run " + run_id}
+    )
     create_action_ins.append_to("instrument", crate.mainEntity, compact=True)
     crate.root_dataset.append_to("mentions", create_action_ins)
 
@@ -433,9 +425,14 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequestForm,
         dest = source.relative_to(run_dir)
         if str(dest) == str(main_wf_id):
             continue
-        file_ins = File(crate, source, dest, properties={
-            "@type": "File",
-        })
+        file_ins = File(
+            crate,
+            source,
+            dest,
+            properties={
+                "@type": "File",
+            },
+        )
         update_local_file_stat(file_ins, source, include_content=False)
         append_exe_dir_dataset(crate, file_ins)
         crate.add(file_ins)
@@ -445,10 +442,15 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequestForm,
         dest = source.relative_to(run_dir)
         if str(dest) == str(main_wf_id):
             continue
-        file_ins = File(crate, source, dest, properties={
-            "@type": "File",
-            "url": attached_item.file_url,
-        })
+        file_ins = File(
+            crate,
+            source,
+            dest,
+            properties={
+                "@type": "File",
+                "url": attached_item.file_url,
+            },
+        )
         update_local_file_stat(file_ins, source, include_content=False)
         append_exe_dir_dataset(crate, file_ins)
         crate.add(file_ins)
@@ -463,9 +465,14 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequestForm,
         file_apath = source.resolve(strict=True)
         file_rpath = file_apath.relative_to(run_dir)
 
-        actual_file = File(crate, file_apath, file_rpath, properties={
-            "@type": "File",
-        })
+        actual_file = File(
+            crate,
+            file_apath,
+            file_rpath,
+            properties={
+                "@type": "File",
+            },
+        )
         update_local_file_stat(actual_file, file_apath)
 
         if outputs is not None:
@@ -483,7 +490,7 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequestForm,
 
     # Log files
     # Add log files
-    log_files: List[Tuple[RunDirStructureKeys, str]] = [
+    log_files: list[tuple[RunDirStructureKeys, str]] = [
         ("stdout", "Sapporo stdout"),
         ("stderr", "Sapporo stderr"),
     ]
@@ -492,9 +499,14 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequestForm,
         if source.exists() is False:
             continue
         dest = source.relative_to(run_dir)
-        file_ins = File(crate, source, dest, properties={
-            "name": name,
-        })
+        file_ins = File(
+            crate,
+            source,
+            dest,
+            properties={
+                "name": name,
+            },
+        )
         update_local_file_stat(file_ins, source)
         create_action_ins.append_to("subjectOf", file_ins)
         crate.add(file_ins)
@@ -504,9 +516,7 @@ def add_workflow_run(crate: ROCrate, run_dir: Path, run_request: RunRequestForm,
 
 
 def add_multiqc_stats(crate: ROCrate, run_dir: Path, create_action_ins: ContextEntity) -> None:
-    """\
-    Run multiqc and add multiqc stats to crate
-    """
+    """Run multiqc and add multiqc stats to the crate."""
     stdout = io.StringIO()
     stderr = io.StringIO()
     try:
@@ -520,8 +530,8 @@ def add_multiqc_stats(crate: ROCrate, run_dir: Path, create_action_ins: ContextE
                     quiet=True,
                 ),
             )
-    except Exception:  # pylint: disable=broad-except
-        print(stderr.getvalue(), file=sys.stderr)
+    except Exception:
+        print(stderr.getvalue(), file=sys.stderr)  # noqa: T201
         return
 
     # Note: As shown below, the message may go to stderr and the function itself may produce no output.
@@ -538,17 +548,23 @@ def add_multiqc_stats(crate: ROCrate, run_dir: Path, create_action_ins: ContextE
         # Do nothing, TODO: logging or not?
         return
 
-    file_ins = File(crate, multiqc_stats, multiqc_stats.relative_to(run_dir), properties={
-        "name": "MultiQC stats",
-    })
+    file_ins = File(
+        crate,
+        multiqc_stats,
+        multiqc_stats.relative_to(run_dir),
+        properties={
+            "name": "MultiQC stats",
+        },
+    )
     update_local_file_stat(file_ins, multiqc_stats, include_content=True, include_force=True)
     create_action_ins.append_to("multiqcStats", file_ins)
     crate.add(file_ins)
 
 
 def add_file_stats(crate: ROCrate, file_ins: File) -> None:
-    """\
-    see "format" field of file_ins
+    """Add file statistics using Docker-based bioinformatics tools.
+
+    See "format" field of file_ins.
 
     ".bam": "http://edamontology.org/format_2572"
     ".sam": "http://edamontology.org/format_2573",
@@ -570,27 +586,32 @@ def add_file_stats(crate: ROCrate, file_ins: File) -> None:
 
 
 def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
-    """\
+    """Add samtools flagstats statistics to the file instance.
+
     $ samtools flagstats --output-fmt json <file_path>
 
     Using: quay.io/biocontainers/samtools:1.15.1--h1170115_0
     """
     source = file_ins.source
-    cmd = shlex.split(" ".join([
-        "docker",
-        "run",
-        "--rm",
-        "-v",
-        f"{source}:/work/{source.name}",
-        "-w",
-        "/work",
-        "quay.io/biocontainers/samtools:1.15.1--h1170115_0",
-        "samtools",
-        "flagstats",
-        "--output-fmt",
-        "json",
-        source.name,
-    ]))
+    cmd = shlex.split(
+        " ".join(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "-v",
+                f"{source}:/work/{source.name}",
+                "-w",
+                "/work",
+                "quay.io/biocontainers/samtools:1.15.1--h1170115_0",
+                "samtools",
+                "flagstats",
+                "--output-fmt",
+                "json",
+                source.name,
+            ]
+        )
+    )
     proc = subprocess.run(cmd, capture_output=True, check=False)
     if proc.returncode != 0:
         return
@@ -600,17 +621,22 @@ def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
         mapped = stats["QC-passed reads"]["mapped"]
         unmapped = total - mapped
         duplicate = stats["QC-passed reads"]["duplicates"]
-        stats_ins = ContextEntity(crate, properties={
-            "@type": ["FileStats"],
-            "totalReads": total,
-            "mappedReads": mapped,
-            "unmappedReads": unmapped,
-            "duplicateReads": duplicate,
-            "mappedRate": mapped / total,
-            "unmappedRate": unmapped / total,
-            "duplicateRate": duplicate / total,
-        })
-        stats_ins.append_to("generatedBy", find_or_generate_software_ins(crate, "samtools", "1.15.1--h1170115_0"), compact=True)
+        stats_ins = ContextEntity(
+            crate,
+            properties={
+                "@type": ["FileStats"],
+                "totalReads": total,
+                "mappedReads": mapped,
+                "unmappedReads": unmapped,
+                "duplicateReads": duplicate,
+                "mappedRate": mapped / total,
+                "unmappedRate": unmapped / total,
+                "duplicateRate": duplicate / total,
+            },
+        )
+        stats_ins.append_to(
+            "generatedBy", find_or_generate_software_ins(crate, "samtools", "1.15.1--h1170115_0"), compact=True
+        )
         file_ins.append_to("stats", stats_ins, compact=True)
         crate.add(stats_ins)
     except json.JSONDecodeError:
@@ -618,42 +644,52 @@ def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
 
 
 def add_vcftools_stats(crate: ROCrate, file_ins: File) -> None:
-    """\
+    """Add vcftools statistics to the file instance.
+
     $ vcf-stats <file_path>
 
     Using: quay.io/biocontainers/vcftools:0.1.16--pl5321h9a82719_6
     """
     source = file_ins.source
-    cmd = shlex.split(" ".join([
-        "docker",
-        "run",
-        "--rm",
-        "-v",
-        f"{source}:/work/{source.name}",
-        "-w",
-        "/work",
-        "quay.io/biocontainers/vcftools:0.1.16--pl5321h9a82719_6",
-        "vcf-stats",
-        source.name,
-    ]))
+    cmd = shlex.split(
+        " ".join(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "-v",
+                f"{source}:/work/{source.name}",
+                "-w",
+                "/work",
+                "quay.io/biocontainers/vcftools:0.1.16--pl5321h9a82719_6",
+                "vcf-stats",
+                source.name,
+            ]
+        )
+    )
     proc = subprocess.run(cmd, capture_output=True, check=False)
     if proc.returncode != 0:
         return
     try:
         stdout = proc.stdout.decode()
         stdout = stdout.strip()
-        stdout = stdout.lstrip("$VAR1 = ")
+        stdout = stdout.removeprefix("$VAR1 = ")
         stdout = stdout.rstrip(";")
         stdout = stdout.replace("=>", ":")
-        stdout = stdout.replace("\'", "\"")
+        stdout = stdout.replace("'", '"')
         stats = json.loads(stdout)
-        stats_ins = ContextEntity(crate, properties={
-            "@type": ["FileStats"],
-            "variantCount": stats["all"].get("count", 0),
-            "snpsCount": stats["all"].get("snp_count", 0),
-            "indelsCount": stats["all"].get("indel_count", 0),
-        })
-        stats_ins.append_to("generatedBy", find_or_generate_software_ins(crate, "vcftools", "0.1.16--pl5321h9a82719_6"), compact=True)
+        stats_ins = ContextEntity(
+            crate,
+            properties={
+                "@type": ["FileStats"],
+                "variantCount": stats["all"].get("count", 0),
+                "snpsCount": stats["all"].get("snp_count", 0),
+                "indelsCount": stats["all"].get("indel_count", 0),
+            },
+        )
+        stats_ins.append_to(
+            "generatedBy", find_or_generate_software_ins(crate, "vcftools", "0.1.16--pl5321h9a82719_6"), compact=True
+        )
         file_ins.append_to("stats", stats_ins, compact=True)
         crate.add(stats_ins)
     except json.JSONDecodeError:
@@ -662,13 +698,9 @@ def add_vcftools_stats(crate: ROCrate, file_ins: File) -> None:
 
 def find_or_generate_software_ins(crate: ROCrate, name: str, version: str) -> SoftwareApplication:
     for entity in crate.get_entities():
-        if isinstance(entity, SoftwareApplication):
-            if entity["name"] == name:
-                return entity
-    software_ins = SoftwareApplication(crate, identifier=name, properties={
-        "name": name,
-        "version": version
-    })
+        if isinstance(entity, SoftwareApplication) and entity["name"] == name:
+            return entity
+    software_ins = SoftwareApplication(crate, identifier=name, properties={"name": name, "version": version})
     crate.add(software_ins)
 
     return software_ins
@@ -676,16 +708,14 @@ def find_or_generate_software_ins(crate: ROCrate, name: str, version: str) -> So
 
 def append_outputs_dir_dataset(crate: ROCrate, ins: DataEntity) -> None:
     for entity in crate.get_entities():
-        if isinstance(entity, Dataset):
-            if str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['outputs_dir']}/":
-                entity.append_to("hasPart", ins, compact=True)
+        if isinstance(entity, Dataset) and str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['outputs_dir']}/":
+            entity.append_to("hasPart", ins, compact=True)
 
 
-def extract_exe_dir_file_ids(crate: ROCrate) -> List[str]:
+def extract_exe_dir_file_ids(crate: ROCrate) -> list[str]:
     for entity in crate.get_entities():
-        if isinstance(entity, Dataset):
-            if str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['exe_dir']}/":
-                return get_norm_value(entity, "hasPart")  # type: ignore[no-any-return]
+        if isinstance(entity, Dataset) and str(entity["@id"]) == f"{RUN_DIR_STRUCTURE['exe_dir']}/":
+            return get_norm_value(entity, "hasPart")  # type: ignore[no-any-return]
     return []
 
 
