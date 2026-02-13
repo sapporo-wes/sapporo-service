@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "sapporo/**"
+      - "tests/**"
       - "pyproject.toml"
   workflow_dispatch: {}
   pull_request:

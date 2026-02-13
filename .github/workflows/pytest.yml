@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "sapporo/**"
+      - "tests/**"
       - "pyproject.toml"
   workflow_dispatch: {}
   pull_request:
@@ -14,7 +15,7 @@ on:
       - synchronize
 
 jobs:
-  pytest:
+  unit-test:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Code
@@ -25,13 +26,30 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Update and Install apt Dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y jq
-
       - name: Install Dependencies
         run: uv sync --locked --all-extras
 
       - name: Run pytest
-        run: uv run pytest -s
+        run: uv run pytest -v --tb=short
+
+  mutation-test:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: uv sync --locked --all-extras
+
+      - name: Run mutmut
+        run: uv run mutmut run
+
+      - name: Show mutmut results
+        if: always()
+        run: uv run mutmut results

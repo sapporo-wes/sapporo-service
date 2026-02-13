@@ -47,7 +47,16 @@ Documentation = "https://github.com/sapporo-wes/sapporo-service/blob/main/README
 Repository = "https://github.com/sapporo-wes/sapporo-service.git"
 
 [project.optional-dependencies]
-tests = ["mypy", "pytest-cov", "pytest-mock", "pytest", "ruff", "types-PyYAML"]
+tests = [
+    "hypothesis",
+    "mutmut",
+    "mypy",
+    "pytest",
+    "pytest-mock",
+    "pytest-randomly",
+    "ruff",
+    "types-PyYAML",
+]
 
 [project.scripts]
 sapporo = "sapporo.app:main"
@@ -56,19 +65,13 @@ sapporo = "sapporo.app:main"
 packages = ["sapporo"]
 
 [tool.pytest.ini_options]
-addopts = "--cov=sapporo --cov-report=html:tests/htmlcov --cov-report=xml:tests/coverage.xml --cov-report=term-missing --cov-fail-under=80"
-testpaths = ["tests/py_tests"]
-asyncio_default_fixture_loop_scope = "function"
-
-[tool.coverage.run]
-branch = true
-source = ["sapporo"]
-
-[tool.coverage.report]
-exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:"]
+addopts = "-v --tb=short --strict-markers"
+testpaths = ["tests/unit"]
+markers = ["slow: marks tests as slow (deselect with '-m \"not slow\"')"]
 
 [tool.mypy]
-files = ["./sapporo/**/*.py", "./tests/py_tests/**/*.py"]
+files = ["./sapporo/**/*.py", "./tests/unit/**/*.py"]
+plugins = ["pydantic.mypy"]
 follow_imports = "silent"
 strict = true
 ignore_missing_imports = true
@@ -151,7 +154,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"sapporo/cli.py" = ["T201"]  # print is intentional CLI output
+"sapporo/cli.py" = ["T201"] # print is intentional CLI output
 "tests/**/*.py" = [
     "INP001",  # Implicit namespace package
     "PIE804",  # Unnecessary dict kwargs (type: ignore on dict spread)
@@ -163,3 +166,8 @@ ignore = [
     "SLF001",  # Private member access
     "T201",    # Print for debugging output
 ]
+
+[tool.mutmut]
+# auth.py, config.py は __file__ 経由でデータファイルを参照するため mutmut の mutants/ コピーと非互換
+paths_to_mutate = ["sapporo/utils.py", "sapporo/exceptions.py"]
+tests_dir = ["tests/unit/"]
