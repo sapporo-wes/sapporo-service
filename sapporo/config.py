@@ -302,5 +302,7 @@ if __name__ == "__main__":
     from sapporo.app import create_app
 
     f_app = create_app()
-    with PKG_DIR.joinpath("../sapporo-wes-spec-2.0.0.yml").open("w", encoding="utf-8") as f:
+    out = PKG_DIR.joinpath("../openapi/sapporo-wes-spec-2.0.0.yml")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open("w", encoding="utf-8") as f:
         f.write(dump_openapi_schema(f_app))

@@ -7,7 +7,23 @@ The sapporo-service supports JWT-based authentication with two modes:
 - **sapporo mode**: Built-in authentication with local user management. The service manages users, hashes passwords with Argon2, and issues/verifies JWTs using a local secret key. Suitable for standalone deployments.
 - **external mode**: Delegates authentication to an external OpenID Connect Identity Provider (e.g., Keycloak). The service only verifies JWTs using the IdP's JWKS endpoint. Suitable for organizations with existing identity infrastructure.
 
-When authentication is enabled, each run is associated with a username, ensuring users can only access their own runs. See [API Specification - Protected Endpoints](api-spec.md#protected-endpoints) for the list of endpoints that require authentication.
+When authentication is enabled, each run is associated with a username, ensuring users can only access their own runs.
+
+### Protected Endpoints
+
+| Endpoint | Method | Note |
+|---|---|---|
+| `/service-info` | GET | Optional: provides user-specific counts when authenticated |
+| `/runs` | GET | |
+| `/runs` | POST | |
+| `/runs/{run_id}` | GET | |
+| `/runs/{run_id}/cancel` | POST | |
+| `/runs/{run_id}/status` | GET | |
+| `/runs/{run_id}/outputs` | GET | |
+| `/runs/{run_id}/outputs/{path}` | GET | |
+| `/runs/{run_id}/ro-crate` | GET | |
+| `/runs/{run_id}` | DELETE | |
+| `/runs` | DELETE | Bulk delete (sapporo 2.1.0+) |
 
 ## auth_config.json
 

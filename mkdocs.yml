@@ -39,7 +39,7 @@ nav:
   - Getting Started: getting-started.md
   - Installation: installation.md
   - Configuration: configuration.md
-  - API Specification: api-spec.md
+  - WES Compatibility: wes-compatibility.md
   - Authentication: authentication.md
   - Architecture: architecture.md
   - Development: development.md
