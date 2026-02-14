@@ -266,7 +266,7 @@ def spr_check_user(username: str, password: str) -> None:
     if target_user is None:
         # Perform a dummy hash verification to prevent timing attacks
         # that could reveal whether a username exists
-        with contextlib.suppress(Exception):  # nosec B110
+        with contextlib.suppress(Exception):
             _password_hasher.verify("$argon2id$v=19$m=65536,t=3,p=4$dummy$dummy", password)
         raise_invalid_credentials()
 
