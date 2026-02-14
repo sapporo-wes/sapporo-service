@@ -1,0 +1,56 @@
+site_name: Sapporo WES Documentation
+site_url: https://sapporo-wes.github.io/sapporo-service
+repo_name: sapporo-wes/sapporo-service
+repo_url: https://github.com/sapporo-wes/sapporo-service
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; DDBJ (Bioinformatics and DDBJ Center)
+
+theme:
+  name: material
+  logo: https://raw.githubusercontent.com/sapporo-wes/sapporo/main/logo/sapporo-service.svg
+  palette:
+    primary: indigo
+    accent: amber
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.top
+    - content.code.copy
+    - content.code.annotate
+    - search.suggest
+    - search.highlight
+
+markdown_extensions:
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Installation: installation.md
+  - Configuration: configuration.md
+  - API Specification: api-spec.md
+  - Authentication: authentication.md
+  - Architecture: architecture.md
+  - Development: development.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/sapporo-wes/sapporo-service
+
+# README.md (index.md) contains links relative to the repo root (e.g., docs/installation.md)
+# which are correct for GitHub but unresolvable in MkDocs. The nav bar provides navigation.
+validation:
+  links:
+    not_found: info
