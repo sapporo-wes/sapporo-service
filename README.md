@@ -314,13 +314,17 @@ Run lint and tests:
 
 ```bash
 # Lint and format
-pylint ./sapporo
-mypy ./sapporo
-isort ./sapporo
+uv run ruff check sapporo/ tests/
+uv run ruff format --check sapporo/ tests/
+uv run mypy ./sapporo ./tests/unit
 
 # Test
-pytest
+uv run pytest
 ```
+
+### Release
+
+See [docs/releasing.md](./docs/releasing.md) for the release process.
 
 ## Differences Between Sapporo Service 2.x and 1.x
 

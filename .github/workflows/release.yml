@@ -6,11 +6,34 @@ on:
       - "*.*.*"
 
 jobs:
+  validate-version:
+    if: github.repository == 'sapporo-wes/sapporo-service'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Verify tag matches pyproject.toml version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          PKG_VERSION=$(python3 -c "
+          import tomllib
+          with open('pyproject.toml', 'rb') as f:
+              print(tomllib.load(f)['project']['version'])
+          ")
+          if [ "$TAG" != "$PKG_VERSION" ]; then
+            echo "::error::Tag '$TAG' does not match pyproject.toml version '$PKG_VERSION'"
+            exit 1
+          fi
+          echo "Version check passed: $TAG == $PKG_VERSION"
+
   pypi-publish:
     if: github.repository == 'sapporo-wes/sapporo-service'
+    needs: [validate-version]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
+      id-token: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
@@ -27,10 +50,7 @@ jobs:
         run: uvx twine check dist/*
 
       - name: Publish to PyPI
-        env:
-          UV_PUBLISH_USERNAME: ${{ secrets.PYPI_USERNAME }}
-          UV_PUBLISH_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: uv publish
+        run: uv publish --trusted-publishing always
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v6
@@ -40,6 +60,7 @@ jobs:
 
   docker-push:
     if: github.repository == 'sapporo-wes/sapporo-service'
+    needs: [validate-version]
     runs-on: ubuntu-24.04
     permissions:
       contents: read

@@ -3,7 +3,7 @@ FROM python:3.12-slim-bookworm
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 ARG TARGETARCH
-ARG VERSION=2.1.0
+ARG VERSION=dev
 
 LABEL org.opencontainers.image.authors="Bioinformatics and DDBJ Center <tazro.ohta@chiba-u.jp>"
 LABEL org.opencontainers.image.url="https://github.com/sapporo-wes/sapporo-service"
