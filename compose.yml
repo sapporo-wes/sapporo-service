@@ -1,25 +1,27 @@
+# Sapporo spawns sub-containers via Docker socket (DinD).
+# Sub-container volume mounts are resolved on the HOST, not inside this container.
+# Therefore, SAPPORO_RUN_DIR uses ${PWD} (host absolute path) and mounts
+# host-path:host-path so that paths are identical on both sides.
+
 services:
   app:
-    image: ghcr.io/sapporo-wes/sapporo-service:2.1.0
+    image: ghcr.io/sapporo-wes/sapporo-service:${SAPPORO_VERSION:-latest}
     container_name: sapporo-service
-    volumes:
-      # The ones below are mounted for cwltool and DinD.
-      - ${PWD}/runs:${PWD}/runs
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /tmp:/tmp
     environment:
-      # Priority: [CLI Args] -> [Env Vals] -> [Defaults]
       - SAPPORO_HOST=0.0.0.0
       - SAPPORO_PORT=1122
       - SAPPORO_DEBUG=False
       - SAPPORO_RUN_DIR=${PWD}/runs
+    volumes:
+      - ${PWD}/runs:${PWD}/runs:rw
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - 127.0.0.1:1122:1122
-    restart: always
     working_dir: /app
-    command: [ "sapporo" ]
+    command: ["sapporo"]
     networks:
       - sapporo-network
+    init: true
 
 networks:
   sapporo-network:

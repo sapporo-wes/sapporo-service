@@ -1,32 +1,45 @@
-FROM python:3.12-bookworm
+FROM python:3.12-slim-bookworm
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+ARG TARGETARCH
+ARG VERSION=2.1.0
 
 LABEL org.opencontainers.image.authors="Bioinformatics and DDBJ Center <tazro.ohta@chiba-u.jp>"
 LABEL org.opencontainers.image.url="https://github.com/sapporo-wes/sapporo-service"
 LABEL org.opencontainers.image.source="https://github.com/sapporo-wes/sapporo-service/blob/main/Dockerfile"
-LABEL org.opencontainers.image.version="2.1.0"
+LABEL org.opencontainers.image.version="${VERSION}"
 LABEL org.opencontainers.image.description="The sapporo-service is a standard implementation conforming to the Global Alliance for Genomics and Health (GA4GH) Workflow Execution Service (WES) API specification."
 LABEL org.opencontainers.image.licenses="Apache2.0"
 
-RUN apt update && \
-    apt install -y --no-install-recommends \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
     curl \
     jq && \
-    apt clean && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-WORKDIR /tmp
-RUN curl -Lo docker.tgz https://download.docker.com/linux/static/stable/x86_64/docker-26.1.4.tgz && \
-    tar -xzf docker.tgz && \
-    mv docker/docker /usr/local/bin/docker && \
-    rm -rf docker docker.tgz
+# Install Docker CLI (multi-architecture)
+RUN DOCKER_ARCH=$(case "${TARGETARCH}" in \
+    amd64) echo "x86_64" ;; \
+    arm64) echo "aarch64" ;; \
+    *) echo "x86_64" ;; \
+    esac) && \
+    curl -fsSL -o /tmp/docker.tgz "https://download.docker.com/linux/static/stable/${DOCKER_ARCH}/docker-29.2.1.tgz" && \
+    tar -xzf /tmp/docker.tgz -C /tmp && \
+    mv /tmp/docker/docker /usr/local/bin/docker && \
+    rm -rf /tmp/docker /tmp/docker.tgz
 
 WORKDIR /app
 COPY . .
-RUN uv pip install --system --no-cache .
 
-EXPOSE 1122
+# Named volume inherits image permissions on first creation;
+# make writable so arbitrary UID (dev) can run uv commands.
+RUN uv sync --frozen --all-extras && \
+    chmod -R a+rwX .venv
+
+ENV PATH="/app/.venv/bin:${PATH}"
 
 ENTRYPOINT []
 CMD ["sapporo"]

@@ -10,13 +10,12 @@ services:
       - ${PWD}/keycloak-data:/opt/keycloak/data
     ports:
       - 127.0.0.1:8080:8080
-    user: 0:0
-    restart: always
-    command: [ "start-dev" ]
+    command: ["start-dev"]
     networks:
-      - sapporo-network
+      - sapporo-dev-network
+    init: true
 
 networks:
-  sapporo-network:
+  sapporo-dev-network:
     name: sapporo-dev-network
     external: true

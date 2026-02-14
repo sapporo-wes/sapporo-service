@@ -2,32 +2,29 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile-dev
+      dockerfile: Dockerfile
     image: sapporo-service-dev
     container_name: sapporo-service-dev
-    volumes:
-      - ${PWD}/sapporo:/app/sapporo
-      - ${PWD}/tests:/app/tests
-      - ${PWD}/pyproject.toml:/app/pyproject.toml
-      - ${PWD}/sapporo-wes-spec-2.0.0.yml:/app/sapporo-wes-spec-2.0.0.yml
-      # The ones below are mounted for cwltool and DinD.
-      - ${PWD}/runs:${PWD}/runs
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /tmp:/tmp
     environment:
-      # Priority: [CLI Args] -> [Env Vals] -> [Defaults]
       - SAPPORO_HOST=0.0.0.0
       - SAPPORO_PORT=1122
       - SAPPORO_DEBUG=True
       - SAPPORO_RUN_DIR=${PWD}/runs
+    volumes:
+      - .:/app:rw
+      - venv:/app/.venv:rw
+      - ${PWD}/runs:${PWD}/runs:rw
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - 127.0.0.1:1122:1122
-    restart: always
     working_dir: /app
-    command: [ "sleep", "infinity" ]
+    command: ["sleep", "infinity"]
     networks:
       - sapporo-dev-network
     init: true
+
+volumes:
+  venv: {}
 
 networks:
   sapporo-dev-network:

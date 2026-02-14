@@ -51,9 +51,9 @@ tests = [
     "hypothesis",
     "mutmut",
     "mypy",
-    "pytest",
     "pytest-mock",
     "pytest-randomly",
+    "pytest",
     "ruff",
     "types-PyYAML",
 ]
@@ -168,6 +168,6 @@ ignore = [
 ]
 
 [tool.mutmut]
-# auth.py, config.py は __file__ 経由でデータファイルを参照するため mutmut の mutants/ コピーと非互換
+# auth.py and config.py reference data files via __file__, which is incompatible with mutmut's mutants/ copy
 paths_to_mutate = ["sapporo/utils.py", "sapporo/exceptions.py"]
 tests_dir = ["tests/unit/"]

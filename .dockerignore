@@ -1,9 +1,11 @@
 # Ignore everything
 **
 
+!docs
 !LICENSE
 !pyproject.toml
 !README.md
 !sapporo
 !sapporo-wes-spec-2.0.0.yml
 !tests
+!uv.lock

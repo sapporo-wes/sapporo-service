@@ -6,48 +6,47 @@ on:
       - "*.*.*"
 
 jobs:
-  build_and_deploy_wheel:
+  pypi-publish:
     if: github.repository == 'sapporo-wes/sapporo-service'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
 
-      - name: Build Binary Wheel and Source Tarball
+      - name: Build
         run: uv build
 
-      - name: Check Distribution Validity with Twine
+      - name: Check with Twine
         run: uvx twine check dist/*
 
-      - name: Publish Package to PyPI
+      - name: Publish to PyPI
         env:
           UV_PUBLISH_USERNAME: ${{ secrets.PYPI_USERNAME }}
           UV_PUBLISH_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: uv publish
 
-      - name: Upload sdist as Artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v6
         with:
-          name: sdist
-          path: dist/sapporo-${{ github.ref_name }}.tar.gz
+          name: dist
+          path: dist/
 
-      - name: Upload wheel as Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheel
-          path: dist/sapporo-${{ github.ref_name }}-py3-none-any.whl
-
-  deploy_ghcr:
+  docker-push:
     if: github.repository == 'sapporo-wes/sapporo-service'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -63,31 +62,32 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          build-args: |
+            VERSION=${{ github.ref_name }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/sapporo-service:${{ github.ref_name }}
             ghcr.io/${{ github.repository_owner }}/sapporo-service:latest
 
-  create_release:
+  github-release:
     if: github.repository == 'sapporo-wes/sapporo-service'
-    needs: [build_and_deploy_wheel]
-    runs-on: ubuntu-22.04
+    needs: [pypi-publish, docker-push]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
-      - name: Download sdist
-        uses: actions/download-artifact@v4
+      - name: Download artifacts
+        uses: actions/download-artifact@v7
         with:
-          name: sdist
+          name: dist
 
-      - name: Download wheel
-        uses: actions/download-artifact@v4
-        with:
-          name: wheel
-
-      - name: Release
-        run: gh release --repo ${{ github.repository }} create ${{ github.ref_name }} --title ${{ github.ref_name }} --generate-notes sapporo-${{ github.ref_name }}.tar.gz sapporo-${{ github.ref_name }}-py3-none-any.whl
+      - name: Create Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" --repo "$GH_REPO" --title "$TAG" --generate-notes sapporo-"$TAG".tar.gz sapporo-"$TAG"-py3-none-any.whl
