@@ -4,15 +4,17 @@ from typing import Any
 from fastapi import UploadFile
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_serializer
 
-from sapporo.config import GA4GH_WES_SPEC
+from sapporo.config import GA4GH_WES_SPEC, SAPPORO_WES_SPEC_VERSION
 
-# === Schema extensions specific to sapporo-wes-2.0.0
+_EXT = f"**sapporo-wes-{SAPPORO_WES_SPEC_VERSION} extension:**"
+
+# === Schema extensions specific to sapporo-wes
 
 
 class FileObject(BaseModel):
     file_name: str = Field(
         ...,
-        description="File name. It is a relative path from the certain directory. That is, if the file is ./some_dir/some_file, this field is 'some_dir/some_file'.",
+        description="Relative file path within the directory (e.g., 'subdir/file.txt').",
     )
     file_url: str = Field(
         ...,
@@ -21,7 +23,7 @@ class FileObject(BaseModel):
 
     model_config = ConfigDict(
         json_schema_extra={
-            "description": "**sapporo-wes-2.0.0 extension:** File object used in Workflow Attachment and Output files, etc.",
+            "description": f"{_EXT} File object used in Workflow Attachment and Output files, etc.",
         }
     )
 
@@ -31,7 +33,7 @@ class OutputsListResponse(BaseModel):
 
     model_config = ConfigDict(
         json_schema_extra={
-            "description": "**sapporo-wes-2.0.0 extension:** Response schema for GET /runs/{run_id}/outputs.",
+            "description": f"{_EXT} Response schema for GET /runs/{{run_id}}/outputs.",
         }
     )
 
@@ -44,7 +46,7 @@ class ExecutableWorkflows(BaseModel):
 
     model_config = ConfigDict(
         json_schema_extra={
-            "description": "**sapporo-wes-2.0.0 extension:** Schema for executable_workflows.json. List of workflows that can be executed in this service.",
+            "description": f"{_EXT} Schema for executable_workflows.json. List of workflows that can be executed in this service.",
             "example": {
                 "workflows": [
                     "https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/main/v1.0/examples/1st-tool.cwl"
@@ -202,7 +204,10 @@ class DefaultWorkflowEngineParameter(BaseModel):
 
 
 class ServiceInfo(Service):
-    workflow_type_versions: dict[str, WorkflowTypeVersion] = Field(...)
+    workflow_type_versions: dict[str, WorkflowTypeVersion] = Field(
+        ...,
+        description="Supported workflow types and their versions.",
+    )
     supported_wes_versions: list[str] = Field(
         ...,
         description=GA4GH_WES_SCHEMAS["ServiceInfo"]["allOf"][1]["properties"]["supported_wes_versions"]["description"],
@@ -213,20 +218,21 @@ class ServiceInfo(Service):
             "description"
         ],
     )
-    workflow_engine_versions: dict[str, WorkflowEngineVersion] = Field(...)
+    workflow_engine_versions: dict[str, WorkflowEngineVersion] = Field(
+        ...,
+        description="Supported workflow engines and their versions.",
+    )
     default_workflow_engine_parameters: dict[str, list[DefaultWorkflowEngineParameter]] = Field(
         ...,
         description=GA4GH_WES_SCHEMAS["ServiceInfo"]["allOf"][1]["properties"]["default_workflow_engine_parameters"][
             "description"
         ]
-        + """\n
-**sapporo-wes-2.0.0 extension:**
-
-- original wes-1.1.0: List[DefaultWorkflowEngineParameter]
-- sapporo-wes-2.0.0: Dict[str, List[DefaultWorkflowEngineParameter]]
-""",
+        + f"\n\n{_EXT} Changed from a flat list to a dict keyed by workflow engine name.",
     )
-    system_state_counts: dict[str, int] = Field(...)
+    system_state_counts: dict[str, int] = Field(
+        ...,
+        description="A map of run states to the number of runs in each state.",
+    )
     auth_instructions_url: HttpUrl = Field(
         ...,
         description=GA4GH_WES_SCHEMAS["ServiceInfo"]["allOf"][1]["properties"]["auth_instructions_url"]["description"],
@@ -245,7 +251,7 @@ class ServiceInfo(Service):
                 "name": "Sapporo WES",
                 "type": {"group": "org.ga4gh", "artifact": "wes", "version": "1.1.0"},
                 "organization": {"name": "Sapporo Project", "url": "https://github.com/sapporo-wes"},
-                "version": "2.0.0",
+                "version": SAPPORO_WES_SPEC_VERSION,
                 "workflow_type_versions": {"CWL": {"workflow_type_version": ["v1.0", "v1.1", "v1.2"]}},
                 "supported_wes_versions": ["1.0.0", "1.1.0"],
                 "supported_filesystem_protocols": ["http", "https", "file"],
@@ -276,7 +282,10 @@ class State(str, Enum):
 
 
 class RunStatus(BaseModel):
-    run_id: str = Field(...)
+    run_id: str = Field(
+        ...,
+        description=GA4GH_WES_SCHEMAS["RunId"]["properties"]["run_id"]["description"],
+    )
     state: State | None = Field(
         None,
         description=GA4GH_WES_SCHEMAS["State"]["description"],
@@ -319,6 +328,10 @@ class RunListResponse(BaseModel):
         None,
         description=GA4GH_WES_SCHEMAS["RunListResponse"]["properties"]["next_page_token"]["description"],
     )
+    total_runs: int | None = Field(
+        None,
+        description=f"{_EXT} Total number of runs matching the query criteria.",
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -334,6 +347,7 @@ class RunListResponse(BaseModel):
                     }
                 ],
                 "next_page_token": None,
+                "total_runs": 1,
             },
         }
     )
@@ -343,12 +357,7 @@ class RunRequest(BaseModel):
     workflow_params: dict[str, Any] | str = Field(
         ...,
         description=GA4GH_WES_SCHEMAS["RunRequest"]["properties"]["workflow_params"]["description"]
-        + """\n
-**sapporo-wes-2.0.0 extension:**
-
-- original wes-1.1.0: Dict[str, Any]
-- sapporo-wes-2.0.0: Union[Dict[str, Any], str]
-""",
+        + f"\n\n{_EXT} Also accepts a raw string (e.g., CWL/WDL YAML) in addition to a JSON object.",
     )
     workflow_type: str = Field(
         ...,
@@ -358,16 +367,22 @@ class RunRequest(BaseModel):
         ...,
         description=GA4GH_WES_SCHEMAS["RunRequest"]["properties"]["workflow_type_version"]["description"],
     )
-    tags: dict[str, str] | None = Field(None)
-    workflow_engine: str | None = Field(
+    tags: dict[str, str] | None = Field(
         None,
+        description="A key-value map of arbitrary metadata tags for the run.",
+    )
+    workflow_engine: str = Field(
+        ...,
         description=GA4GH_WES_SCHEMAS["RunRequest"]["properties"]["workflow_engine"]["description"],
     )
     workflow_engine_version: str | None = Field(
         None,
         description=GA4GH_WES_SCHEMAS["RunRequest"]["properties"]["workflow_engine_version"]["description"],
     )
-    workflow_engine_parameters: dict[str, str] | None = Field(None)
+    workflow_engine_parameters: dict[str, str] | None = Field(
+        None,
+        description="Additional parameters to pass to the workflow engine, as key-value string pairs.",
+    )
     workflow_url: str = Field(
         ...,
         description=GA4GH_WES_SCHEMAS["RunRequest"]["properties"]["workflow_url"]["description"],
@@ -380,10 +395,76 @@ class RunRequest(BaseModel):
     )
 
 
+class BulkDeleteResponse(BaseModel):
+    run_ids: list[str] = Field(
+        ...,
+        description="List of run IDs that were submitted for deletion.",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "description": f"{_EXT} Response for bulk run deletion.",
+        }
+    )
+
+
+class RunRequestJson(BaseModel):
+    """POST /runs の application/json ボディ用スキーマ (sapporo-wes extension)."""
+
+    workflow_params: dict[str, Any] | str | None = Field(
+        None,
+        description=GA4GH_WES_SCHEMAS["RunRequest"]["properties"]["workflow_params"]["description"],
+    )
+    workflow_type: str = Field(
+        ...,
+        description=GA4GH_WES_SCHEMAS["RunRequest"]["properties"]["workflow_type"]["description"],
+    )
+    workflow_type_version: str = Field(
+        ...,
+        description=GA4GH_WES_SCHEMAS["RunRequest"]["properties"]["workflow_type_version"]["description"],
+    )
+    tags: dict[str, str] | None = Field(
+        None,
+        description="A key-value map of arbitrary metadata tags for the run.",
+    )
+    workflow_engine: str = Field(
+        ...,
+        description=GA4GH_WES_SCHEMAS["RunRequest"]["properties"]["workflow_engine"]["description"],
+    )
+    workflow_engine_version: str | None = Field(
+        None,
+        description=GA4GH_WES_SCHEMAS["RunRequest"]["properties"]["workflow_engine_version"]["description"],
+    )
+    workflow_engine_parameters: dict[str, str] | None = Field(
+        None,
+        description="Additional parameters to pass to the workflow engine, as key-value string pairs.",
+    )
+    workflow_url: str = Field(
+        ...,
+        description=GA4GH_WES_SCHEMAS["RunRequest"]["properties"]["workflow_url"]["description"],
+    )
+    workflow_attachment_obj: list[FileObject] | None = Field(
+        None,
+        description=f"{_EXT} File objects to download to the execution directory.",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "description": f"{_EXT} JSON request body for POST /runs.",
+        }
+    )
+
+
 class RunId(BaseModel):
     run_id: str = Field(
         ...,
         description=GA4GH_WES_SCHEMAS["RunId"]["properties"]["run_id"]["description"],
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "description": "Response containing a workflow run ID.",
+        }
     )
 
 
@@ -458,9 +539,18 @@ class RunLog(BaseModel):
         None,
         description=GA4GH_WES_SCHEMAS["RunLog"]["properties"]["run_id"]["description"],
     )
-    request: RunRequest | None = Field(None)
-    state: State | None = Field(None)
-    run_log: Log | None = Field(None)
+    request: RunRequest | None = Field(
+        None,
+        description="The original request submitted to create this run.",
+    )
+    state: State | None = Field(
+        None,
+        description="The current state of the run.",
+    )
+    run_log: Log | None = Field(
+        None,
+        description="The primary log for the run.",
+    )
     task_logs_url: str | None = Field(
         None,
         description=GA4GH_WES_SCHEMAS["RunLog"]["properties"]["task_logs_url"]["description"],
@@ -472,12 +562,7 @@ class RunLog(BaseModel):
     outputs: list[FileObject] | None = Field(
         None,
         description=GA4GH_WES_SCHEMAS["RunLog"]["properties"]["outputs"]["description"]
-        + """\n
-**sapporo-wes-2.0.0 extension:**
-
-- original wes-1.1.0: Optional[Dict[str, Any]]
-- sapporo-wes-2.0.0: Optional[List[FileObject]]
-""",
+        + f"\n\n{_EXT} Changed from a free-form object to a list of FileObject with downloadable URLs.",
     )
 
 

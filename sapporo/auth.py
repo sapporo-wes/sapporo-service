@@ -13,10 +13,10 @@ from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.security.utils import get_authorization_scheme_param
 from jwt import PyJWKSet
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from starlette.requests import Request
 
-from sapporo.config import get_config
+from sapporo.config import SAPPORO_WES_SPEC_VERSION, get_config
 from sapporo.exceptions import (
     raise_bad_request,
     raise_internal_error,
@@ -35,14 +35,28 @@ _USERNAME_PATTERN = re.compile(r"^[a-zA-Z0-9_\-.@]{1,128}$")
 
 # === Schema ===
 
+_EXT = f"**sapporo-wes-{SAPPORO_WES_SPEC_VERSION} extension:**"
+
 
 class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
+    access_token: str = Field(..., description="JWT access token.")
+    token_type: str = Field("bearer", description="Token type. Always 'bearer'.")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "description": f"{_EXT} Response containing a JWT access token.",
+        }
+    )
 
 
 class MeResponse(BaseModel):
-    username: str
+    username: str = Field(..., description="The username of the authenticated user.")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "description": f"{_EXT} Information about the currently authenticated user.",
+        }
+    )
 
 
 class AuthUser(BaseModel):

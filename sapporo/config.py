@@ -1,85 +1,92 @@
 import logging
-import os
-import sys
-from argparse import ArgumentParser, Namespace
 from functools import cache
+from importlib.resources import files
 from pathlib import Path
 from typing import Any, Literal
 
 import yaml
 from fastapi import FastAPI
-from pydantic import BaseModel
+from pydantic import Field, field_validator, model_validator
+from pydantic_settings import BaseSettings, CliSettingsSource, PydanticBaseSettingsSource
 
-from sapporo.utils import inside_docker, str2bool
+from sapporo.utils import inside_docker
 
-PKG_DIR = Path(__file__).resolve().parent
+_pkg_resources = files("sapporo")
+PKG_DIR = Path(str(_pkg_resources))
 
+GA4GH_WES_SPEC: dict[str, Any] = yaml.safe_load(
+    _pkg_resources.joinpath("ga4gh-wes-spec-1.1.0.yml").read_text(encoding="utf-8")
+)
 
-GA4GH_WES_SPEC_PATH = PKG_DIR.joinpath("ga4gh-wes-spec-1.1.0.yml")
-GA4GH_WES_SPEC: dict[str, Any] = yaml.safe_load(GA4GH_WES_SPEC_PATH.read_text(encoding="utf-8"))
+SAPPORO_WES_SPEC_VERSION = "2.1.0"
 
 
 # === Global configuration ===
 
 
-class AppConfig(BaseModel):
-    host: str = "0.0.0.0" if inside_docker() else "127.0.0.1"
-    port: int = 1122
-    debug: bool = False
-    run_dir: Path = Path.cwd().joinpath("runs")
-    service_info: Path = PKG_DIR.joinpath("service_info.json")
-    executable_workflows: Path = PKG_DIR.joinpath("executable_workflows.json")
-    run_sh: Path = PKG_DIR.joinpath("run.sh")
-    url_prefix: str = ""
-    base_url: str = f"http://{'0.0.0.0' if inside_docker() else '127.0.0.1'}:1122"
-    allow_origin: str = "*"
-    auth_config: Path = PKG_DIR.joinpath("auth_config.json")
-    run_remove_older_than_days: int | None = None
+def _default_host() -> str:
+    return "0.0.0.0" if inside_docker() else "127.0.0.1"
 
 
-default_config = AppConfig()
+def _pkg_path(name: str) -> Path:
+    return Path(str(_pkg_resources.joinpath(name)))
 
 
-def parse_args(args: list[str] | None = None) -> Namespace:
-    parser = ArgumentParser(
-        description="The sapporo-service is a standard implementation conforming to the Global Alliance for Genomics and Health (GA4GH) Workflow Execution Service (WES) API specification.",
-    )
+class AppConfig(BaseSettings):
+    """Application configuration.
 
-    parser.add_argument("--host", type=str, metavar="", help="Host address for the service. (default: 127.0.0.1)")
-    parser.add_argument("--port", type=int, metavar="", help="Port number for the service. (default: 1122)")
-    parser.add_argument("--debug", action="store_true", help="Enable debug mode.")
-    parser.add_argument(
-        "--run-dir", type=Path, metavar="", help="Directory where the runs are stored. (default: ./runs)"
-    )
-    parser.add_argument("--service-info", type=Path, metavar="", help="Path to the service_info.json file.")
-    parser.add_argument(
-        "--executable-workflows", type=Path, metavar="", help="Path to the executable_workflows.json file."
-    )
-    parser.add_argument("--run-sh", type=Path, metavar="", help="Path to the run.sh script.")
-    parser.add_argument(
-        "--url-prefix",
-        type=str,
-        metavar="",
-        help="URL prefix for the service endpoints. (default: '', e.g., /sapporo/api)",
-    )
-    parser.add_argument(
-        "--base-url",
-        type=str,
-        metavar="",
-        help="Base URL for downloading the output files of the executed runs. The files can be downloaded using the format: {base_url}/runs/{run_id}/outputs/{path}. (default: http://{host}:{port}{url_prefix})",
-    )
-    parser.add_argument(
-        "--allow-origin", type=str, metavar="", help="Access-Control-Allow-Origin header value. (default: *)"
-    )
-    parser.add_argument("--auth-config", type=Path, metavar="", help="Path to the auth_config.json file.")
-    parser.add_argument(
-        "--run-remove-older-than-days",
-        type=int,
-        metavar="",
-        help="Clean up run directories with a start time older than the specified number of days.",
-    )
+    Parameter priority: CLI > Environment variables > Init (keyword arguments) > Default values.
+    """
 
-    return parser.parse_args(args)
+    model_config = {
+        "env_prefix": "SAPPORO_",
+        "cli_prog_name": "sapporo",
+        "cli_kebab_case": True,
+        "cli_implicit_flags": True,
+        "cli_exit_on_error": True,
+    }
+
+    host: str = Field(default_factory=_default_host)
+    port: int = Field(default=1122)
+    debug: bool = Field(default=False)
+    run_dir: Path = Field(default_factory=lambda: Path.cwd().joinpath("runs"))
+    service_info: Path = Field(default_factory=lambda: _pkg_path("service_info.json"))
+    executable_workflows: Path = Field(default_factory=lambda: _pkg_path("executable_workflows.json"))
+    run_sh: Path = Field(default_factory=lambda: _pkg_path("run.sh"))
+    url_prefix: str = Field(default="")
+    base_url: str = Field(default="")
+    allow_origin: str = Field(default="*")
+    auth_config: Path = Field(default_factory=lambda: _pkg_path("auth_config.json"))
+    run_remove_older_than_days: int | None = Field(default=None)
+
+    @field_validator("run_remove_older_than_days")
+    @classmethod
+    def _validate_run_remove_older_than_days(cls, v: int | None) -> int | None:
+        if v is not None and v < 1:
+            msg = "The value of --run-remove-older-than-days (SAPPORO_RUN_REMOVE_OLDER_THAN_DAYS) must be greater than or equal to 1."
+            raise ValueError(msg)
+        return v
+
+    @model_validator(mode="after")
+    def _compute_base_url(self) -> "AppConfig":
+        if not self.base_url:
+            self.base_url = f"http://{self.host}:{self.port}{self.url_prefix}"
+        return self
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,  # noqa: ARG003
+        file_secret_settings: PydanticBaseSettingsSource,  # noqa: ARG003
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return (
+            CliSettingsSource(settings_cls, cli_parse_args=True),
+            env_settings,
+            init_settings,
+        )
 
 
 @cache
@@ -87,46 +94,11 @@ def get_config() -> AppConfig:
     """Get the configuration for the application.
 
     This function initializes and returns the configuration used throughout the application.
-    The initial state is cached using `lru_cache` to ensure that the configuration is only loaded once when the application starts.
-    This state depends on `os.environ` and `sys.argv`, but passing them as arguments is not necessary as the primary goal is to cache the initial values.
+    The initial state is cached using `cache` to ensure that the configuration is only loaded once when the application starts.
 
-    Parameter priority:
-
-    1. Command line arguments
-    2. Environment variables
-    3. Default values
+    Parameter priority: CLI > Environment variables > Init (keyword arguments) > Default values.
     """
-    args = parse_args(sys.argv[1:])
-
-    host = args.host or os.environ.get("SAPPORO_HOST", default_config.host)
-    port = args.port or int(os.environ.get("SAPPORO_PORT", default_config.port))
-    url_prefix = args.url_prefix or os.environ.get("SAPPORO_URL_PREFIX", default_config.url_prefix)
-    base_url = args.base_url or os.environ.get("SAPPORO_BASE_URL", f"http://{host}:{port}{url_prefix}")
-
-    run_remove_older_than_days = args.run_remove_older_than_days or os.environ.get(
-        "SAPPORO_RUN_REMOVE_OLDER_THAN_DAYS", default_config.run_remove_older_than_days
-    )
-    if run_remove_older_than_days is not None:
-        run_remove_older_than_days = int(run_remove_older_than_days)
-        if run_remove_older_than_days < 1:
-            msg = "The value of --run-remove-older-than-days (SAPPORO_RUN_REMOVE_OLDER_THAN_DAYS) must be greater than or equal to 1."
-            raise ValueError(msg)
-
-    return AppConfig(
-        host=host,
-        port=port,
-        debug=args.debug or str2bool(os.environ.get("SAPPORO_DEBUG", default_config.debug)),
-        run_dir=args.run_dir or Path(os.environ.get("SAPPORO_RUN_DIR", default_config.run_dir)),
-        service_info=args.service_info or Path(os.environ.get("SAPPORO_SERVICE_INFO", default_config.service_info)),
-        executable_workflows=args.executable_workflows
-        or Path(os.environ.get("SAPPORO_EXECUTABLE_WORKFLOWS", default_config.executable_workflows)),
-        run_sh=args.run_sh or Path(os.environ.get("SAPPORO_RUN_SH", default_config.run_sh)),
-        url_prefix=url_prefix,
-        base_url=base_url,
-        allow_origin=args.allow_origin or os.environ.get("SAPPORO_ALLOW_ORIGIN", default_config.allow_origin),
-        auth_config=args.auth_config or Path(os.environ.get("SAPPORO_AUTH_CONFIG", default_config.auth_config)),
-        run_remove_older_than_days=run_remove_older_than_days,
-    )
+    return AppConfig()
 
 
 # === Logging ===
@@ -226,7 +198,7 @@ RunDirStructureKeys = Literal[
 # === API Spec ===
 
 
-API_DESCRIPTION = """\
+API_DESCRIPTION = f"""\
 *Run standard workflows on workflow execution platforms in a platform-agnostic way.*
 
 ## Executive Summary
@@ -242,13 +214,13 @@ Key features of the API:
 
 ## Sapporo-WES Extensions
 
-`sapporo-wes-2.0.0` extends the original WES API to provide enhanced functionality and support for additional features. This document describes the WES API and details the specific endpoints, request formats, and responses, aimed at developers of WES-compatible services and clients.
+`sapporo-wes-{SAPPORO_WES_SPEC_VERSION}` extends the original WES API to provide enhanced functionality and support for additional features. This document describes the WES API and details the specific endpoints, request formats, and responses, aimed at developers of WES-compatible services and clients.
 """
 
 
 def add_openapi_info(app: FastAPI) -> None:
     app.title = "GA4GH Workflow Execution Service API specification extended for the Sapporo"
-    app.version = "2.0.0"
+    app.version = SAPPORO_WES_SPEC_VERSION
     app.description = API_DESCRIPTION
     app.servers = [{"url": get_config().base_url}]
     app.license_info = {
@@ -275,6 +247,19 @@ def add_openapi_info(app: FastAPI) -> None:
         app.openapi = custom_openapi  # type: ignore[method-assign]
 
         openapi_schema["components"] = openapi_schema.get("components", {})
+
+        # Add RunRequestJson schema (referenced by openapi_extra in POST /runs)
+        from sapporo.schemas import RunRequestJson
+
+        run_request_json_schema = RunRequestJson.model_json_schema(ref_template="#/components/schemas/{model}")
+        # Extract $defs (referenced models like FileObject) and merge into components/schemas
+        defs = run_request_json_schema.pop("$defs", {})
+        openapi_schema["components"]["schemas"] = openapi_schema.get("components", {}).get("schemas", {})
+        openapi_schema["components"]["schemas"]["RunRequestJson"] = run_request_json_schema
+        for def_name, def_schema in defs.items():
+            if def_name not in openapi_schema["components"]["schemas"]:
+                openapi_schema["components"]["schemas"][def_name] = def_schema
+
         openapi_schema["components"]["securitySchemes"] = {
             "bearerAuth": {
                 "type": "http",
@@ -302,7 +287,7 @@ if __name__ == "__main__":
     from sapporo.app import create_app
 
     f_app = create_app()
-    out = PKG_DIR.joinpath("../openapi/sapporo-wes-spec-2.0.0.yml")
+    out = PKG_DIR.joinpath("../openapi/sapporo-wes-spec-2.1.0.yml")
     out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("w", encoding="utf-8") as f:
         f.write(dump_openapi_schema(f_app))

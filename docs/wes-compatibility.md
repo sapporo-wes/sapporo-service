@@ -5,7 +5,7 @@ This document describes the compatibility between [GA4GH WES 1.1.0](https://ga4g
 ```
 +-------------+    partial    +-----------------+   evolution   +-----------------+
 |  WES 1.1.0  |<-- compat --->|  sapporo 2.0.0  |-------------->|  sapporo 2.1.0  |
-|  (standard) |               |    (current)    |               |    (planned)    |
+|  (standard) |               |     (prev)      |               |    (current)    |
 +-------------+               +-----------------+               +-----------------+
 ```
 
@@ -207,6 +207,7 @@ Optional field containing a JSON array of `FileObject` to download remote files:
 | B-2 | Feature | `POST /runs` `application/json` | `multipart/form-data` only | +`application/json` | Better DX; structured request without file upload | [#226](https://github.com/ga4gh/workflow-execution-service-schemas/pull/226) |
 | B-3 | Feature | `GET /runs` tag filtering | not present | `?tags=key:value` (repeatable, AND) | Tags are settable but not searchable in 2.0.0 | [#213](https://github.com/ga4gh/workflow-execution-service-schemas/pull/213) |
 | B-4 | Feature | `DELETE /runs` bulk delete | not present | `DELETE /runs?run_ids=id1&run_ids=id2` | No way to delete multiple runs at once | [#218](https://github.com/ga4gh/workflow-execution-service-schemas/issues/218) |
+| B-5 | Feature | `GET /runs/{run_id}/outputs` `name` param | not present | `?download=true&name=my_project` | ZIP file/dir name customization for downstream use | sapporo-only |
 
 ### A-1, A-2. `POST /runs` Required Fields (Breaking)
 
@@ -273,3 +274,18 @@ Added `DELETE /runs` endpoint for bulk deletion. Requires `run_ids` query parame
 ```
 DELETE /runs?run_ids=abc123&run_ids=def456
 ```
+
+### B-5. `GET /runs/{run_id}/outputs` ZIP Name Customization
+
+Added `name` query parameter to `GET /runs/{run_id}/outputs` for customizing the ZIP download name. This affects both the download file name and the root directory name inside the ZIP.
+
+| Item | Default (`name` omitted) | Custom (`name=my_project`) |
+|---|---|---|
+| Download file name | `sapporo_{run_id}_outputs.zip` | `my_project.zip` |
+| ZIP root directory | `sapporo_{run_id}_outputs/` | `my_project/` |
+
+```
+GET /runs/{run_id}/outputs?download=true&name=my_project
+```
+
+The `name` parameter is ignored when `download=false` (default). The value is sanitized to prevent path traversal.

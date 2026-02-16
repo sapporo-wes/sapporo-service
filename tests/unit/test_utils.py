@@ -10,56 +10,8 @@ from sapporo.utils import (
     now_str,
     sapporo_version,
     secure_filepath,
-    str2bool,
     time_str_to_dt,
 )
-
-# === str2bool ===
-
-
-@pytest.mark.parametrize(
-    ("input_val", "expected"),
-    [
-        ("true", True),
-        ("True", True),
-        ("TRUE", True),
-        ("yes", True),
-        ("Yes", True),
-        ("y", True),
-        ("Y", True),
-        ("false", False),
-        ("False", False),
-        ("FALSE", False),
-        ("no", False),
-        ("No", False),
-        ("n", False),
-        ("N", False),
-    ],
-)
-def test_str2bool_with_recognized_strings_returns_expected(input_val: str, expected: bool) -> None:
-    assert str2bool(input_val) is expected
-
-
-def test_str2bool_with_bool_input_returns_same() -> None:
-    assert str2bool(True) is True
-    assert str2bool(False) is False
-
-
-def test_str2bool_with_nonempty_unrecognized_string_returns_true() -> None:
-    assert str2bool("anything") is True
-    assert str2bool("1") is True
-    assert str2bool("0") is True
-
-
-def test_str2bool_with_empty_string_returns_false() -> None:
-    assert str2bool("") is False
-
-
-@given(st.text())
-def test_str2bool_with_arbitrary_string_never_crashes(s: str) -> None:
-    result = str2bool(s)
-    assert isinstance(result, bool)
-
 
 # === now_str ===
 

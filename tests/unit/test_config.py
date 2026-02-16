@@ -6,7 +6,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from sapporo.config import PKG_DIR, AppConfig, get_config, parse_args
+from sapporo.config import PKG_DIR, AppConfig, get_config
 
 # === AppConfig defaults ===
 
@@ -60,40 +60,6 @@ def test_app_config_default_run_remove_older_than_days_is_none() -> None:
 def test_app_config_default_base_url() -> None:
     config = AppConfig()
     assert config.base_url == f"http://{config.host}:1122"
-
-
-# === parse_args ===
-
-
-@pytest.mark.parametrize(
-    ("arg_name", "arg_value", "attr_name", "expected"),
-    [
-        ("--host", "0.0.0.0", "host", "0.0.0.0"),
-        ("--port", "8080", "port", 8080),
-        ("--run-dir", "/tmp/runs", "run_dir", Path("/tmp/runs")),
-        ("--service-info", "/tmp/si.json", "service_info", Path("/tmp/si.json")),
-        ("--executable-workflows", "/tmp/ew.json", "executable_workflows", Path("/tmp/ew.json")),
-        ("--run-sh", "/tmp/run.sh", "run_sh", Path("/tmp/run.sh")),
-        ("--url-prefix", "/api", "url_prefix", "/api"),
-        ("--base-url", "http://example.com", "base_url", "http://example.com"),
-        ("--allow-origin", "http://example.com", "allow_origin", "http://example.com"),
-        ("--auth-config", "/tmp/ac.json", "auth_config", Path("/tmp/ac.json")),
-        ("--run-remove-older-than-days", "30", "run_remove_older_than_days", 30),
-    ],
-)
-def test_parse_args_with_each_option(arg_name: str, arg_value: str, attr_name: str, expected: object) -> None:
-    args = parse_args([arg_name, arg_value])
-    assert getattr(args, attr_name) == expected
-
-
-def test_parse_args_debug_flag() -> None:
-    args = parse_args(["--debug"])
-    assert args.debug is True
-
-
-def test_parse_args_without_debug_flag() -> None:
-    args = parse_args([])
-    assert args.debug is False
 
 
 # === get_config priority: CLI > env > default ===
@@ -156,12 +122,10 @@ def test_get_config_with_env_vars(env_var: str, value: str, attr_name: str, expe
 # === run_remove_older_than_days boundary values ===
 
 
-def test_get_config_run_remove_older_than_days_zero_treated_as_none() -> None:
-    # BUG: 0 is falsy so `args.run_remove_older_than_days or ...` falls through to default (None).
-    # This should ideally raise ValueError, but documenting actual behavior here.
+def test_get_config_run_remove_older_than_days_zero_raises_value_error() -> None:
     sys.argv = ["sapporo", "--run-remove-older-than-days", "0"]
-    config = get_config()
-    assert config.run_remove_older_than_days is None
+    with pytest.raises(ValueError, match="greater than or equal to 1"):
+        get_config()
 
 
 def test_get_config_run_remove_older_than_days_negative_raises_value_error() -> None:

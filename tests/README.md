@@ -23,7 +23,7 @@ Mock は **外部境界**（HTTP、DB、FS）だけに使う。内部実装を m
 
 - ファイル名: `test_<module>.py`
 - 関数名: `test_<対象>_<条件>_<期待結果>()`
-- 例: `test_str2bool_with_true_string_returns_true()`
+- 例: `test_now_str_returns_rfc3339_utc_format()`
 
 ## PBT Guide
 

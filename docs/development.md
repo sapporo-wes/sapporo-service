@@ -57,7 +57,7 @@ uv run pytest -v
 uv run pytest tests/unit/test_utils.py
 
 # Specific test
-uv run pytest tests/unit/test_utils.py::test_str2bool_with_true_string_returns_true
+uv run pytest tests/unit/test_utils.py::test_now_str_returns_rfc3339_utc_format
 
 # Run in random order (check for order dependencies)
 uv run pytest -p randomly -v
@@ -81,7 +81,7 @@ uv run mutmut show <mutant_id>
 
 #### Known Limitations
 
-mutmut v3 copies source files to a `mutants/` directory and applies mutations there. Modules like `sapporo/config.py` that resolve data files via `Path(__file__)` fail because the data files do not exist at the copy destination. Currently only `sapporo/utils.py` and `sapporo/exceptions.py` are targeted.
+mutmut v3 copies source files to a `mutants/` directory and applies mutations there. Modules like `sapporo/auth.py` that resolve data files via `Path(__file__)` fail because the data files do not exist at the copy destination. Currently `sapporo/utils.py`, `sapporo/exceptions.py`, and `sapporo/config.py` are targeted.
 
 ### Adding Tests
 
@@ -112,6 +112,26 @@ uv run ruff format .
 # Type check
 uv run mypy
 ```
+
+## OpenAPI Spec Generation
+
+The OpenAPI specification file (`openapi/sapporo-wes-spec-X.X.X.yml`) is generated from the FastAPI application. Regenerate it after changing schemas, endpoint descriptions, or the spec version:
+
+```bash
+uv run python -m sapporo.config
+```
+
+The generated file should be committed to the repository.
+
+### Spec Version
+
+`SAPPORO_WES_SPEC_VERSION` in `sapporo/config.py` is the single source of truth for the sapporo-wes spec version. This constant is referenced throughout the codebase to produce the `**sapporo-wes-X.X.X extension:**` markers in OpenAPI descriptions, `info.version`, and example values.
+
+To bump the spec version:
+
+1. Update `SAPPORO_WES_SPEC_VERSION` in `sapporo/config.py`
+2. Regenerate the spec: `uv run python -m sapporo.config`
+3. Rename the output file if the major/minor version changed
 
 ## Release Process
 

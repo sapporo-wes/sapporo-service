@@ -4,31 +4,35 @@
 
 ```text
 sapporo --help
-usage: sapporo [-h] [--host] [--port] [--debug] [--run-dir] [--service-info]
-               [--executable-workflows] [--run-sh] [--url-prefix] [--base-url]
-               [--allow-origin] [--auth-config] [--run-remove-older-than-days]
+usage: sapporo [-h] [--host str] [--port int] [--debug] [--run-dir PATH]
+               [--service-info PATH] [--executable-workflows PATH]
+               [--run-sh PATH] [--url-prefix str] [--base-url str]
+               [--allow-origin str] [--auth-config PATH]
+               [--run-remove-older-than-days int]
 
 options:
-  -h, --help            show this help message and exit
-  --host                Host address for the service. (default: 127.0.0.1)
-  --port                Port number for the service. (default: 1122)
-  --debug               Enable debug mode.
-  --run-dir             Directory where the runs are stored. (default: ./runs)
-  --service-info        Path to the service_info.json file.
-  --executable-workflows
-                        Path to the executable_workflows.json file.
-  --run-sh              Path to the run.sh script.
-  --url-prefix          URL prefix for the service endpoints. (default: '',
-                        e.g., /sapporo/api)
-  --base-url            Base URL for downloading the output files of the
-                        executed runs. The files can be downloaded using the
-                        format: {base_url}/runs/{run_id}/outputs/{path}.
-                        (default: http://{host}:{port}{url_prefix})
-  --allow-origin        Access-Control-Allow-Origin header value. (default: *)
-  --auth-config         Path to the auth_config.json file.
-  --run-remove-older-than-days
-                        Clean up run directories with a start time older than
-                        the specified number of days.
+  -h, --help                       show this help message and exit
+  --host str                       Host address for the service
+                                   (default: 127.0.0.1)
+  --port int                       Port number for the service
+                                   (default: 1122)
+  --debug                          Enable debug mode (default: False)
+  --run-dir PATH                   Directory where the runs are stored
+                                   (default: ./runs)
+  --service-info PATH              Path to the service_info.json file
+  --executable-workflows PATH      Path to the executable_workflows.json file
+  --run-sh PATH                    Path to the run.sh script
+  --url-prefix str                 URL prefix for the service endpoints
+                                   (default: '', e.g., /sapporo/api)
+  --base-url str                   Base URL for downloading the output files
+                                   of the executed runs
+                                   (default: http://{host}:{port}{url_prefix})
+  --allow-origin str               Access-Control-Allow-Origin header value
+                                   (default: *)
+  --auth-config PATH               Path to the auth_config.json file
+  --run-remove-older-than-days int Clean up run directories with a start time
+                                   older than the specified number of days
+                                   (must be >= 1)
 ```
 
 ## Environment Variables
@@ -88,4 +92,4 @@ Override the default `run.sh` script using `--run-sh` or `SAPPORO_RUN_SH`. This 
 
 ## Run Cleanup
 
-Automatically remove old run directories using `--run-remove-older-than-days` or `SAPPORO_RUN_REMOVE_OLDER_THAN_DAYS`. The service periodically cleans up runs with a start time older than the specified number of days.
+Automatically remove old run directories using `--run-remove-older-than-days` or `SAPPORO_RUN_REMOVE_OLDER_THAN_DAYS`. The service periodically cleans up runs with a start time older than the specified number of days. The value must be an integer greater than or equal to 1; specifying `0` raises a `ValueError`.

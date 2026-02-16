@@ -19,7 +19,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from functools import cache
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import func
@@ -216,6 +216,40 @@ def _decode_page_token(page_token: str) -> PageTokenData:
         raise_bad_request("Invalid page token")
 
 
+def _build_filter_query(
+    query: Any,
+    state: State | None = None,
+    run_ids: list[str] | None = None,
+    username: str | None = None,
+    tags: list[str] | None = None,
+) -> Any:
+    if state is not None:
+        query = query.where(Run.state == state)
+    if username is not None:
+        query = query.where(Run.username == username)
+    if run_ids is not None:
+        query = query.where(Run.run_id.in_(run_ids))  # type: ignore[attr-defined]
+    if tags is not None:
+        for tag in tags:
+            key, _, value = tag.partition(":")
+            if key and value:
+                query = query.where(func.json_extract(Run.tags, f"$.{key}") == value)
+    return query
+
+
+def count_runs_db(
+    state: State | None = None,
+    run_ids: list[str] | None = None,
+    username: str | None = None,
+    tags: list[str] | None = None,
+) -> int:
+    query = select(func.count()).select_from(Run)
+    query = _build_filter_query(query, state, run_ids, username, tags)
+    with get_session() as session:
+        result: int = session.exec(query).one()
+        return result
+
+
 def list_runs_db(
     page_size: int,
     page_token: str | None = None,
@@ -223,22 +257,15 @@ def list_runs_db(
     state: State | None = None,
     run_ids: list[str] | None = None,
     username: str | None = None,
+    tags: list[str] | None = None,
 ) -> tuple[list[Run], str | None]:
     query = select(Run)
-
-    if state is not None:
-        query = query.where(Run.state == state)
-
-    if username is not None:
-        query = query.where(Run.username == username)
+    query = _build_filter_query(query, state, run_ids, username, tags)
 
     if sort_order == "asc":
         query = query.order_by(Run.start_time.asc(), Run.run_id.asc())  # type: ignore[attr-defined]
     else:
         query = query.order_by(Run.start_time.desc(), Run.run_id.desc())  # type: ignore[attr-defined]
-
-    if run_ids is not None:
-        query = query.where(Run.run_id.in_(run_ids))  # type: ignore[attr-defined]
 
     if page_token is not None:
         token_data = _decode_page_token(page_token)

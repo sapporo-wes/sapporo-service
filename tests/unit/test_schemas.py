@@ -4,6 +4,7 @@ from hypothesis import strategies as st
 from pydantic import ValidationError
 
 from sapporo.schemas import (
+    BulkDeleteResponse,
     Organization,
     RunRequest,
     RunStatus,
@@ -62,6 +63,7 @@ def test_run_request_with_dict_workflow_params() -> None:
         workflow_params={"input": "value"},
         workflow_type="CWL",
         workflow_type_version="v1.0",
+        workflow_engine="cwltool",
         workflow_url="https://example.com/wf.cwl",
     )
     assert req.workflow_params == {"input": "value"}
@@ -72,6 +74,7 @@ def test_run_request_with_str_workflow_params() -> None:
         workflow_params="raw params string",
         workflow_type="CWL",
         workflow_type_version="v1.0",
+        workflow_engine="cwltool",
         workflow_url="https://example.com/wf.cwl",
     )
     assert req.workflow_params == "raw params string"
@@ -82,12 +85,41 @@ def test_run_request_optional_fields_default_to_none() -> None:
         workflow_params={},
         workflow_type="CWL",
         workflow_type_version="v1.0",
+        workflow_engine="cwltool",
         workflow_url="https://example.com/wf.cwl",
     )
     assert req.tags is None
-    assert req.workflow_engine is None
     assert req.workflow_engine_version is None
     assert req.workflow_engine_parameters is None
+
+
+def test_run_request_without_workflow_engine_raises_validation_error() -> None:
+    with pytest.raises(ValidationError, match="workflow_engine"):
+        RunRequest(  # type: ignore[call-arg]
+            workflow_params={},
+            workflow_type="CWL",
+            workflow_type_version="v1.0",
+            workflow_url="https://example.com/wf.cwl",
+        )
+
+
+# === BulkDeleteResponse ===
+
+
+def test_bulk_delete_response_serializes_run_ids() -> None:
+    resp = BulkDeleteResponse(run_ids=["id-1", "id-2", "id-3"])
+    data = resp.model_dump()
+    assert data == {"run_ids": ["id-1", "id-2", "id-3"]}
+
+
+def test_bulk_delete_response_empty_list() -> None:
+    resp = BulkDeleteResponse(run_ids=[])
+    assert resp.run_ids == []
+
+
+def test_bulk_delete_response_without_run_ids_raises_validation_error() -> None:
+    with pytest.raises(ValidationError, match="run_ids"):
+        BulkDeleteResponse()  # type: ignore[call-arg]
 
 
 # === ServiceInfo ===

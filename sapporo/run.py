@@ -279,9 +279,9 @@ def delete_run_task(run_id: str) -> None:
     write_file(run_id, "state", State.DELETED)
 
 
-def outputs_zip_stream(run_id: str) -> Iterable[bytes]:
+def outputs_zip_stream(run_id: str, name: str | None = None) -> Iterable[bytes]:
     outputs_dir = resolve_content_path(run_id, "outputs_dir")
-    base_dir_name = f"sapporo_{run_id}_outputs"
+    base_dir_name = name or f"sapporo_{run_id}_outputs"
 
     with BytesIO() as buffer:
         with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -315,6 +315,18 @@ def ro_crate_zip_stream(run_id: str) -> Iterable[bytes]:
         buffer.seek(0)
         while chunk := buffer.read(8192):
             yield chunk
+
+
+def bulk_delete_run_tasks(run_ids: list[str]) -> None:
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        future_to_run_id = {executor.submit(delete_run_task, rid): rid for rid in run_ids}
+        for future in as_completed(future_to_run_id):
+            rid = future_to_run_id[future]
+            try:
+                future.result()
+            except Exception as e:
+                msg = f"Failed to delete run {rid}"
+                raise Exception(msg) from e
 
 
 def remove_old_runs() -> None:
