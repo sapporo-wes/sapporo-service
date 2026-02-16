@@ -5,9 +5,9 @@
 The sapporo-service is a FastAPI application that accepts WES API requests, prepares a run directory for each workflow execution, and delegates the actual workflow engine invocation to a shell script (`run.sh`). Each workflow engine runs inside its own Docker container, spawned as a sibling container via the host's Docker socket. See [Installation - Volume Mounts](installation.md#volume-mounts-docker-in-docker) for details on the DinD volume mount requirements.
 
 ```text
-+--------+     +---------+     +-------+     +------------------+
-| Client | --> | FastAPI | --> | run.py| --> | run.sh (subprocess)
-+--------+     +---------+     +-------+     +------------------+
++--------+     +---------+     +--------+     +---------------------+
+| Client | --> | FastAPI | --> | run.py | --> | run.sh (subprocess) |
++--------+     +---------+     +--------+     +---------------------+
                                                    |
                                               docker run
                                                    |
@@ -46,8 +46,11 @@ Override the default `run.sh` location using `--run-sh` or `SAPPORO_RUN_SH`. See
 
 - `ERR` -> `SYSTEM_ERROR` (unexpected failure)
 - `SIGHUP/SIGINT/SIGQUIT/SIGTERM` -> `SYSTEM_ERROR` (killed by system)
+- Unknown signals -> `SYSTEM_ERROR` with exit code 1 (catch-all)
 - `USR1` -> `CANCELED` (user-requested cancellation)
 - Non-zero exit from a `run_<engine>()` function -> `EXECUTOR_ERROR`
+
+RO-Crate metadata is generated only on the success path (`COMPLETE` state). Error and cancellation paths (`SYSTEM_ERROR`, `EXECUTOR_ERROR`, `CANCELED`) skip RO-Crate generation because it is a heavyweight operation (Python startup, file hashing, optional Docker-based tools) and its preconditions may not be satisfied in error states.
 
 ### Adding a New Engine
 
@@ -125,22 +128,3 @@ After each run completes, the service generates [RO-Crate](https://www.researcho
 - BAM/VCF file statistics via samtools/vcftools (when applicable)
 
 RO-Crate generation is called from `run.sh` after the workflow engine completes, so it runs in the same subprocess as the workflow execution.
-
-## Code Structure
-
-| Module | Description |
-|---|---|
-| `sapporo/app.py` | Application entry point, CLI argument parsing, server startup |
-| `sapporo/factory.py` | FastAPI application factory |
-| `sapporo/routers.py` | API route handlers |
-| `sapporo/run.py` | Run lifecycle management (create, cancel, delete) |
-| `sapporo/run.sh` | Workflow engine dispatch script |
-| `sapporo/config.py` | Configuration loading and validation |
-| `sapporo/auth.py` | Authentication (JWT, Argon2, JWKS) |
-| `sapporo/database.py` | SQLite index operations |
-| `sapporo/schemas.py` | Pydantic models for API requests/responses |
-| `sapporo/validator.py` | Request validation |
-| `sapporo/ro_crate.py` | RO-Crate metadata generation |
-| `sapporo/utils.py` | Utility functions |
-| `sapporo/exceptions.py` | Custom exception classes |
-| `sapporo/cli.py` | CLI subcommands (hash-password, generate-secret) |

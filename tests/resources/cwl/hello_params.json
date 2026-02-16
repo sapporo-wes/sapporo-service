@@ -1,0 +1,6 @@
+{
+  "message_file": {
+    "class": "File",
+    "path": "input.txt"
+  }
+}

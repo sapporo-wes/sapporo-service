@@ -20,93 +20,91 @@ function run_wf() {
     date -u +"%Y-%m-%dT%H:%M:%S" >"${end_time}"
     echo 0 >"${exit_code}"
     echo "COMPLETE" >"${state}"
-    generate_ro_crate
+    # TODO: Re-enable after RO-Crate rework
+    # generate_ro_crate
     exit 0
 }
 
 function run_cwltool() {
-    local container="quay.io/commonwl/cwltool:3.1.20240508115724"
-    local cmd_txt="${DOCKER_CMD} ${container} --outdir ${outputs_dir} ${wf_engine_params} ${wf_url} ${wf_params} 1>${stdout} 2>${stderr}"
+    local container="quay.io/commonwl/cwltool:3.1.20260108082145"
+    local cmd_txt="${DOCKER_CMD} ${container} --outdir ${outputs_dir} ${wf_engine_params} ${wf_url} ${wf_params}"
     echo "${cmd_txt}" >"${cmd}"
-    eval "${cmd_txt}" || { executor_error $?; }
+    eval "${cmd_txt}" 1>"${stdout}" 2>"${stderr}" || { executor_error $?; }
 }
 
 function run_nextflow() {
-    local container="nextflow/nextflow:22.04.4"
-    local cmd_txt="docker run --rm ${D_SOCK} -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} nextflow -dockerize run ${wf_url} ${wf_engine_params} -params-file ${wf_params} --outdir ${outputs_dir} -work-dir ${exe_dir} 1>${stdout} 2>${stderr}"
-    find "${exe_dir}" -type f -exec chmod 755 {} \;
+    local container="nextflow/nextflow:25.10.4"
+    local cmd_txt="docker run --rm ${D_SOCK} ${D_HOST} -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} nextflow run ${wf_url} ${wf_engine_params} -params-file ${wf_params} --outdir ${outputs_dir} -work-dir ${exe_dir}"
     echo "${cmd_txt}" >"${cmd}"
-    eval "${cmd_txt}" || { executor_error $?; }
+    eval "${cmd_txt}" 1>"${stdout}" 2>"${stderr}" || { executor_error $?; }
 }
 
 function run_toil() {
-    local container="quay.io/ucsc_cgl/toil:4.1.0"
-    local cmd_txt="${DOCKER_CMD} -e TOIL_WORKDIR=${exe_dir} ${container} toil-cwl-runner ${wf_engine_params} ${wf_url} ${wf_params} 1>${stdout} 2>${stderr}"
+    local container="quay.io/ucsc_cgl/toil:9.1.1"
+    local cmd_txt="${DOCKER_CMD} -e TOIL_WORKDIR=${exe_dir} ${container} toil-cwl-runner ${wf_engine_params} ${wf_url} ${wf_params}"
     echo "${cmd_txt}" >"${cmd}"
-    eval "${cmd_txt}" || { executor_error $?; }
+    eval "${cmd_txt}" 1>"${stdout}" 2>"${stderr}" || { executor_error $?; }
 }
 
 function run_cromwell() {
-    # local container="ghcr.io/sapporo-wes/cromwell-with-docker:80"
-    local container="ghcr.io/sapporo-wes/cromwell-with-docker:87"
+    local container="ghcr.io/sapporo-wes/cromwell-with-docker:92"
     local wf_type
     wf_type=$(jq -r ".workflow_type" "${run_request}")
-    local cmd_txt="docker run --rm ${D_SOCK} -v ${run_dir}:${run_dir} -v /tmp:/tmp -w=${exe_dir} ${container} run ${wf_engine_params} ${wf_url} -i ${wf_params} -m ${exe_dir}/metadata.json 1>${stdout} 2>${stderr}"
+    local cmd_txt="docker run --rm ${D_SOCK} ${D_HOST} ${D_TMP} -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} run ${wf_engine_params} ${wf_url} -i ${wf_params} -m ${exe_dir}/metadata.json"
     echo "${cmd_txt}" >"${cmd}"
-    eval "${cmd_txt}" || { executor_error $?; }
+    eval "${cmd_txt}" 1>"${stdout}" 2>"${stderr}" || { executor_error $?; }
 
     # Handling outputs based on workflow type
-    if [[ "${wf_type}" == "CWL" ]]; then
-        while read -r output_file; do
-            cp "${output_file}" "${outputs_dir}/" || true
-        done < <(jq -r ".outputs[].location" "${exe_dir}/metadata.json")
-    elif [[ "${wf_type}" == "WDL" ]]; then
-        while read -r output_file; do
-            cp "${output_file}" "${outputs_dir}/" || true
-        done < <(jq -r ".outputs | to_entries[] | .value" "${exe_dir}/metadata.json")
+    if [[ ! -f "${exe_dir}/metadata.json" ]]; then
+        echo "Warning: metadata.json not found" >>"${stderr}"
+    else
+        if [[ "${wf_type}" == "CWL" ]]; then
+            while read -r output_file; do
+                if [[ -n "${output_file}" && -f "${output_file}" ]]; then
+                    cp "${output_file}" "${outputs_dir}/" || true
+                fi
+            done < <(jq -r '.outputs[].location // empty' "${exe_dir}/metadata.json" 2>>"${stderr}")
+        elif [[ "${wf_type}" == "WDL" ]]; then
+            while read -r output_file; do
+                if [[ -n "${output_file}" && -f "${output_file}" ]]; then
+                    cp "${output_file}" "${outputs_dir}/" || true
+                fi
+            done < <(jq -r '.outputs | to_entries[] | .value // empty' "${exe_dir}/metadata.json" 2>>"${stderr}")
+        fi
     fi
 }
 
 function run_snakemake() {
-    # Handle remote and local workflow URLs
     local wf_url_local
     if [[ "${wf_url}" == http://* ]] || [[ "${wf_url}" == https://* ]]; then
         wf_url_local="${exe_dir}/$(basename "${wf_url}")"
         curl -fsSL -o "${wf_url_local}" "${wf_url}" || { executor_error $?; }
+    elif [[ "${wf_url}" == /* ]]; then
+        wf_url_local="${wf_url}"
     else
-        if [[ "${wf_url}" == /* ]]; then
-            wf_url_local="${wf_url}"
-        else
-            wf_url_local="${exe_dir}/${wf_url}"
-        fi
+        wf_url_local="${exe_dir}/${wf_url}"
     fi
 
-    local wf_basedir
-    wf_basedir="$(dirname "${wf_url_local}")"
-    local wf_scripts_dir="${wf_basedir}/scripts"
-    if [[ -d "${wf_scripts_dir}" ]]; then
-        chmod a+x "${wf_scripts_dir}/"*
-    fi
-
-    local container="snakemake/snakemake:v8.15.2"
-    local cmd_txt="docker run --rm -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} snakemake ${wf_engine_params} --configfile ${wf_params} --snakefile ${wf_url_local} 1>${stdout} 2>${stderr}"
+    local container="snakemake/snakemake:v9.16.3"
+    local smk_common="--configfile ${wf_params} --snakefile ${wf_url_local}"
+    local cmd_txt="docker run --rm -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} bash -c 'snakemake ${wf_engine_params} ${smk_common} && snakemake ${smk_common} --summary 2>/dev/null | tail -n +2 | cut -f 1 > ${exe_dir}/.snakemake_outputs'"
     echo "${cmd_txt}" >"${cmd}"
-    eval "${cmd_txt}" || { executor_error $?; }
+    eval "${cmd_txt}" 1>"${stdout}" 2>"${stderr}" || { executor_error $?; }
 
     while read -r file_path; do
         local dir_path
         dir_path=$(dirname "${file_path}")
         mkdir -p "${outputs_dir}/${dir_path}"
         cp "${exe_dir}/${file_path}" "${outputs_dir}/${file_path}" 2>/dev/null || true
-    done < <(docker run --rm -v "${run_dir}:${run_dir}" -w="${exe_dir}" "${container}" \
-        snakemake --configfile "${wf_params}" --snakefile "${wf_url_local}" --summary 2>/dev/null | tail -n +2 | cut -f 1)
+    done < "${exe_dir}/.snakemake_outputs"
+    rm -f "${exe_dir}/.snakemake_outputs"
 }
 
 function run_ep3() {
     local container="ghcr.io/tom-tan/ep3:v1.7.0"
-    local cmd_txt="${DOCKER_CMD} ${container} ep3-runner --verbose --outdir ${outputs_dir} ${wf_engine_params} ${wf_url} ${wf_params} 1>${stdout} 2>${stderr}"
+    local cmd_txt="${DOCKER_CMD} ${container} ep3-runner --verbose --outdir ${outputs_dir} ${wf_engine_params} ${wf_url} ${wf_params}"
     echo "${cmd_txt}" >"${cmd}"
-    eval "${cmd_txt}" || { executor_error $?; }
+    eval "${cmd_txt}" 1>"${stdout}" 2>"${stderr}" || { executor_error $?; }
 }
 
 function run_streamflow() {
@@ -114,19 +112,18 @@ function run_streamflow() {
     if [[ "${wf_url}" == http://* ]] || [[ "${wf_url}" == https://* ]]; then
         wf_url_local="${exe_dir}/$(basename "${wf_url}")"
         curl -fsSL -o "${wf_url_local}" "${wf_url}" || { executor_error $?; }
+    elif [[ "${wf_url}" == /* ]]; then
+        wf_url_local="${wf_url}"
     else
-        if [[ "${wf_url}" == /* ]]; then
-            wf_url_local="${wf_url}"
-        else
-            wf_url_local="${exe_dir}/${wf_url}"
-        fi
+        wf_url_local="${exe_dir}/${wf_url}"
     fi
-    local container="alphaunito/streamflow:0.1.3-base"
+
+    local container="alphaunito/streamflow:0.2.0.dev14"
     local wf_basename
     wf_basename=$(basename "${wf_url_local}")
-    local cmd_txt="docker run --mount type=bind,source=${run_dir},target=/streamflow/project --mount type=bind,source=${outputs_dir},target=/streamflow/results ${container} run /streamflow/project/exe/${wf_basename} 1>${stdout} 2>${stderr}"
+    local cmd_txt="docker run --mount type=bind,source=${run_dir},target=/streamflow/project --mount type=bind,source=${outputs_dir},target=/streamflow/results ${container} run /streamflow/project/exe/${wf_basename}"
     echo "${cmd_txt}" >"${cmd}"
-    eval "${cmd_txt}" || { executor_error $?; }
+    eval "${cmd_txt}" 1>"${stdout}" 2>"${stderr}" || { executor_error $?; }
 }
 
 function cancel() {
@@ -177,8 +174,9 @@ wf_engine_params=$(head -n 1 "${wf_engine_params_file}")
 
 # Define Docker command settings
 D_SOCK="-v /var/run/docker.sock:/var/run/docker.sock"
+D_HOST="-e DOCKER_HOST=unix:///var/run/docker.sock"
 D_TMP="-v /tmp:/tmp"
-DOCKER_CMD="docker run --rm ${D_SOCK} -e DOCKER_HOST=unix:///var/run/docker.sock ${D_TMP} -v ${run_dir}:${run_dir} -w=${exe_dir}"
+DOCKER_CMD="docker run --rm ${D_SOCK} ${D_HOST} ${D_TMP} -v ${run_dir}:${run_dir} -w=${exe_dir}"
 
 function generate_outputs_list() {
     python3 -c "from sapporo.run import dump_outputs_list; dump_outputs_list('${run_dir}')" || { executor_error $?; }
@@ -194,7 +192,6 @@ function desc_error() {
     echo "${original_exit_code}" >"${exit_code}"
     date -u +"%Y-%m-%dT%H:%M:%S" >"${end_time}"
     echo "SYSTEM_ERROR" >"${state}"
-    generate_ro_crate
     exit "${original_exit_code}"
 }
 
@@ -203,7 +200,6 @@ function executor_error() {
     echo "${original_exit_code}" >"${exit_code}"
     date -u +"%Y-%m-%dT%H:%M:%S" >"${end_time}"
     echo "EXECUTOR_ERROR" >"${state}"
-    generate_ro_crate
     exit "${original_exit_code}"
 }
 
@@ -215,11 +211,11 @@ function kill_by_system() {
     "SIGINT") original_exit_code=130 ;;
     "SIGQUIT") original_exit_code=131 ;;
     "SIGTERM") original_exit_code=143 ;;
+    *) original_exit_code=1 ;;
     esac
     echo "${original_exit_code}" >"${exit_code}"
     date -u +"%Y-%m-%dT%H:%M:%S" >"${end_time}"
     echo "SYSTEM_ERROR" >"${state}"
-    generate_ro_crate
     exit "${original_exit_code}"
 }
 
@@ -229,7 +225,6 @@ function cancel_by_request() {
     echo "${original_exit_code}" >"${exit_code}"
     date -u +"%Y-%m-%dT%H:%M:%S" >"${end_time}"
     echo "CANCELED" >"${state}"
-    generate_ro_crate
     exit "${original_exit_code}"
 }
 
