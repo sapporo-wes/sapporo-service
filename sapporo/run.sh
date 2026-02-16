@@ -176,7 +176,8 @@ wf_engine_params=$(head -n 1 "${wf_engine_params_file}")
 D_SOCK="-v /var/run/docker.sock:/var/run/docker.sock"
 D_HOST="-e DOCKER_HOST=unix:///var/run/docker.sock"
 D_TMP="-v /tmp:/tmp"
-DOCKER_CMD="docker run --rm ${D_SOCK} ${D_HOST} ${D_TMP} -v ${run_dir}:${run_dir} -w=${exe_dir}"
+D_API_VER="-e DOCKER_API_VERSION=1.44"
+DOCKER_CMD="docker run --rm ${D_SOCK} ${D_HOST} ${D_API_VER} ${D_TMP} -v ${run_dir}:${run_dir} -w=${exe_dir}"
 
 function generate_outputs_list() {
     python3 -c "from sapporo.run import dump_outputs_list; dump_outputs_list('${run_dir}')" || { executor_error $?; }

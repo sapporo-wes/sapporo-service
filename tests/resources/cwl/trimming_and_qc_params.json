@@ -1,0 +1,10 @@
+{
+  "fastq_1": {
+    "class": "File",
+    "path": "ERR034597_1.small.fq.gz"
+  },
+  "fastq_2": {
+    "class": "File",
+    "path": "ERR034597_2.small.fq.gz"
+  }
+}

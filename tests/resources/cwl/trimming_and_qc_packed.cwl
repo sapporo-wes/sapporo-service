@@ -4,7 +4,7 @@
             "class": "CommandLineTool",
             "requirements": [
                 {
-                    "dockerPull": "quay.io/biocontainers/fastqc:0.11.9--0",
+                    "dockerPull": "quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0",
                     "class": "DockerRequirement"
                 }
             ],
@@ -182,7 +182,7 @@
             "class": "CommandLineTool",
             "requirements": [
                 {
-                    "dockerPull": "quay.io/biocontainers/trimmomatic:0.38--1",
+                    "dockerPull": "quay.io/biocontainers/trimmomatic:0.40--hdfd78af_0",
                     "class": "DockerRequirement"
                 }
             ],

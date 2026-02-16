@@ -223,6 +223,18 @@ components:
       - url
       title: Organization
       type: object
+    OutputsListResponse:
+      description: '**sapporo-wes-2.1.0 extension:** Response schema for GET /runs/{run_id}/outputs.'
+      properties:
+        outputs:
+          items:
+            $ref: '#/components/schemas/FileObject'
+          title: Outputs
+          type: array
+      required:
+      - outputs
+      title: OutputsListResponse
+      type: object
     RunId:
       description: Response containing a workflow run ID.
       properties:
@@ -1290,11 +1302,12 @@ paths:
         **sapporo-wes-2.1.0 extension:**
 
 
-        - This endpoint returns a snapshot that is aggregated every 30 minutes. It
-        may not represent the latest state.
+        - By default, this endpoint returns the latest state of runs (reads each run
+        directory).
 
-        - If you want to get the latest state of run, use `GET /runs/{run_id}` or
-        `GET /runs/{run_id}/status` or use `latest=true` query parameter.'
+        - If you want to use the snapshot for faster response, use `latest=false`
+        query parameter. The snapshot is aggregated periodically and may not represent
+        the latest state.'
       operationId: list_runs_runs_get
       parameters:
       - description: OPTIONAL The preferred number of workflow runs to return in a
@@ -1379,7 +1392,7 @@ paths:
           anyOf:
           - type: boolean
           - type: 'null'
-          default: false
+          default: true
           description: '**sapporo-wes-2.1.0 extension:** If True, return the latest
             state of runs instead of the snapshot.'
           title: Latest
@@ -1832,11 +1845,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/OutputsListResponse'
             application/zip:
-              description: ZIP archive of all outputs (when download=true)
               schema:
                 format: binary
                 type: string
-          description: Successful response
+          description: 'JSON: list of output files. ZIP (when download=true): archive
+            of all outputs.'
         '400':
           content:
             application/json:
@@ -1966,15 +1979,14 @@ paths:
             application/json:
               schema: {}
             application/ld+json:
-              description: RO-Crate metadata in JSON-LD format
               schema:
                 type: object
             application/zip:
-              description: ZIP archive of the entire RO-Crate (when download=true)
               schema:
                 format: binary
                 type: string
-          description: Successful response
+          description: 'JSON-LD: RO-Crate metadata. ZIP (when download=true): archive
+            of the entire Crate.'
         '400':
           content:
             application/json:

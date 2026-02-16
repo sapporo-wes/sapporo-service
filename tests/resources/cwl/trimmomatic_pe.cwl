@@ -2,7 +2,7 @@ cwlVersion: v1.2
 class: CommandLineTool
 requirements:
   DockerRequirement:
-    dockerPull: quay.io/biocontainers/trimmomatic:0.38--1
+    dockerPull: quay.io/biocontainers/trimmomatic:0.40--hdfd78af_0
 baseCommand: trimmomatic
 arguments:
   - position: 0

@@ -2,7 +2,7 @@ cwlVersion: v1.2
 class: CommandLineTool
 requirements:
   DockerRequirement:
-    dockerPull: quay.io/biocontainers/fastqc:0.11.9--0
+    dockerPull: quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0
 baseCommand: fastqc
 arguments:
   - position: 0

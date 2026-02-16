@@ -264,6 +264,24 @@ def add_openapi_info(app: FastAPI) -> None:
         "name": "Sapporo-WES Project Team",
         "url": "https://github.com/sapporo-wes/sapporo-service/issues",
     }
+    app.openapi_tags = [
+        {
+            "name": "GA4GH WES",
+            "description": "Endpoints defined in the GA4GH WES 1.1.0 specification.",
+            "externalDocs": {
+                "description": "GA4GH WES 1.1.0",
+                "url": "https://ga4gh.github.io/workflow-execution-service-schemas/docs/",
+            },
+        },
+        {
+            "name": "sapporo Extension",
+            "description": f"Additional endpoints provided by sapporo-wes-{SAPPORO_WES_SPEC_VERSION}.",
+        },
+        {
+            "name": "Authentication",
+            "description": "Token management and user information endpoints.",
+        },
+    ]
 
     # Store original openapi function
     original_openapi = app.openapi
@@ -289,6 +307,16 @@ def add_openapi_info(app: FastAPI) -> None:
         openapi_schema["components"]["schemas"] = openapi_schema.get("components", {}).get("schemas", {})
         openapi_schema["components"]["schemas"]["RunRequestJson"] = run_request_json_schema
         for def_name, def_schema in defs.items():
+            if def_name not in openapi_schema["components"]["schemas"]:
+                openapi_schema["components"]["schemas"][def_name] = def_schema
+
+        # Add OutputsListResponse schema (referenced by $ref in GET /runs/{run_id}/outputs)
+        from sapporo.schemas import OutputsListResponse
+
+        outputs_list_schema = OutputsListResponse.model_json_schema(ref_template="#/components/schemas/{model}")
+        outputs_list_defs = outputs_list_schema.pop("$defs", {})
+        openapi_schema["components"]["schemas"]["OutputsListResponse"] = outputs_list_schema
+        for def_name, def_schema in outputs_list_defs.items():
             if def_name not in openapi_schema["components"]["schemas"]:
                 openapi_schema["components"]["schemas"][def_name] = def_schema
 

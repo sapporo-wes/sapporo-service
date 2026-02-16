@@ -54,11 +54,16 @@ from sapporo.validator import validate_run_id, validate_run_request
 
 router = APIRouter()
 
+TAG_WES = "GA4GH WES"
+TAG_EXT = "sapporo Extension"
+TAG_AUTH = "Authentication"
+
 _EXT = f"**sapporo-wes-{SAPPORO_WES_SPEC_VERSION} extension:**"
 
 
 @router.get(
     "/service-info",
+    tags=[TAG_WES],
     summary=GA4GH_WES_SPEC["paths"]["/service-info"]["get"]["summary"],
     description=GA4GH_WES_SPEC["paths"]["/service-info"]["get"]["description"]
     + f"""\n
@@ -80,6 +85,7 @@ async def get_service_info(
 
 @router.get(
     "/runs",
+    tags=[TAG_WES],
     summary=GA4GH_WES_SPEC["paths"]["/runs"]["get"]["summary"],
     description=GA4GH_WES_SPEC["paths"]["/runs"]["get"]["description"]
     + f"""\n
@@ -137,6 +143,7 @@ async def list_runs(
 
 @router.post(
     "/runs",
+    tags=[TAG_WES],
     summary=GA4GH_WES_SPEC["paths"]["/runs"]["post"]["summary"],
     description=GA4GH_WES_SPEC["paths"]["/runs"]["post"]["description"]
     + f"""\n
@@ -272,6 +279,7 @@ async def run_workflow(
 
 @router.get(
     "/runs/{run_id}",
+    tags=[TAG_WES],
     summary=GA4GH_WES_SPEC["paths"]["/runs/{run_id}"]["get"]["summary"],
     description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}"]["get"]["description"]
     + f"""\n
@@ -292,6 +300,7 @@ async def get_run_log(
 
 @router.get(
     "/runs/{run_id}/status",
+    tags=[TAG_WES],
     summary=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/status"]["get"]["summary"],
     description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/status"]["get"]["description"]
     + f"""\n
@@ -312,6 +321,7 @@ async def get_run_status(
 
 @router.get(
     "/runs/{run_id}/tasks",
+    tags=[TAG_WES],
     summary=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/tasks"]["get"]["summary"],
     description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/tasks"]["get"]["description"]
     + f"""\n
@@ -337,6 +347,7 @@ async def list_tasks(
 
 @router.get(
     "/runs/{run_id}/tasks/{task_id}",
+    tags=[TAG_WES],
     summary=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/tasks/{task_id}"]["get"]["summary"],
     description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/tasks/{task_id}"]["get"]["description"]
     + f"""\n
@@ -352,6 +363,7 @@ async def get_task(run_id: str, task_id: str) -> TaskLog:
 
 @router.post(
     "/runs/{run_id}/cancel",
+    tags=[TAG_WES],
     summary=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/cancel"]["post"]["summary"],
     description=GA4GH_WES_SPEC["paths"]["/runs/{run_id}/cancel"]["post"]["description"],
     response_model=RunId,
@@ -372,6 +384,7 @@ async def cancel_run(
 
 @router.delete(
     "/runs",
+    tags=[TAG_EXT],
     summary="DeleteRuns",
     description=f"""\
 {_EXT}
@@ -395,6 +408,7 @@ async def delete_runs(
 
 @router.delete(
     "/runs/{run_id}",
+    tags=[TAG_EXT],
     summary="DeleteRun",
     description=f"""\
 {_EXT}
@@ -418,6 +432,7 @@ async def delete_run(
 
 @router.get(
     "/executable-workflows",
+    tags=[TAG_EXT],
     summary="ListExecutableWorkflows",
     description=f"""\
 {_EXT}
@@ -432,12 +447,13 @@ def list_executable_wfs() -> ExecutableWorkflows:
 
 @router.get(
     "/runs/{run_id}/outputs",
+    tags=[TAG_EXT],
     summary="ListRunOutputs",
     description=f"{_EXT} List the output files of a run. When download=true, returns all outputs as a ZIP archive.",
     response_model=None,
     responses={
         200: {
-            "description": "Successful response",
+            "description": "JSON: list of output files. ZIP (when download=true): archive of all outputs.",
             "content": {
                 "application/json": {
                     "schema": {"$ref": "#/components/schemas/OutputsListResponse"},
@@ -452,7 +468,6 @@ def list_executable_wfs() -> ExecutableWorkflows:
                 },
                 "application/zip": {
                     "schema": {"type": "string", "format": "binary"},
-                    "description": "ZIP archive of all outputs (when download=true)",
                 },
             },
         }
@@ -486,6 +501,7 @@ async def get_run_outputs_list(
 
 @router.get(
     "/runs/{run_id}/outputs/{path:path}",
+    tags=[TAG_EXT],
     summary="DownloadRunOutput",
     description=f"{_EXT} Download a specific output file from a run.",
     response_model=None,
@@ -511,20 +527,19 @@ async def get_run_outputs(
 
 @router.get(
     "/runs/{run_id}/ro-crate",
+    tags=[TAG_EXT],
     summary="DownloadRO-Crate",
     description=f"{_EXT} Get the RO-Crate metadata (ro-crate-metadata.json) of a run. When download=true, returns the entire Crate as a ZIP archive.",
     response_model=None,
     responses={
         200: {
-            "description": "Successful response",
+            "description": "JSON-LD: RO-Crate metadata. ZIP (when download=true): archive of the entire Crate.",
             "content": {
                 "application/ld+json": {
                     "schema": {"type": "object"},
-                    "description": "RO-Crate metadata in JSON-LD format",
                 },
                 "application/zip": {
                     "schema": {"type": "string", "format": "binary"},
-                    "description": "ZIP archive of the entire RO-Crate (when download=true)",
                 },
             },
         }
@@ -554,6 +569,7 @@ async def get_run_ro_crate(
 
 @router.post(
     "/token",
+    tags=[TAG_AUTH],
     summary="CreateToken",
     description=f"""\
 {_EXT}
@@ -611,6 +627,7 @@ async def create_token(
 
 @router.get(
     "/me",
+    tags=[TAG_AUTH],
     summary="GetCurrentUser",
     description=f"""\
 {_EXT}

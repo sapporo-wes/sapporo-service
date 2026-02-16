@@ -46,6 +46,84 @@ class TestCwltoolHelloWorkflow:
         assert len(log["outputs"]) > 0
 
 
+class TestCwltoolTrimmingAndQcWorkflow:
+    """Trimmomatic + FastQC CWL workflow tests (Docker image pull required)."""
+
+    def test_trimming_and_qc_completes(self, sapporo_client: httpx.Client) -> None:
+        """Submit trimming_and_qc workflow with local sub-workflows."""
+        run_id = submit_workflow(
+            sapporo_client,
+            wf_type="CWL",
+            wf_type_version="v1.2",
+            wf_engine="cwltool",
+            wf_url="trimming_and_qc.cwl",
+            params_file=CWL_DIR / "trimming_and_qc_params.json",
+            attachments=[
+                CWL_DIR / "trimming_and_qc.cwl",
+                CWL_DIR / "fastqc.cwl",
+                CWL_DIR / "trimmomatic_pe.cwl",
+                CWL_DIR / "ERR034597_1.small.fq.gz",
+                CWL_DIR / "ERR034597_2.small.fq.gz",
+            ],
+        )
+
+        state = wait_for_completion(sapporo_client, run_id, timeout=600)
+        assert state == "COMPLETE"
+
+        log = get_run_log(sapporo_client, run_id)
+        assert log["run_log"]["exit_code"] == 0
+        assert log["outputs"] is not None
+        assert len(log["outputs"]) >= 6
+
+    def test_trimming_and_qc_packed_completes(self, sapporo_client: httpx.Client) -> None:
+        """Submit packed CWL version (single file, no sub-workflow files)."""
+        run_id = submit_workflow(
+            sapporo_client,
+            wf_type="CWL",
+            wf_type_version="v1.2",
+            wf_engine="cwltool",
+            wf_url="trimming_and_qc_packed.cwl",
+            params_file=CWL_DIR / "trimming_and_qc_params.json",
+            attachments=[
+                CWL_DIR / "trimming_and_qc_packed.cwl",
+                CWL_DIR / "ERR034597_1.small.fq.gz",
+                CWL_DIR / "ERR034597_2.small.fq.gz",
+            ],
+        )
+
+        state = wait_for_completion(sapporo_client, run_id, timeout=600)
+        assert state == "COMPLETE"
+
+        log = get_run_log(sapporo_client, run_id)
+        assert log["run_log"]["exit_code"] == 0
+        assert log["outputs"] is not None
+        assert len(log["outputs"]) >= 6
+
+    def test_trimming_and_qc_remote_completes(self, sapporo_client: httpx.Client) -> None:
+        """Submit remote CWL that references sub-workflows via GitHub URLs."""
+        run_id = submit_workflow(
+            sapporo_client,
+            wf_type="CWL",
+            wf_type_version="v1.2",
+            wf_engine="cwltool",
+            wf_url="trimming_and_qc_remote.cwl",
+            params_file=CWL_DIR / "trimming_and_qc_params.json",
+            attachments=[
+                CWL_DIR / "trimming_and_qc_remote.cwl",
+                CWL_DIR / "ERR034597_1.small.fq.gz",
+                CWL_DIR / "ERR034597_2.small.fq.gz",
+            ],
+        )
+
+        state = wait_for_completion(sapporo_client, run_id, timeout=600)
+        assert state == "COMPLETE"
+
+        log = get_run_log(sapporo_client, run_id)
+        assert log["run_log"]["exit_code"] == 0
+        assert log["outputs"] is not None
+        assert len(log["outputs"]) >= 6
+
+
 class TestCwltoolErrorCases:
     def test_nonexistent_workflow_url(self, sapporo_client: httpx.Client) -> None:
         """Submit a run with nonexistent workflow_url -> EXECUTOR_ERROR."""
