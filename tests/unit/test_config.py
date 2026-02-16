@@ -57,6 +57,10 @@ def test_app_config_default_run_remove_older_than_days_is_none() -> None:
     assert AppConfig().run_remove_older_than_days is None
 
 
+def test_app_config_default_snapshot_interval() -> None:
+    assert AppConfig().snapshot_interval == 30
+
+
 def test_app_config_default_base_url() -> None:
     config = AppConfig()
     assert config.base_url == f"http://{config.host}:1122"
@@ -79,6 +83,7 @@ def test_app_config_default_base_url() -> None:
         ("--allow-origin", "http://example.com", "allow_origin", "http://example.com"),
         ("--auth-config", "/tmp/ac.json", "auth_config", Path("/tmp/ac.json")),
         ("--run-remove-older-than-days", "30", "run_remove_older_than_days", 30),
+        ("--snapshot-interval", "60", "snapshot_interval", 60),
     ],
 )
 def test_get_config_with_cli_args(arg_name: str, arg_value: str, attr_name: str, expected: object) -> None:
@@ -111,6 +116,7 @@ def test_get_config_with_debug_flag() -> None:
         ("SAPPORO_ALLOW_ORIGIN", "http://example.com", "allow_origin", "http://example.com"),
         ("SAPPORO_AUTH_CONFIG", "/tmp/ac.json", "auth_config", Path("/tmp/ac.json")),
         ("SAPPORO_RUN_REMOVE_OLDER_THAN_DAYS", "30", "run_remove_older_than_days", 30),
+        ("SAPPORO_SNAPSHOT_INTERVAL", "60", "snapshot_interval", 60),
     ],
 )
 def test_get_config_with_env_vars(env_var: str, value: str, attr_name: str, expected: object) -> None:
@@ -146,3 +152,32 @@ def test_get_config_run_remove_older_than_days_positive_int_accepted(days: int) 
     sys.argv = ["sapporo", "--run-remove-older-than-days", str(days)]
     config = get_config()
     assert config.run_remove_older_than_days == days
+
+
+# === snapshot_interval boundary values ===
+
+
+def test_get_config_snapshot_interval_zero_raises_value_error() -> None:
+    sys.argv = ["sapporo", "--snapshot-interval", "0"]
+    with pytest.raises(ValueError, match="greater than or equal to 1"):
+        get_config()
+
+
+def test_get_config_snapshot_interval_negative_raises_value_error() -> None:
+    sys.argv = ["sapporo", "--snapshot-interval", "-1"]
+    with pytest.raises(ValueError, match="greater than or equal to 1"):
+        get_config()
+
+
+def test_get_config_snapshot_interval_one_succeeds() -> None:
+    sys.argv = ["sapporo", "--snapshot-interval", "1"]
+    config = get_config()
+    assert config.snapshot_interval == 1
+
+
+@given(st.integers(min_value=1, max_value=10000))
+def test_get_config_snapshot_interval_positive_int_accepted(interval: int) -> None:
+    get_config.cache_clear()
+    sys.argv = ["sapporo", "--snapshot-interval", str(interval)]
+    config = get_config()
+    assert config.snapshot_interval == interval

@@ -33,7 +33,6 @@ from sapporo.run import glob_all_run_ids, read_file
 from sapporo.schemas import RunSummary, State
 from sapporo.utils import dt_to_time_str, time_str_to_dt
 
-SNAPSHOT_INTERVAL = 30  # minutes
 DATABASE_NAME = "sapporo.db"
 
 # Thread lock for SQLite operations to ensure thread safety

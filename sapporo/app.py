@@ -14,7 +14,7 @@ from starlette.types import Message, Receive, Scope, Send
 
 from sapporo.auth import get_auth_config
 from sapporo.config import LOGGER, PKG_DIR, add_openapi_info, get_config, logging_config
-from sapporo.database import SNAPSHOT_INTERVAL, init_db
+from sapporo.database import init_db
 from sapporo.factory import create_executable_wfs, create_service_info
 from sapporo.routers import router
 from sapporo.run import remove_old_runs
@@ -186,9 +186,10 @@ def init_app_state() -> None:
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     init_db()
 
+    snapshot_interval = get_config().snapshot_interval
     scheduler = BackgroundScheduler()
-    scheduler.add_job(init_db, "interval", minutes=SNAPSHOT_INTERVAL)
-    scheduler.add_job(remove_old_runs, "interval", minutes=SNAPSHOT_INTERVAL)
+    scheduler.add_job(init_db, "interval", minutes=snapshot_interval)
+    scheduler.add_job(remove_old_runs, "interval", minutes=snapshot_interval)
     scheduler.start()
     LOGGER.info("DB snapshot scheduler started.")
 

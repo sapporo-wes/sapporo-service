@@ -169,16 +169,27 @@ ignore = [
     "PT006",   # Wrong type for parametrize names
     "PT011",   # Pytest raises too broad
     "S101",    # Use of assert
+    "S106",    # Hardcoded password in tests (test data)
     "SLF001",  # Private member access
     "T201",    # Print for debugging output
 ]
 
 [tool.mutmut]
-# auth.py references data files via __file__, which is incompatible with mutmut's mutants/ copy
 paths_to_mutate = [
-    "sapporo/utils.py",
-    "sapporo/exceptions.py",
+    "sapporo/__init__.py",
+    "sapporo/app.py",
+    "sapporo/auth.py",
+    "sapporo/cli.py",
     "sapporo/config.py",
+    "sapporo/database.py",
+    "sapporo/exceptions.py",
+    "sapporo/factory.py",
+    "sapporo/ro_crate.py",
+    "sapporo/routers.py",
+    "sapporo/run.py",
+    "sapporo/schemas.py",
+    "sapporo/utils.py",
+    "sapporo/validator.py",
 ]
 tests_dir = ["tests/unit/"]
 

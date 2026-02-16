@@ -11,12 +11,35 @@ from pydantic_settings import BaseSettings, CliSettingsSource, PydanticBaseSetti
 
 from sapporo.utils import inside_docker
 
-_pkg_resources = files("sapporo")
-PKG_DIR = Path(str(_pkg_resources))
+# Bare type annotations (PEP 526) — resolved lazily via __getattr__
+GA4GH_WES_SPEC: dict[str, Any]
+PKG_DIR: Path
 
-GA4GH_WES_SPEC: dict[str, Any] = yaml.safe_load(
-    _pkg_resources.joinpath("ga4gh-wes-spec-1.1.0.yml").read_text(encoding="utf-8")
-)
+
+@cache
+def _load_pkg_dir() -> Path:
+    return Path(str(files("sapporo")))
+
+
+@cache
+def _load_ga4gh_wes_spec() -> dict[str, Any]:
+    pkg = _load_pkg_dir()
+    spec: dict[str, Any] = yaml.safe_load(pkg.joinpath("ga4gh-wes-spec-1.1.0.yml").read_text(encoding="utf-8"))
+    return spec
+
+
+def __getattr__(name: str) -> Any:
+    if name == "PKG_DIR":
+        pkg_dir = _load_pkg_dir()
+        globals()["PKG_DIR"] = pkg_dir
+        return pkg_dir
+    if name == "GA4GH_WES_SPEC":
+        spec = _load_ga4gh_wes_spec()
+        globals()["GA4GH_WES_SPEC"] = spec
+        return spec
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
+
 
 SAPPORO_WES_SPEC_VERSION = "2.1.0"
 
@@ -29,7 +52,7 @@ def _default_host() -> str:
 
 
 def _pkg_path(name: str) -> Path:
-    return Path(str(_pkg_resources.joinpath(name)))
+    return _load_pkg_dir().joinpath(name)
 
 
 class AppConfig(BaseSettings):
@@ -58,6 +81,15 @@ class AppConfig(BaseSettings):
     allow_origin: str = Field(default="*")
     auth_config: Path = Field(default_factory=lambda: _pkg_path("auth_config.json"))
     run_remove_older_than_days: int | None = Field(default=None)
+    snapshot_interval: int = Field(default=30)
+
+    @field_validator("snapshot_interval")
+    @classmethod
+    def _validate_snapshot_interval(cls, v: int) -> int:
+        if v < 1:
+            msg = "The value of --snapshot-interval (SAPPORO_SNAPSHOT_INTERVAL) must be greater than or equal to 1."
+            raise ValueError(msg)
+        return v
 
     @field_validator("run_remove_older_than_days")
     @classmethod
@@ -287,7 +319,7 @@ if __name__ == "__main__":
     from sapporo.app import create_app
 
     f_app = create_app()
-    out = PKG_DIR.joinpath("../openapi/sapporo-wes-spec-2.1.0.yml")
+    out = _load_pkg_dir().joinpath("../openapi/sapporo-wes-spec-2.1.0.yml")
     out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("w", encoding="utf-8") as f:
         f.write(dump_openapi_schema(f_app))

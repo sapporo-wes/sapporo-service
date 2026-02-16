@@ -222,3 +222,4 @@ __marimo__/
 runs/
 keycloak-data/
 tests/htmlcov/
+mutants/

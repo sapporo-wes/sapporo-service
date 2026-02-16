@@ -79,10 +79,6 @@ uv run mutmut results
 uv run mutmut show <mutant_id>
 ```
 
-#### Known Limitations
-
-mutmut v3 copies source files to a `mutants/` directory and applies mutations there. Modules like `sapporo/auth.py` that resolve data files via `Path(__file__)` fail because the data files do not exist at the copy destination. Currently `sapporo/utils.py`, `sapporo/exceptions.py`, and `sapporo/config.py` are targeted.
-
 ### Adding Tests
 
 1. Add tests to the `test_<module>.py` file corresponding to the target module

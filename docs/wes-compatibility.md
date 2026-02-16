@@ -144,7 +144,7 @@ sapporo 2.0.0:  Dict[str, Any] | str  // object or JSON string
 | `sort_order` | `"asc" \| "desc"` | `"desc"` | Sort by `start_time` |
 | `state` | `State \| null` | `null` | Filter by run state |
 | `run_ids` | `List[str] \| null` | `null` | Filter by specific run IDs |
-| `latest` | `bool \| null` | `false` | Return live state instead of snapshot |
+| `latest` | `bool \| null` | `true` | Return live state instead of snapshot |
 
 **`POST /runs` `workflow_attachment_obj` (3-4):**
 

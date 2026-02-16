@@ -85,8 +85,8 @@ async def get_service_info(
     + f"""\n
 {_EXT}
 
-- This endpoint returns a snapshot that is aggregated every 30 minutes. It may not represent the latest state.
-- If you want to get the latest state of run, use `GET /runs/{{run_id}}` or `GET /runs/{{run_id}}/status` or use `latest=true` query parameter.
+- By default, this endpoint returns the latest state of runs (reads each run directory).
+- If you want to use the snapshot for faster response, use `latest=false` query parameter. The snapshot is aggregated periodically and may not represent the latest state.
 """,
     response_model=RunListResponse,
 )
@@ -112,7 +112,7 @@ async def list_runs(
         description=f"{_EXT} A list of run IDs to retrieve specific runs.",
     ),
     latest: bool | None = Query(
-        False,
+        True,
         description=f"{_EXT} If True, return the latest state of runs instead of the snapshot.",
     ),
     tags: list[str] | None = Query(

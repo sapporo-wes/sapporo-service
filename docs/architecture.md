@@ -116,7 +116,7 @@ runs/
 
 ## SQLite Index
 
-The SQLite database (`sapporo.db`) is an **index**, not a data store. It is rebuilt every 30 minutes by scanning the run directories and can be deleted at any time without data loss. It exists solely to make `GET /runs` (list all runs) fast. Individual run queries (`GET /runs/{run_id}`) always read from the filesystem.
+The SQLite database (`sapporo.db`) is an **index**, not a data store. It is rebuilt at a configurable interval (default: 30 minutes) by scanning the run directories and can be deleted at any time without data loss. It exists solely to make `GET /runs` (list all runs) fast. Individual run queries (`GET /runs/{run_id}`) always read from the filesystem.
 
 ## RO-Crate
 
