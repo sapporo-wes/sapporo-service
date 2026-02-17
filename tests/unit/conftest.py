@@ -121,6 +121,7 @@ def mock_get_config(mocker: "MockerFixture", app_config: "AppConfig") -> None:
     mocker.patch("sapporo.database.get_config", return_value=app_config)
     mocker.patch("sapporo.factory.get_config", return_value=app_config)
     mocker.patch("sapporo.run.get_config", return_value=app_config)
+    mocker.patch("sapporo.run_io.get_config", return_value=app_config)
     mocker.patch("sapporo.validator.get_config", return_value=app_config)
 
 

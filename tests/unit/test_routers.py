@@ -334,6 +334,50 @@ class TestRunWorkflow:
         res = _post_run_form(client, workflow_type="INVALID_TYPE")
         assert res.status_code == 400
 
+    def test_json_body_with_dict_fields_returns_201(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        res = _post_run_json(
+            client,
+            workflow_params={"input": "file.txt"},
+            tags={"project": "test"},
+            workflow_engine_parameters={"--debug": "true"},
+        )
+        assert res.status_code == 200
+        body = res.json()
+        assert "run_id" in body
+
+    def test_json_body_without_workflow_url_raises_validation_error(
+        self, mocker: "MockerFixture", tmp_path: Path
+    ) -> None:
+        from pydantic import ValidationError
+
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        with pytest.raises(ValidationError, match="workflow_url"):
+            client.post(
+                "/runs",
+                json={
+                    "workflow_type": "CWL",
+                    "workflow_type_version": "v1.0",
+                    "workflow_engine": "cwltool",
+                },
+            )
+
+    def test_json_body_without_workflow_type_version_raises_validation_error(
+        self, mocker: "MockerFixture", tmp_path: Path
+    ) -> None:
+        from pydantic import ValidationError
+
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        with pytest.raises(ValidationError, match="workflow_type_version"):
+            client.post(
+                "/runs",
+                json={
+                    "workflow_type": "CWL",
+                    "workflow_engine": "cwltool",
+                    "workflow_url": "https://example.com/wf.cwl",
+                },
+            )
+
     def test_invalid_json_params_raises_json_decode_error(self, mocker: "MockerFixture", tmp_path: Path) -> None:
         """Verify that invalid JSON in workflow_params raises JSONDecodeError.
 

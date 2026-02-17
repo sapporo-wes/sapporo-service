@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import TypeAdapter
 
-from sapporo.config import get_config
+from sapporo.config import SAPPORO_WES_SPEC_VERSION, get_config
 from sapporo.schemas import (
     DefaultWorkflowEngineParameter,
     ExecutableWorkflows,
@@ -56,7 +56,7 @@ def create_service_info() -> ServiceInfo:
         type=ServiceType(
             group=file_obj.get("type", {}).get("group", "sapporo-wes"),
             artifact=file_obj.get("type", {}).get("artifact", "wes"),
-            version=file_obj.get("type", {}).get("version", "sapporo-wes-2.0.0"),
+            version=file_obj.get("type", {}).get("version", f"sapporo-wes-{SAPPORO_WES_SPEC_VERSION}"),
         ),
         description=file_obj.get("description", "The instance of the Sapporo-WES."),
         organization=Organization(
@@ -72,7 +72,7 @@ def create_service_info() -> ServiceInfo:
         version=file_obj.get("version", sapporo_version()),
         environment=file_obj.get("environment"),
         workflow_type_versions=wf_type_versions,
-        supported_wes_versions=file_obj.get("supported_wes_versions", ["1.1.0", "sapporo-wes-2.0.0"]),
+        supported_wes_versions=file_obj.get("supported_wes_versions", [f"sapporo-wes-{SAPPORO_WES_SPEC_VERSION}"]),
         supported_filesystem_protocols=file_obj.get("supported_filesystem_protocols", ["http", "https", "file"]),
         workflow_engine_versions=wf_engine_versions,
         default_workflow_engine_parameters=default_wf_engine_params,
@@ -85,8 +85,7 @@ def create_service_info() -> ServiceInfo:
 
 
 def create_run_log(run_id: str) -> RunLog:
-    # Avoid circular import
-    from sapporo.run import read_file, read_state
+    from sapporo.run_io import read_file, read_state
 
     # Use local var. for type hint
     request: RunRequest | None = read_file(run_id, "run_request")
@@ -104,8 +103,7 @@ def create_run_log(run_id: str) -> RunLog:
 
 
 def create_log(run_id: str) -> Log:
-    # Avoid circular import
-    from sapporo.run import read_file
+    from sapporo.run_io import read_file
 
     # Use local var. for type hint
     cmd: list[str] | None = read_file(run_id, "cmd")
@@ -129,15 +127,13 @@ def create_log(run_id: str) -> Log:
 
 
 def create_run_status(run_id: str) -> RunStatus:
-    # Avoid circular import
-    from sapporo.run import read_state
+    from sapporo.run_io import read_state
 
     return RunStatus(run_id=run_id, state=read_state(run_id))
 
 
 def create_run_summary(run_id: str) -> RunSummary:
-    # Avoid circular import
-    from sapporo.run import read_file, read_state
+    from sapporo.run_io import read_file, read_state
 
     # Use local var. for type hint
     start_time: str | None = read_file(run_id, "start_time")
@@ -160,8 +156,7 @@ def create_run_summary(run_id: str) -> RunSummary:
 
 
 def create_outputs_list_response(run_id: str) -> OutputsListResponse:
-    # Avoid circular import
-    from sapporo.run import read_file
+    from sapporo.run_io import read_file
 
     # Use local var. for type hint
     outputs: list[FileObject] | None = read_file(run_id, "outputs")
@@ -182,8 +177,7 @@ def create_executable_wfs() -> ExecutableWorkflows:
 
 
 def create_ro_crate_response(run_id: str) -> dict[str, Any]:
-    # Avoid circular import
-    from sapporo.run import read_file
+    from sapporo.run_io import read_file
 
     ro_crate: dict[str, Any] = read_file(run_id, "ro_crate")
 

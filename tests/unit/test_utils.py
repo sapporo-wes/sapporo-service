@@ -2,14 +2,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
+from fastapi import HTTPException
 from hypothesis import given
 from hypothesis import strategies as st
 
 from sapporo.utils import (
     dt_to_time_str,
+    mask_sensitive,
     now_str,
     sapporo_version,
     secure_filepath,
+    tail_file,
     time_str_to_dt,
 )
 
@@ -86,9 +89,6 @@ def test_sapporo_version_returns_nonempty_string() -> None:
         ("/||/|foo/bar", Path("foo/bar")),
         ("/&&/&foo/bar", Path("foo/bar")),
         ("/\uff06foo/bar", Path("foo/bar")),
-        (".", Path()),
-        ("..", Path()),
-        ("/", Path()),
         (".foo", Path(".foo")),
         ("._.DS_STORE", Path("._.DS_STORE")),
         ("test_case_with_...dots", Path("test_case_with_dots")),
@@ -98,6 +98,13 @@ def test_sapporo_version_returns_nonempty_string() -> None:
 )
 def test_secure_filepath_with_known_inputs_returns_expected(test_input: str, expected: Path) -> None:
     assert secure_filepath(test_input) == expected
+
+
+@pytest.mark.parametrize("test_input", [".", "..", "/"])
+def test_secure_filepath_with_empty_result_raises_400(test_input: str) -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        secure_filepath(test_input)
+    assert exc_info.value.status_code == 400
 
 
 # Path traversal cases
@@ -118,19 +125,133 @@ def test_secure_filepath_with_triple_dots_strips_them() -> None:
 
 # PBT: Security invariants
 @given(st.text())
-def test_secure_filepath_never_contains_dotdot(filepath: str) -> None:
-    result = secure_filepath(filepath)
+def test_secure_filepath_never_has_dotdot_component(filepath: str) -> None:
+    try:
+        result = secure_filepath(filepath)
+    except HTTPException:
+        return
     for part in result.parts:
-        assert ".." not in part
+        assert part != ".."
 
 
 @given(st.text())
 def test_secure_filepath_never_starts_with_slash(filepath: str) -> None:
-    result_str = str(result) if (result := secure_filepath(filepath)).parts else ""
+    try:
+        result = secure_filepath(filepath)
+    except HTTPException:
+        return
+    result_str = str(result) if result.parts else ""
     assert not result_str.startswith("/")
 
 
 @given(st.text())
 def test_secure_filepath_never_crashes(filepath: str) -> None:
-    result = secure_filepath(filepath)
-    assert isinstance(result, Path)
+    try:
+        result = secure_filepath(filepath)
+        assert isinstance(result, Path)
+    except HTTPException:
+        pass  # Only HTTPException(400) is expected from secure_filepath
+
+
+# === tail_file ===
+
+
+def test_tail_file_returns_last_n_lines(tmp_path: Path) -> None:
+    f = tmp_path / "log.txt"
+    f.write_text("\n".join(f"line{i}" for i in range(100)), encoding="utf-8")
+    result = tail_file(f, n_lines=3)
+    assert result == "line97\nline98\nline99"
+
+
+def test_tail_file_with_empty_file_returns_empty_string(tmp_path: Path) -> None:
+    f = tmp_path / "empty.txt"
+    f.write_text("", encoding="utf-8")
+    assert tail_file(f) == ""
+
+
+def test_tail_file_with_nonexistent_file_returns_empty_string(tmp_path: Path) -> None:
+    assert tail_file(tmp_path / "nonexistent.txt") == ""
+
+
+def test_tail_file_with_fewer_lines_than_requested(tmp_path: Path) -> None:
+    f = tmp_path / "short.txt"
+    f.write_text("only\ntwo", encoding="utf-8")
+    result = tail_file(f, n_lines=10)
+    assert result == "only\ntwo"
+
+
+# === mask_sensitive ===
+
+
+def test_mask_sensitive_replaces_specified_keys() -> None:
+    obj = {"username": "alice", "password": "secret", "host": "localhost"}
+    result = mask_sensitive(obj, {"password"})
+    assert result == {"username": "alice", "password": "***", "host": "localhost"}
+
+
+def test_mask_sensitive_recurses_into_nested_dicts() -> None:
+    obj = {"db": {"host": "localhost", "password": "secret"}, "name": "app"}
+    result = mask_sensitive(obj, {"password"})
+    assert result == {"db": {"host": "localhost", "password": "***"}, "name": "app"}
+
+
+def test_mask_sensitive_does_not_modify_original() -> None:
+    obj = {"password": "secret"}
+    mask_sensitive(obj, {"password"})
+    assert obj["password"] == "secret"
+
+
+def test_mask_sensitive_with_no_matching_keys_returns_copy() -> None:
+    obj = {"a": 1, "b": 2}
+    result = mask_sensitive(obj, {"password"})
+    assert result == {"a": 1, "b": 2}
+
+
+# === read_run_dir_file ===
+
+
+def test_read_run_dir_file_returns_json_for_json_content(tmp_path: Path) -> None:
+    import sapporo.config
+    from sapporo.utils import read_run_dir_file
+
+    # Create a state file with JSON content
+    state_file = tmp_path / "state.txt"
+    state_file.write_text('"COMPLETE"', encoding="utf-8")
+
+    orig = sapporo.config.RUN_DIR_STRUCTURE.copy()
+    sapporo.config.RUN_DIR_STRUCTURE["state"] = "state.txt"
+    try:
+        result = read_run_dir_file(tmp_path, "state")
+        assert result == "COMPLETE"
+    finally:
+        sapporo.config.RUN_DIR_STRUCTURE.update(orig)
+
+
+def test_read_run_dir_file_returns_plain_text_for_non_json(tmp_path: Path) -> None:
+    import sapporo.config
+    from sapporo.utils import read_run_dir_file
+
+    plain_file = tmp_path / "stdout.txt"
+    plain_file.write_text("hello world\n", encoding="utf-8")
+
+    orig = sapporo.config.RUN_DIR_STRUCTURE.copy()
+    sapporo.config.RUN_DIR_STRUCTURE["stdout"] = "stdout.txt"
+    try:
+        result = read_run_dir_file(tmp_path, "stdout")
+        assert result == "hello world\n"
+    finally:
+        sapporo.config.RUN_DIR_STRUCTURE.update(orig)
+
+
+def test_read_run_dir_file_returns_none_for_missing_file(tmp_path: Path) -> None:
+    from sapporo.utils import read_run_dir_file
+
+    result = read_run_dir_file(tmp_path, "state")
+    assert result is None
+
+
+def test_read_run_dir_file_returns_none_for_dir_key(tmp_path: Path) -> None:
+    from sapporo.utils import read_run_dir_file
+
+    result = read_run_dir_file(tmp_path, "exe_dir")
+    assert result is None

@@ -19,6 +19,7 @@ from sapporo.factory import create_executable_wfs, create_service_info
 from sapporo.routers import router
 from sapporo.run import remove_old_runs
 from sapporo.schemas import ErrorResponse
+from sapporo.utils import mask_sensitive
 
 
 def fix_error_handler(app: FastAPI) -> None:
@@ -177,7 +178,8 @@ def init_app_state() -> None:
     except Exception as e:
         msg = f"Auth config file is invalid: {auth_config_path}"
         raise ValueError(msg) from e
-    LOGGER.info("Auth config: %s", auth_config)
+    masked = mask_sensitive(auth_config.model_dump(), {"secret_key", "password_hash", "client_secret"})
+    LOGGER.info("Auth config: %s", masked)
 
     LOGGER.info("=== App state initialized. ===")
 

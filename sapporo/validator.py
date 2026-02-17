@@ -5,7 +5,7 @@ from fastapi import UploadFile
 from sapporo.config import get_config
 from sapporo.exceptions import raise_bad_request, raise_forbidden, raise_not_found
 from sapporo.factory import create_executable_wfs, create_service_info
-from sapporo.run import read_file
+from sapporo.run_io import read_file
 from sapporo.schemas import RunRequestForm
 
 
@@ -31,7 +31,8 @@ def validate_run_request(
     _tags = json.loads(tags) if tags is not None else {}
     wf_engine, wf_engine_version = validate_wf_engine_type_and_version(wf_engine, wf_engine_version)
     wf_engine_parameters = json.loads(wf_engine_parameters) if wf_engine_parameters is not None else None
-    wf_url = wf_url if wf_url is not None else ""
+    if not wf_url:
+        raise_bad_request("workflow_url is required.")
     _wf_attachment_obj = json.loads(wf_attachment_obj) if wf_attachment_obj is not None else []
 
     # Check executable_wfs
@@ -61,41 +62,33 @@ def validate_wf_type_and_version(
 ) -> tuple[str, str]:
     """Validate the wf_type and wf_type_version.
 
-    If wf_type_version is None, get the first item from service-info.
+    Both wf_type and wf_type_version are required.
     """
     service_info = create_service_info()
     wf_types = service_info.workflow_type_versions.keys()
 
     if wf_type not in wf_types:
         raise_bad_request(f"Invalid workflow_type: {wf_type}, please select from {wf_types}")
-    wf_type_versions_entry = service_info.workflow_type_versions.get(wf_type)
-    if wf_type_version is None and wf_type_versions_entry is not None:
-        wf_type_version_list = wf_type_versions_entry.workflow_type_version
-        if wf_type_version_list is not None and len(wf_type_version_list) > 0:
-            wf_type_version = wf_type_version_list[0]
+    if not wf_type_version:
+        raise_bad_request("workflow_type_version is required.")
 
-    return wf_type, wf_type_version or ""
+    return wf_type, wf_type_version
 
 
 def validate_wf_engine_type_and_version(
     wf_engine: str,
     wf_engine_version: str | None = None,
-) -> tuple[str, str]:
+) -> tuple[str, str | None]:
     """Validate the wf_engine and wf_engine_version.
 
-    If wf_engine_version is None, get the first item from service-info.
+    wf_engine_version is optional (not required by the spec).
     """
     service_info = create_service_info()
     wf_engines = service_info.workflow_engine_versions.keys()
     if wf_engine not in wf_engines:
         raise_bad_request(f"Invalid workflow_engine: {wf_engine}, please select from {wf_engines}")
-    wf_engine_versions_entry = service_info.workflow_engine_versions.get(wf_engine)
-    if wf_engine_version is None and wf_engine_versions_entry is not None:
-        wf_engine_version_list = wf_engine_versions_entry.workflow_engine_version
-        if wf_engine_version_list is not None and len(wf_engine_version_list) > 0:
-            wf_engine_version = wf_engine_version_list[0]
 
-    return wf_engine, wf_engine_version or ""
+    return wf_engine, wf_engine_version
 
 
 def validate_run_id(run_id: str, username: str | None) -> None:

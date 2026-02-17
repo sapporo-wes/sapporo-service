@@ -44,7 +44,7 @@ def test_create_service_info_uses_defaults_for_missing_fields(mocker: "MockerFix
     result = create_service_info()
     assert result.id == "sapporo-service"
     assert result.name == "sapporo-service"
-    assert result.supported_wes_versions == ["1.1.0", "sapporo-wes-2.0.0"]
+    assert result.supported_wes_versions == ["sapporo-wes-2.1.0"]
 
 
 def test_create_service_info_is_cached(mocker: "MockerFixture", tmp_path: Path) -> None:

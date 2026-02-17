@@ -40,6 +40,7 @@ dependencies = [
     "rocrate",
     "sqlmodel",
     "uvicorn[standard]",
+    "zipstream-ng",
 ]
 
 [project.urls]
@@ -192,6 +193,7 @@ paths_to_mutate = [
     "sapporo/ro_crate.py",
     "sapporo/routers.py",
     "sapporo/run.py",
+    "sapporo/run_io.py",
     "sapporo/schemas.py",
     "sapporo/utils.py",
     "sapporo/validator.py",

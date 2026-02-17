@@ -850,7 +850,7 @@ def test_cancel_run_task_complete_does_nothing(mocker: "MockerFixture", tmp_path
     assert read_state(run_id) == State.COMPLETE
 
 
-# === delete_run_task (time.sleep mock) ===
+# === delete_run_task ===
 
 
 def test_delete_run_task_removes_files_except_keepfiles(mocker: "MockerFixture", tmp_path: Path) -> None:
@@ -860,7 +860,6 @@ def test_delete_run_task_removes_files_except_keepfiles(mocker: "MockerFixture",
     run_id = "aabbccdd-0000-0000-0000-000000000080"
     create_run_dir(tmp_path, run_id, state="COMPLETE", end_time="2024-01-01T01:00:00Z")
 
-    mocker.patch("sapporo.run.time.sleep")
     delete_run_task(run_id)
 
     run_dir = resolve_run_dir(run_id)
@@ -877,7 +876,6 @@ def test_delete_run_task_sets_state_to_deleted(mocker: "MockerFixture", tmp_path
     run_id = "aabbccdd-0000-0000-0000-000000000081"
     create_run_dir(tmp_path, run_id, state="COMPLETE")
 
-    mocker.patch("sapporo.run.time.sleep")
     delete_run_task(run_id)
 
     assert read_state(run_id) == State.DELETED
@@ -896,7 +894,9 @@ def test_outputs_zip_stream_produces_valid_zip(mocker: "MockerFixture", tmp_path
     outputs_dir = resolve_content_path(run_id, "outputs_dir")
     (outputs_dir / "result.txt").write_text("hello", encoding="utf-8")
 
-    data = b"".join(outputs_zip_stream(run_id))
+    stream, content_length = outputs_zip_stream(run_id)
+    data = b"".join(stream)
+    assert content_length == len(data)
     with zipfile.ZipFile(BytesIO(data)) as zf:
         names = zf.namelist()
         assert any("result.txt" in name for name in names)
@@ -912,7 +912,9 @@ def test_outputs_zip_stream_uses_custom_name(mocker: "MockerFixture", tmp_path: 
     outputs_dir = resolve_content_path(run_id, "outputs_dir")
     (outputs_dir / "out.txt").write_text("data", encoding="utf-8")
 
-    data = b"".join(outputs_zip_stream(run_id, "my_project"))
+    stream, content_length = outputs_zip_stream(run_id, "my_project")
+    data = b"".join(stream)
+    assert content_length == len(data)
     with zipfile.ZipFile(BytesIO(data)) as zf:
         names = zf.namelist()
         assert any(name.startswith("my_project/") for name in names)
@@ -928,7 +930,9 @@ def test_outputs_zip_stream_includes_empty_dirs(mocker: "MockerFixture", tmp_pat
     outputs_dir = resolve_content_path(run_id, "outputs_dir")
     (outputs_dir / "empty_dir").mkdir()
 
-    data = b"".join(outputs_zip_stream(run_id))
+    stream, content_length = outputs_zip_stream(run_id)
+    data = b"".join(stream)
+    assert content_length == len(data)
     with zipfile.ZipFile(BytesIO(data)) as zf:
         names = zf.namelist()
         assert any("empty_dir/" in name for name in names)
@@ -941,10 +945,13 @@ def test_outputs_zip_stream_empty_outputs(mocker: "MockerFixture", tmp_path: Pat
     run_id = "aabbccdd-0000-0000-0000-000000000093"
     create_run_dir(tmp_path, run_id)
 
-    data = b"".join(outputs_zip_stream(run_id))
+    stream, content_length = outputs_zip_stream(run_id)
+    data = b"".join(stream)
+    assert content_length == len(data)
     with zipfile.ZipFile(BytesIO(data)) as zf:
-        names = zf.namelist()
-        assert names == []
+        # zipstream-ng includes a root directory entry even for empty dirs
+        file_names = [n for n in zf.namelist() if not n.endswith("/")]
+        assert file_names == []
 
 
 # === bulk_delete_run_tasks ===
@@ -958,7 +965,6 @@ def test_bulk_delete_run_tasks_deletes_multiple_runs(mocker: "MockerFixture", tm
     for rid in ids:
         create_run_dir(tmp_path, rid, state="COMPLETE")
 
-    mocker.patch("sapporo.run.time.sleep")
     bulk_delete_run_tasks(ids)
 
     for rid in ids:
@@ -973,13 +979,10 @@ def test_bulk_delete_run_tasks_one_failure_raises(mocker: "MockerFixture", tmp_p
     for rid in ids:
         create_run_dir(tmp_path, rid, state="COMPLETE")
 
-    mocker.patch("sapporo.run.time.sleep")
-
     def failing_delete(run_id: str) -> None:
         if run_id == ids[1]:
             msg = "Simulated failure"
             raise RuntimeError(msg)
-        # For other ids, do actual delete
         from sapporo.run import cancel_run_task, write_file
 
         cancel_run_task(run_id)
@@ -1014,7 +1017,6 @@ def test_remove_old_runs_deletes_old_entries(mocker: "MockerFixture", tmp_path: 
     create_run_dir(tmp_path, mock_run.run_id, state="COMPLETE")
 
     mocker.patch("sapporo.database.list_old_runs_db", return_value=[mock_run])
-    mocker.patch("sapporo.run.time.sleep")
 
     remove_old_runs()
 

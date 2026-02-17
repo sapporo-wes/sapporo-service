@@ -14,7 +14,7 @@ import binascii
 import hashlib
 import hmac
 import json
-import threading
+import secrets
 from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -22,21 +22,18 @@ from functools import cache
 from typing import Any, Literal
 
 from pydantic import BaseModel, ValidationError
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.engine.base import Engine
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from sapporo.config import get_config
 from sapporo.exceptions import raise_bad_request
 from sapporo.factory import create_run_summary
-from sapporo.run import glob_all_run_ids, read_file
+from sapporo.run_io import glob_all_run_ids, read_file
 from sapporo.schemas import RunSummary, State
 from sapporo.utils import dt_to_time_str, time_str_to_dt
 
 DATABASE_NAME = "sapporo.db"
-
-# Thread lock for SQLite operations to ensure thread safety
-_db_lock = threading.Lock()
 
 
 class PageTokenData(BaseModel):
@@ -46,26 +43,29 @@ class PageTokenData(BaseModel):
 
 @cache
 def create_db_engine() -> Engine:
-    return create_engine(
+    engine = create_engine(
         f"sqlite:///{get_config().run_dir}/{DATABASE_NAME}",
         echo=get_config().debug,
         connect_args={"check_same_thread": False},
     )
+    with engine.connect() as conn:
+        conn.execute(text("PRAGMA journal_mode=WAL"))
+        conn.execute(text("PRAGMA busy_timeout=5000"))
+    return engine
 
 
 @contextmanager
 def get_session() -> Generator[Session, None, None]:
-    """Get a database session with thread-safe access.
+    """Get a database session.
 
-    Uses a threading lock to ensure only one thread can access
-    the SQLite database at a time, preventing potential data corruption.
+    With WAL mode enabled, SQLite handles read concurrency internally.
+    Write serialization is managed by SQLite's internal locking and busy_timeout.
     """
-    with _db_lock:
-        session = Session(create_db_engine())
-        try:
-            yield session
-        finally:
-            session.close()
+    session = Session(create_db_engine())
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 # === Models ===
@@ -167,12 +167,16 @@ def system_state_counts(username: str | None = None) -> dict[str, int]:
     return {state.value: 0 for state in State} | dict(results)
 
 
-def _get_page_token_secret() -> str:
-    """Get the secret key for signing page tokens."""
-    # Import here to avoid circular imports
-    from sapporo.auth import get_auth_config
+_PAGE_TOKEN_SECRET: str = secrets.token_urlsafe(32)
 
-    return get_auth_config().sapporo_auth_config.secret_key
+
+def _get_page_token_secret() -> str:
+    """Get the secret key for signing page tokens.
+
+    Uses an independent random secret generated at process startup.
+    Page tokens are session-scoped, so a reset on restart is acceptable.
+    """
+    return _PAGE_TOKEN_SECRET
 
 
 def _sign_data(data: str) -> str:

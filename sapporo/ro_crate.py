@@ -30,7 +30,7 @@ from rocrate.utils import get_norm_value
 
 from sapporo.config import RUN_DIR_STRUCTURE
 from sapporo.schemas import FileObject, RunRequestForm
-from sapporo.utils import read_run_dir_file
+from sapporo.utils import read_run_dir_file, tail_file
 
 # === Constants ===
 
@@ -42,7 +42,10 @@ BIOSCHEMAS_FORMAL_PARAMETER = "https://bioschemas.org/profiles/FormalParameter/1
 BIOSCHEMAS_COMPUTATIONAL_WORKFLOW = "https://bioschemas.org/profiles/ComputationalWorkflow/1.0-RELEASE"
 
 _STDERR_TAIL_LINES = 20
-_DOCKER_IMAGE_RE = re.compile(r"(?:^|\s)([\w.-]+/[\w.-]+(?:/[\w.-]+)?:[\w.+-]+)")
+_DOCKER_IMAGE_RE = re.compile(
+    r"(?:^|\s)"
+    r"((?:[\w.-]+(?::\d+)?/)?[\w.-]+(?:/[\w.-]+)*:[\w.+-]+)"
+)
 _WF_MIME_TYPE: dict[str, str] = {
     "CWL": "application/x-yaml",
     "WDL": "text/plain",
@@ -694,11 +697,11 @@ def add_create_action(
 
     # Error from stderr (failure only)
     if action.get("actionStatus") == "http://schema.org/FailedActionStatus":
-        stderr_content = read_run_dir_file(run_dir, "stderr", raw=True)
-        if stderr_content:
-            lines = stderr_content.strip().splitlines()
-            tail = lines[-_STDERR_TAIL_LINES:] if len(lines) > _STDERR_TAIL_LINES else lines
-            action["error"] = "\n".join(tail)
+        stderr_path = run_dir / RUN_DIR_STRUCTURE["stderr"]
+        if stderr_path.exists():
+            tail_content = tail_file(stderr_path, _STDERR_TAIL_LINES)
+            if tail_content:
+                action["error"] = tail_content
 
     # Agent
     agent = add_agent(crate, run_dir)

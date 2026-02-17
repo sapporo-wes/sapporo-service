@@ -50,10 +50,44 @@ def read_run_dir_file(run_dir: Path, key: "RunDirStructureKeys", one_line: bool 
             return f.readline().strip()
         if raw:
             return f.read()
+        content = f.read()
         try:
-            return json.load(f)
+            return json.loads(content)
         except json.JSONDecodeError:
-            return f.read()
+            return content
+
+
+def tail_file(path: Path, n_lines: int = 20) -> str:
+    """Read the last n_lines from a file efficiently.
+
+    Uses a seek-from-end strategy to avoid reading the entire file into memory.
+    """
+    try:
+        with path.open("rb") as f:
+            f.seek(0, 2)
+            file_size = f.tell()
+            if file_size == 0:
+                return ""
+            chunk_size = min(file_size, n_lines * 512)
+            f.seek(max(0, file_size - chunk_size))
+            data = f.read().decode("utf-8", errors="replace")
+            lines = data.splitlines()
+            return "\n".join(lines[-n_lines:])
+    except OSError:
+        return ""
+
+
+def mask_sensitive(obj: dict[str, Any], keys: set[str]) -> dict[str, Any]:
+    """Return a shallow copy of obj with values of specified keys replaced by '***'."""
+    result: dict[str, Any] = {}
+    for k, v in obj.items():
+        if k in keys:
+            result[k] = "***"
+        elif isinstance(v, dict):
+            result[k] = mask_sensitive(v, keys)
+        else:
+            result[k] = v
+    return result
 
 
 _filename_char_whitelist_re = re.compile(r"[^A-Za-z0-9_.-]+")
@@ -88,6 +122,8 @@ def secure_filepath(filepath: str) -> Path:
     >>> Path("/../.../foo/bar//").parts
     ('/', '..', '...', 'foo', 'bar')
     """
+    from sapporo.exceptions import raise_bad_request
+
     ascii_filepath = normalize("NFKD", filepath).encode("ascii", "ignore").decode("ascii")
     pure_path = Path(ascii_filepath)
     sanitized_parts = []
@@ -97,4 +133,6 @@ def secure_filepath(filepath: str) -> Path:
         cleaned_part = _filename_char_whitelist_re.sub("", cleaned_part)
         if cleaned_part not in ("", ".", ".."):
             sanitized_parts.append(cleaned_part)
+    if not sanitized_parts:
+        raise_bad_request(f"Invalid file path: {filepath!r}")
     return Path(*sanitized_parts)

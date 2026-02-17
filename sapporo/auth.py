@@ -254,7 +254,9 @@ def spr_create_access_token(username: str, password: str) -> str:
     # Enforce expiration: use default if None, cap at maximum
     if expires_delta is None:
         expires_delta = DEFAULT_JWT_EXPIRES_HOURS
-    expires_delta = min(expires_delta, MAX_JWT_EXPIRES_HOURS)
+    if expires_delta > MAX_JWT_EXPIRES_HOURS:
+        LOGGER.warning("expires_delta_hours (%d) exceeds maximum (%d), capping.", expires_delta, MAX_JWT_EXPIRES_HOURS)
+        expires_delta = MAX_JWT_EXPIRES_HOURS
 
     iat = datetime.datetime.now(datetime.timezone.utc)
     exp = iat + datetime.timedelta(hours=expires_delta)

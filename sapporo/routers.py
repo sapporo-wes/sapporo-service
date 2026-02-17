@@ -1,3 +1,4 @@
+import json
 from typing import Literal, cast
 from uuid import uuid4
 
@@ -243,16 +244,18 @@ async def run_workflow(
         body = await request.json()
         json_req = RunRequestJson(**body)
         run_request = validate_run_request(
-            str(json_req.workflow_params) if json_req.workflow_params is not None else None,
+            json.dumps(json_req.workflow_params) if json_req.workflow_params is not None else None,
             json_req.workflow_type,
             json_req.workflow_type_version,
-            str(json_req.tags) if json_req.tags is not None else None,
+            json.dumps(json_req.tags) if json_req.tags is not None else None,
             json_req.workflow_engine,
             json_req.workflow_engine_version,
-            str(json_req.workflow_engine_parameters) if json_req.workflow_engine_parameters is not None else None,
+            json.dumps(json_req.workflow_engine_parameters)
+            if json_req.workflow_engine_parameters is not None
+            else None,
             json_req.workflow_url,
             [],
-            str([obj.model_dump() for obj in json_req.workflow_attachment_obj])
+            json.dumps([obj.model_dump() for obj in json_req.workflow_attachment_obj])
             if json_req.workflow_attachment_obj
             else None,
         )
@@ -261,12 +264,12 @@ async def run_workflow(
         run_request = validate_run_request(
             str(form.get("workflow_params")) if form.get("workflow_params") is not None else None,
             str(form.get("workflow_type", "")),
-            str(form.get("workflow_type_version", "")),
+            str(form.get("workflow_type_version")) if form.get("workflow_type_version") is not None else None,
             str(form.get("tags")) if form.get("tags") is not None else None,
             str(form.get("workflow_engine", "")),
             str(form.get("workflow_engine_version")) if form.get("workflow_engine_version") is not None else None,
             str(form.get("workflow_engine_parameters")) if form.get("workflow_engine_parameters") is not None else None,
-            str(form.get("workflow_url", "")),
+            str(form.get("workflow_url")) if form.get("workflow_url") is not None else None,
             cast("list[UploadFile]", form.getlist("workflow_attachment")),
             str(form.get("workflow_attachment_obj")) if form.get("workflow_attachment_obj") is not None else None,
         )
@@ -491,10 +494,14 @@ async def get_run_outputs_list(
     validate_run_id(run_id, username)
     if download:
         sanitized_name = str(secure_filepath(name)) if name else f"sapporo_{run_id}_outputs"
+        stream, content_length = outputs_zip_stream(run_id, sanitized_name)
         return StreamingResponse(
-            outputs_zip_stream(run_id, sanitized_name),
+            stream,
             media_type="application/zip",
-            headers={"Content-Disposition": f"attachment; filename={sanitized_name}.zip"},
+            headers={
+                "Content-Disposition": f"attachment; filename={sanitized_name}.zip",
+                "Content-Length": str(content_length),
+            },
         )
     return create_outputs_list_response(run_id)
 

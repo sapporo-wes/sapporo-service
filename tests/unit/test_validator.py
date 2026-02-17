@@ -72,11 +72,11 @@ def test_validate_wf_type_and_version_with_invalid_type_raises_400(mocker: "Mock
     assert exc_info.value.status_code == 400
 
 
-def test_validate_wf_type_and_version_with_none_version_returns_first(mocker: "MockerFixture") -> None:
+def test_validate_wf_type_and_version_with_none_version_raises_400(mocker: "MockerFixture") -> None:
     mocker.patch("sapporo.validator.create_service_info", return_value=_make_service_info())
-    wf_type, wf_version = validate_wf_type_and_version("CWL", None)
-    assert wf_type == "CWL"
-    assert wf_version == "v1.0"
+    with pytest.raises(HTTPException) as exc_info:
+        validate_wf_type_and_version("CWL", None)
+    assert exc_info.value.status_code == 400
 
 
 # === validate_wf_engine_type_and_version ===
@@ -96,11 +96,11 @@ def test_validate_wf_engine_type_and_version_with_invalid_engine_raises_400(mock
     assert exc_info.value.status_code == 400
 
 
-def test_validate_wf_engine_type_and_version_with_none_version_returns_first(mocker: "MockerFixture") -> None:
+def test_validate_wf_engine_type_and_version_with_none_version_returns_none(mocker: "MockerFixture") -> None:
     mocker.patch("sapporo.validator.create_service_info", return_value=_make_service_info())
     engine, version = validate_wf_engine_type_and_version("cwltool", None)
     assert engine == "cwltool"
-    assert version == "3.1"
+    assert version is None
 
 
 # === validate_run_id ===
@@ -238,7 +238,7 @@ def test_validate_run_request_with_all_none_optionals_returns_defaults(mocker: "
         wf_engine="cwltool",
         wf_engine_version="3.1",
         wf_engine_parameters=None,
-        wf_url=None,
+        wf_url="https://example.com/wf.cwl",
         wf_attachment=[],
         wf_attachment_obj=None,
     )
@@ -246,7 +246,7 @@ def test_validate_run_request_with_all_none_optionals_returns_defaults(mocker: "
     assert result.workflow_params == {}
     assert result.tags == {}
     assert result.workflow_engine_parameters is None
-    assert result.workflow_url == ""
+    assert result.workflow_url == "https://example.com/wf.cwl"
     assert result.workflow_attachment_obj == []
     assert result.workflow_attachment == []
     assert result.workflow_type == "CWL"
@@ -349,7 +349,7 @@ def test_validate_run_request_with_invalid_tags_json_raises_error(mocker: "Mocke
             wf_engine="cwltool",
             wf_engine_version="3.1",
             wf_engine_parameters=None,
-            wf_url=None,
+            wf_url="https://example.com/wf.cwl",
             wf_attachment=[],
             wf_attachment_obj=None,
         )
@@ -371,7 +371,7 @@ def test_validate_run_request_with_invalid_wf_engine_parameters_json_raises_erro
             wf_engine="cwltool",
             wf_engine_version="3.1",
             wf_engine_parameters="{not-json}",
-            wf_url=None,
+            wf_url="https://example.com/wf.cwl",
             wf_attachment=[],
             wf_attachment_obj=None,
         )
@@ -393,16 +393,88 @@ def test_validate_run_request_with_invalid_wf_attachment_obj_json_raises_error(m
             wf_engine="cwltool",
             wf_engine_version="3.1",
             wf_engine_parameters=None,
-            wf_url=None,
+            wf_url="https://example.com/wf.cwl",
             wf_attachment=[],
             wf_attachment_obj="[not valid json",
         )
 
 
+# === validate_run_request: required field rejection ===
+
+
+def test_validate_run_request_with_none_workflow_url_raises_400(mocker: "MockerFixture") -> None:
+    mocker.patch("sapporo.validator.create_service_info", return_value=_make_service_info())
+    mocker.patch(
+        "sapporo.validator.create_executable_wfs",
+        return_value=ExecutableWorkflows(workflows=[]),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        validate_run_request(
+            wf_params=None,
+            wf_type="CWL",
+            wf_type_version="v1.0",
+            tags=None,
+            wf_engine="cwltool",
+            wf_engine_version="3.1",
+            wf_engine_parameters=None,
+            wf_url=None,
+            wf_attachment=[],
+            wf_attachment_obj=None,
+        )
+    assert exc_info.value.status_code == 400
+
+
+def test_validate_run_request_with_empty_workflow_url_raises_400(mocker: "MockerFixture") -> None:
+    mocker.patch("sapporo.validator.create_service_info", return_value=_make_service_info())
+    mocker.patch(
+        "sapporo.validator.create_executable_wfs",
+        return_value=ExecutableWorkflows(workflows=[]),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        validate_run_request(
+            wf_params=None,
+            wf_type="CWL",
+            wf_type_version="v1.0",
+            tags=None,
+            wf_engine="cwltool",
+            wf_engine_version="3.1",
+            wf_engine_parameters=None,
+            wf_url="",
+            wf_attachment=[],
+            wf_attachment_obj=None,
+        )
+    assert exc_info.value.status_code == 400
+
+
+def test_validate_run_request_with_none_workflow_type_version_raises_400(mocker: "MockerFixture") -> None:
+    mocker.patch("sapporo.validator.create_service_info", return_value=_make_service_info())
+    mocker.patch(
+        "sapporo.validator.create_executable_wfs",
+        return_value=ExecutableWorkflows(workflows=[]),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        validate_run_request(
+            wf_params=None,
+            wf_type="CWL",
+            wf_type_version=None,
+            tags=None,
+            wf_engine="cwltool",
+            wf_engine_version="3.1",
+            wf_engine_parameters=None,
+            wf_url="https://example.com/wf.cwl",
+            wf_attachment=[],
+            wf_attachment_obj=None,
+        )
+    assert exc_info.value.status_code == 400
+
+
 # === validate_wf_type_and_version: edge cases ===
 
 
-def test_validate_wf_type_and_version_with_empty_version_list_returns_empty_string(mocker: "MockerFixture") -> None:
+def test_validate_wf_type_and_version_with_empty_version_list_and_none_raises_400(mocker: "MockerFixture") -> None:
     si = _make_service_info(
         wf_type_versions={
             "CWL": WorkflowTypeVersion(workflow_type_version=[]),
@@ -410,13 +482,12 @@ def test_validate_wf_type_and_version_with_empty_version_list_returns_empty_stri
     )
     mocker.patch("sapporo.validator.create_service_info", return_value=si)
 
-    wf_type, wf_version = validate_wf_type_and_version("CWL", None)
+    with pytest.raises(HTTPException) as exc_info:
+        validate_wf_type_and_version("CWL", None)
+    assert exc_info.value.status_code == 400
 
-    assert wf_type == "CWL"
-    assert wf_version == ""
 
-
-def test_validate_wf_type_and_version_with_none_version_list_returns_empty_string(mocker: "MockerFixture") -> None:
+def test_validate_wf_type_and_version_with_none_version_list_and_none_raises_400(mocker: "MockerFixture") -> None:
     si = _make_service_info(
         wf_type_versions={
             "CWL": WorkflowTypeVersion(workflow_type_version=None),
@@ -424,10 +495,9 @@ def test_validate_wf_type_and_version_with_none_version_list_returns_empty_strin
     )
     mocker.patch("sapporo.validator.create_service_info", return_value=si)
 
-    wf_type, wf_version = validate_wf_type_and_version("CWL", None)
-
-    assert wf_type == "CWL"
-    assert wf_version == ""
+    with pytest.raises(HTTPException) as exc_info:
+        validate_wf_type_and_version("CWL", None)
+    assert exc_info.value.status_code == 400
 
 
 def test_validate_wf_type_and_version_with_explicit_version_returns_it(mocker: "MockerFixture") -> None:
@@ -444,7 +514,7 @@ def test_validate_wf_type_and_version_with_explicit_version_returns_it(mocker: "
 # === validate_wf_engine_type_and_version: edge cases ===
 
 
-def test_validate_wf_engine_type_and_version_with_empty_version_list_returns_empty_string(
+def test_validate_wf_engine_type_and_version_with_empty_version_list_returns_none(
     mocker: "MockerFixture",
 ) -> None:
     si = _make_service_info(
@@ -457,10 +527,10 @@ def test_validate_wf_engine_type_and_version_with_empty_version_list_returns_emp
     engine, version = validate_wf_engine_type_and_version("cwltool", None)
 
     assert engine == "cwltool"
-    assert version == ""
+    assert version is None
 
 
-def test_validate_wf_engine_type_and_version_with_none_version_list_returns_empty_string(
+def test_validate_wf_engine_type_and_version_with_none_version_list_returns_none(
     mocker: "MockerFixture",
 ) -> None:
     si = _make_service_info(
@@ -473,7 +543,7 @@ def test_validate_wf_engine_type_and_version_with_none_version_list_returns_empt
     engine, version = validate_wf_engine_type_and_version("cwltool", None)
 
     assert engine == "cwltool"
-    assert version == ""
+    assert version is None
 
 
 def test_validate_wf_engine_type_and_version_with_explicit_version_returns_it(mocker: "MockerFixture") -> None:

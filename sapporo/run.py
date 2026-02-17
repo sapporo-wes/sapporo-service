@@ -1,9 +1,7 @@
 import json
 import os
-import shlex
 import shutil
 import signal
-import time
 import traceback
 import zipfile
 from collections.abc import Iterable
@@ -11,15 +9,34 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 from pathlib import Path
 from subprocess import Popen
-from typing import Any
 from urllib import parse
 
 import httpx
+from zipstream import ZipStream
 
-from sapporo.config import LOGGER, RUN_DIR_STRUCTURE, RunDirStructureKeys, get_config
+from sapporo.config import LOGGER, RUN_DIR_STRUCTURE, get_config
 from sapporo.factory import create_service_info
-from sapporo.schemas import RunRequest, RunRequestForm, State
-from sapporo.utils import now_str, sapporo_version, secure_filepath, user_agent
+from sapporo.run_io import (
+    dump_runtime_info,
+    glob_all_run_ids,
+    read_file,
+    read_state,
+    resolve_content_path,
+    resolve_run_dir,
+    write_file,
+)
+
+__all__ = [
+    "dump_runtime_info",
+    "glob_all_run_ids",
+    "read_file",
+    "read_state",
+    "resolve_content_path",
+    "resolve_run_dir",
+    "write_file",
+]
+from sapporo.schemas import RunRequestForm, State
+from sapporo.utils import now_str, secure_filepath, user_agent
 
 
 def prepare_run_dir(run_id: str, run_request: RunRequestForm, username: str | None) -> None:
@@ -42,40 +59,6 @@ def prepare_run_dir(run_id: str, run_request: RunRequestForm, username: str | No
         write_file(run_id, "username", username)
 
     write_wf_attachment(run_id, run_request)
-
-
-def resolve_run_dir(run_id: str) -> Path:
-    run_dir_base = get_config().run_dir
-
-    return run_dir_base.joinpath(run_id[:2]).joinpath(run_id).resolve()
-
-
-def resolve_content_path(run_id: str, key: RunDirStructureKeys) -> Path:
-    return resolve_run_dir(run_id).joinpath(RUN_DIR_STRUCTURE[key])
-
-
-def write_file(run_id: str, key: RunDirStructureKeys, content: Any) -> None:
-    file = resolve_content_path(run_id, key)
-    file.parent.mkdir(parents=True, exist_ok=True)
-    with file.open(mode="w", encoding="utf-8") as f:
-        if file.suffix == ".json":
-            if key == "wf_params" and isinstance(content, str):
-                pass
-            else:
-                content = json.dumps(content, indent=2)
-        elif key == "state":
-            content = content.value
-        else:
-            content = str(content)
-        f.write(content)
-
-
-def dump_runtime_info(run_id: str) -> dict[str, Any]:
-    return {
-        "run_id": run_id,
-        "sapporo_version": sapporo_version(),
-        "base_url": get_config().base_url,
-    }
 
 
 def wf_engine_params_to_str(run_request: RunRequestForm) -> str:
@@ -157,44 +140,6 @@ def post_run_task(run_id: str, run_request: RunRequestForm) -> None:
         append_system_logs(run_id, error_msg)
 
 
-def read_file(run_id: str, key: RunDirStructureKeys) -> Any:
-    if key == "state":
-        read_state(run_id)
-
-    if "dir" in key:
-        return None
-    file_path = resolve_content_path(run_id, key)
-    if file_path.exists() is False:
-        return None
-
-    with file_path.open(mode="r", encoding="utf-8") as f:
-        content = f.read().strip()
-        # Special handling for specific keys
-        if key == "run_request":
-            return RunRequest.model_validate_json(content)
-        if key == "cmd":
-            return shlex.split(content)
-        if key in ["start_time", "end_time", "stdout", "stderr", "username"]:
-            return content
-        if key in ["pid", "exit_code"]:
-            return int(content)
-        if key == "ro_crate":
-            return json.loads(content)
-
-        try:
-            return json.loads(content)
-        except json.JSONDecodeError:
-            return content
-
-
-def read_state(run_id: str) -> State:
-    try:
-        with resolve_content_path(run_id, "state").open(mode="r", encoding="utf-8") as f:
-            return State(f.read().strip())
-    except FileNotFoundError:
-        return State("UNKNOWN")
-
-
 def append_system_logs(run_id: str, log: str) -> None:
     system_logs = read_file(run_id, "system_logs") or []
     system_logs.append(log)
@@ -222,10 +167,6 @@ def list_files(dir_: Path) -> Iterable[Path]:
     for root, _, files in os.walk(dir_):
         for file in files:
             yield Path(root).joinpath(file)
-
-
-def glob_all_run_ids() -> list[str]:
-    return [run_dir.parent.name for run_dir in get_config().run_dir.glob(f"*/*/{RUN_DIR_STRUCTURE['run_request']}")]
 
 
 def cancel_run_task(run_id: str) -> None:
@@ -256,17 +197,10 @@ def delete_run_task(run_id: str) -> None:
     # 1. Cancel the run if it is running.
     cancel_run_task(run_id)
 
-    # 2. Pooling for the run to be canceled.
-    time.sleep(3)
-    for _ in range(120):
-        state = read_state(run_id)
-        if state == State.CANCELING:
-            time.sleep(3)
-        else:
-            break
+    # 2. Transition to DELETING immediately (non-blocking).
+    write_file(run_id, "state", State.DELETING)
 
     # 3. Delete run-related files.
-    write_file(run_id, "state", State.DELETING)
     run_dir = resolve_run_dir(run_id)
     for path in run_dir.glob("*"):
         if path.name in KEEP_FILES:
@@ -280,23 +214,11 @@ def delete_run_task(run_id: str) -> None:
     write_file(run_id, "state", State.DELETED)
 
 
-def outputs_zip_stream(run_id: str, name: str | None = None) -> Iterable[bytes]:
+def outputs_zip_stream(run_id: str, name: str | None = None) -> tuple[Iterable[bytes], int]:
     outputs_dir = resolve_content_path(run_id, "outputs_dir")
     base_dir_name = name or f"sapporo_{run_id}_outputs"
-
-    with BytesIO() as buffer:
-        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-            for path in outputs_dir.glob("**/*"):
-                if path.is_dir() and not any(path.iterdir()):
-                    # Empty directory
-                    arc_path = f"{base_dir_name}/{path.relative_to(outputs_dir)}/"
-                    zf.writestr(arc_path, "")
-                if path.is_file():
-                    arc_path = f"{base_dir_name}/{path.relative_to(outputs_dir)}"
-                    zf.write(path, arc_path)
-        buffer.seek(0)
-        while chunk := buffer.read(8192):
-            yield chunk
+    zs = ZipStream.from_path(outputs_dir, arcname=base_dir_name, sized=True)
+    return iter(zs), len(zs)
 
 
 def ro_crate_zip_stream(run_id: str) -> Iterable[bytes]:

@@ -44,7 +44,7 @@ sapporo-service accepts arbitrary workflow engines and workflow languages via th
 | File metadata I/O error (`stat`, read, hash) | Error suppressed; affected properties omitted from the entity |
 | Non-numeric `exit_code` | `FailedActionStatus` set; `exitCode` property omitted |
 | Output file disappeared after listing | File skipped; remaining outputs processed normally |
-| Missing `run_request.json` | `ValueError` raised with a descriptive message (generation cannot proceed) |
+| Missing `run_request.json` | `TypeError` raised with a descriptive message (generation cannot proceed) |
 
 ## Entity Graph
 
