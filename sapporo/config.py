@@ -224,6 +224,7 @@ RunDirStructureKeys = Literal[
     "system_logs",
     "username",
     "ro_crate",
+    "multiqc_stats",
 ]
 
 

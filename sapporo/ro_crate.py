@@ -6,7 +6,6 @@ import logging
 import re
 import shutil
 import subprocess
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -16,12 +15,10 @@ if TYPE_CHECKING:
     from sapporo.config import RunDirStructureKeys
 
 import magic
-import multiqc
 from fastapi import UploadFile
-from multiqc.core.update_config import ClConfig
 from pydantic import BaseModel, TypeAdapter
 from rocrate.model.computationalworkflow import ComputationalWorkflow
-from rocrate.model.computerlanguage import ComputerLanguage
+from rocrate.model.computerlanguage import LANG_MAP, ComputerLanguage
 from rocrate.model.computerlanguage import get_lang as ro_crate_get_lang
 from rocrate.model.contextentity import ContextEntity
 from rocrate.model.creativework import CreativeWork
@@ -294,7 +291,8 @@ def resolve_workflow_language(crate: ROCrate, run_request: RunRequestForm) -> Co
         lang_type_for_ro_crate = "nextflow"
     elif wf_type.lower() == "smk":
         lang_type_for_ro_crate = "snakemake"
-    try:
+
+    if lang_type_for_ro_crate.lower() in LANG_MAP:
         lang_ins = ro_crate_get_lang(crate, lang_type_for_ro_crate, wf_type_version)
         for filed in ["identifier", "url"]:
             id_ = get_norm_value(lang_ins, filed)[0]
@@ -306,40 +304,36 @@ def resolve_workflow_language(crate: ROCrate, run_request: RunRequestForm) -> Co
                 },
             )
             crate.add(cxt)
-    except ValueError as e:
-        if "Unknown language" in str(e):
-            if wf_type.lower() == "wdl":
-                id_ = "https://openwdl.org"
-                lang_ins = ComputerLanguage(
-                    crate,
-                    id_,
-                    properties={
-                        "name": "Workflow Description Language",
-                        "alternateName": "WDL",
-                        "version": wf_type_version,
-                    },
-                )
-                ctx = ContextEntity(
-                    crate,
-                    id_,
-                    properties={
-                        "@type": ["WebPage"],
-                    },
-                )
-                lang_ins.append_to("identifier", ctx, compact=True)
-                lang_ins.append_to("url", ctx, compact=True)
-                crate.add(ctx)
-            else:
-                lang_ins = ComputerLanguage(
-                    crate,
-                    wf_type,
-                    properties={
-                        "name": wf_type,
-                        "version": wf_type_version,
-                    },
-                )
-        else:
-            raise
+    elif wf_type.lower() == "wdl":
+        id_ = "https://openwdl.org"
+        lang_ins = ComputerLanguage(
+            crate,
+            id_,
+            properties={
+                "name": "Workflow Description Language",
+                "alternateName": "WDL",
+                "version": wf_type_version,
+            },
+        )
+        ctx = ContextEntity(
+            crate,
+            id_,
+            properties={
+                "@type": ["WebPage"],
+            },
+        )
+        lang_ins.append_to("identifier", ctx, compact=True)
+        lang_ins.append_to("url", ctx, compact=True)
+        crate.add(ctx)
+    else:
+        lang_ins = ComputerLanguage(
+            crate,
+            wf_type,
+            properties={
+                "name": wf_type,
+                "version": wf_type_version,
+            },
+        )
 
     crate.add(lang_ins)
 
@@ -356,8 +350,11 @@ def add_workflow_entity(crate: ROCrate, run_dir: Path, run_request: RunRequestFo
     if wf_url_parts.scheme in ["http", "https"]:
         wf_ins = ComputationalWorkflow(crate, wf_url)
     else:
-        wf_file_path = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], wf_url).resolve(strict=True)
-        wf_ins = ComputationalWorkflow(crate, wf_file_path, wf_file_path.relative_to(run_dir))
+        try:
+            wf_file_path = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], wf_url).resolve(strict=True)
+            wf_ins = ComputationalWorkflow(crate, wf_file_path, wf_file_path.relative_to(run_dir))
+        except FileNotFoundError:
+            wf_ins = ComputationalWorkflow(crate, wf_url)
 
     crate.add(wf_ins)
     crate.mainEntity = wf_ins
@@ -612,7 +609,10 @@ def add_output_file_entities(
         if source.is_dir():
             continue
 
-        file_apath = source.resolve(strict=True)
+        try:
+            file_apath = source.resolve(strict=True)
+        except FileNotFoundError:
+            continue
         file_rpath = file_apath.relative_to(run_dir)
 
         file_ins = File(crate, file_apath, file_rpath, properties={"@type": "File"})
@@ -678,11 +678,15 @@ def add_create_action(
     # Status
     exit_code_str = read_run_dir_file(run_dir, "exit_code", one_line=True)
     if exit_code_str is not None:
-        action["exitCode"] = int(exit_code_str)
-        if exit_code_str == "0":
-            action["actionStatus"] = "http://schema.org/CompletedActionStatus"
-        else:
+        try:
+            action["exitCode"] = int(exit_code_str)
+        except ValueError:
             action["actionStatus"] = "http://schema.org/FailedActionStatus"
+        else:
+            if exit_code_str == "0":
+                action["actionStatus"] = "http://schema.org/CompletedActionStatus"
+            else:
+                action["actionStatus"] = "http://schema.org/FailedActionStatus"
 
     # Description: summary text
     wf_name = Path(run_request.workflow_url).name or run_request.workflow_url
@@ -743,20 +747,27 @@ def populate_file_metadata(
     if not file_path.is_file():
         return
 
-    stat_result = file_path.stat()
+    try:
+        stat_result = file_path.stat()
+    except OSError:
+        return
     file_ins["contentSize"] = stat_result.st_size
     file_ins["dateModified"] = datetime.fromtimestamp(stat_result.st_mtime, tz=timezone.utc).isoformat()
 
-    with contextlib.suppress(UnicodeDecodeError):
+    with contextlib.suppress(OSError, UnicodeDecodeError):
         file_ins["lineCount"] = count_lines(file_path)
 
-    file_ins["sha256"] = compute_sha256(file_path)
+    with contextlib.suppress(OSError):
+        file_ins["sha256"] = compute_sha256(file_path)
 
     if include_content and (include_force or file_ins["contentSize"] < 10 * 1024):
-        with contextlib.suppress(UnicodeDecodeError):
+        with contextlib.suppress(OSError, UnicodeDecodeError):
             file_ins["text"] = file_path.read_text()
 
-    mime_type = magic.from_file(str(file_path), mime=True)
+    try:
+        mime_type = magic.from_file(str(file_path), mime=True)
+    except (OSError, ValueError):
+        mime_type = "application/octet-stream"
     if mime_type.startswith("inode/"):
         mime_type = "application/octet-stream"
     file_ins["encodingFormat"] = mime_type
@@ -776,33 +787,43 @@ def populate_file_metadata(
 
 
 def add_multiqc_stats(crate: ROCrate, run_dir: Path, create_action_ins: ContextEntity) -> None:
-    """Run multiqc and add multiqc stats to the crate."""
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-    try:
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            multiqc.run(
-                str(run_dir),
-                cfg=ClConfig(
-                    output_dir=str(run_dir),
-                    data_format="json",
-                    make_report=False,
-                    quiet=True,
-                ),
-            )
-    except Exception:
-        print(stderr.getvalue(), file=sys.stderr)  # noqa: T201
+    """Run multiqc in Docker and add multiqc stats to the crate.
 
+    Requires Docker daemon to be running (``shutil.which`` only checks the
+    binary exists on PATH, not that the daemon is up).
+    """
+    if shutil.which("docker") is None:
         return
 
-    multiqc_data_dir = run_dir.joinpath("multiqc_data")
-    multiqc_stats = run_dir.joinpath(RUN_DIR_STRUCTURE["multiqc_stats"])
+    logger = logging.getLogger("sapporo")
+    cmd = [
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        f"{run_dir}:/work",
+        "-w",
+        "/work",
+        "quay.io/biocontainers/multiqc:1.33--pyhdfd78af_0",
+        "multiqc",
+        "--data-format",
+        "json",
+        "--quiet",
+        "--no-report",
+        "/work",
+    ]
+    proc = subprocess.run(cmd, capture_output=True, check=False)
+    if proc.returncode != 0:
+        logger.warning("MultiQC Docker command failed (rc=%d): %s", proc.returncode, proc.stderr.decode()[:500])
+
+    multiqc_data_dir = run_dir / "multiqc_data"
+    multiqc_stats = run_dir / RUN_DIR_STRUCTURE["multiqc_stats"]
 
     if multiqc_data_dir.exists() and multiqc_data_dir.joinpath("multiqc_general_stats.json").exists():
-        shutil.move(str(multiqc_data_dir.joinpath("multiqc_general_stats.json")), str(multiqc_stats))
+        shutil.move(str(multiqc_data_dir / "multiqc_general_stats.json"), str(multiqc_stats))
         shutil.rmtree(str(multiqc_data_dir))
 
-    if multiqc_stats.exists() is False:
+    if not multiqc_stats.exists():
         return
 
     file_ins = File(
@@ -817,7 +838,11 @@ def add_multiqc_stats(crate: ROCrate, run_dir: Path, create_action_ins: ContextE
 
 
 def add_file_stats(crate: ROCrate, file_ins: File) -> None:
-    """Add file statistics using Docker-based bioinformatics tools."""
+    """Add file statistics using Docker-based bioinformatics tools.
+
+    Requires Docker daemon to be running (``shutil.which`` only checks the
+    binary exists on PATH, not that the daemon is up).
+    """
     if shutil.which("docker") is None:
         return
 
@@ -831,6 +856,7 @@ def add_file_stats(crate: ROCrate, file_ins: File) -> None:
 
 def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
     """Add samtools flagstats statistics to the file instance."""
+    logger = logging.getLogger("sapporo")
     source = file_ins.source
     cmd = [
         "docker",
@@ -840,7 +866,7 @@ def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
         f"{source}:/work/{source.name}",
         "-w",
         "/work",
-        "quay.io/biocontainers/samtools:1.15.1--h1170115_0",
+        "quay.io/biocontainers/samtools:1.23--h96c455f_0",
         "samtools",
         "flagstats",
         "--output-fmt",
@@ -849,6 +875,12 @@ def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
     ]
     proc = subprocess.run(cmd, capture_output=True, check=False)
     if proc.returncode != 0:
+        logger.warning(
+            "samtools Docker command failed for %s (rc=%d): %s",
+            file_ins.id,
+            proc.returncode,
+            proc.stderr.decode()[:500],
+        )
         return
     try:
         stats = json.loads(proc.stdout)
@@ -873,7 +905,7 @@ def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
             properties["duplicateRate"] = 0.0
         stats_ins = ContextEntity(crate, properties=properties)
         stats_ins.append_to(
-            "generatedBy", find_or_generate_software_ins(crate, "samtools", "1.15.1--h1170115_0"), compact=True
+            "generatedBy", find_or_generate_software_ins(crate, "samtools", "1.23--h96c455f_0"), compact=True
         )
         file_ins.append_to("stats", stats_ins, compact=True)
         crate.add(stats_ins)
@@ -884,6 +916,7 @@ def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
 
 def add_vcftools_stats(crate: ROCrate, file_ins: File) -> None:
     """Add vcftools statistics to the file instance."""
+    logger = logging.getLogger("sapporo")
     source = file_ins.source
     cmd = [
         "docker",
@@ -893,12 +926,18 @@ def add_vcftools_stats(crate: ROCrate, file_ins: File) -> None:
         f"{source}:/work/{source.name}",
         "-w",
         "/work",
-        "quay.io/biocontainers/vcftools:0.1.16--pl5321h9a82719_6",
+        "quay.io/biocontainers/vcftools:0.1.17--pl5321h077b44d_0",
         "vcf-stats",
         source.name,
     ]
     proc = subprocess.run(cmd, capture_output=True, check=False)
     if proc.returncode != 0:
+        logger.warning(
+            "vcftools Docker command failed for %s (rc=%d): %s",
+            file_ins.id,
+            proc.returncode,
+            proc.stderr.decode()[:500],
+        )
         return
     try:
         stdout_str = proc.stdout.decode()
@@ -917,7 +956,7 @@ def add_vcftools_stats(crate: ROCrate, file_ins: File) -> None:
             },
         )
         stats_ins.append_to(
-            "generatedBy", find_or_generate_software_ins(crate, "vcftools", "0.1.16--pl5321h9a82719_6"), compact=True
+            "generatedBy", find_or_generate_software_ins(crate, "vcftools", "0.1.17--pl5321h077b44d_0"), compact=True
         )
         file_ins.append_to("stats", stats_ins, compact=True)
         crate.add(stats_ins)
@@ -982,7 +1021,11 @@ def generate_ro_crate_metadata(run_dir: Path) -> dict[str, Any]:
     """Generate RO-Crate metadata as a JSON-LD dict (for testing)."""
     crate = create_base_crate()
 
-    run_request = load_run_request(read_run_dir_file(run_dir, "run_request"))
+    raw_run_request = read_run_dir_file(run_dir, "run_request")
+    if not isinstance(raw_run_request, dict):
+        msg = f"run_request.json is missing or invalid in {run_dir} (got {type(raw_run_request).__name__})"
+        raise TypeError(msg)
+    run_request = load_run_request(raw_run_request)
     runtime_info = read_run_dir_file(run_dir, "runtime_info")
     run_id = runtime_info["run_id"] if isinstance(runtime_info, dict) and "run_id" in runtime_info else run_dir.name
 

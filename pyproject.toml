@@ -31,7 +31,6 @@ dependencies = [
     "cachetools",
     "fastapi",
     "httpx",
-    "multiqc",
     "pydantic-settings>=2.7",
     "pydantic",
     "pyjwt[crypto]",

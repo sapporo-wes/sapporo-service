@@ -190,12 +190,10 @@ def test_generate_secret_output_exactly_43_chars(capsys: pytest.CaptureFixture[s
 
 
 def test_generate_secret_calls_token_urlsafe_with_32(mocker: "MockerFixture") -> None:
-    mocker.patch("sapporo.cli.secrets.token_urlsafe", return_value="a" * 43)
+    mock_token = mocker.patch("sapporo.cli.secrets.token_urlsafe", return_value="a" * 43)
     args = Namespace()
     generate_secret(args)
-    import sapporo.cli
-
-    sapporo.cli.secrets.token_urlsafe.assert_called_once_with(32)
+    mock_token.assert_called_once_with(32)
 
 
 # === main: --help output verification ===

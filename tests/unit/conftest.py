@@ -51,7 +51,7 @@ def pytest_configure(config: pytest.Config) -> None:
     real_sapporo = cwd.parent / "sapporo"
     if mutants_sapporo.is_dir() and real_sapporo.is_dir():
         for src in real_sapporo.iterdir():
-            if src.is_file() and src.suffix != ".py":
+            if src.is_file():
                 dst = mutants_sapporo / src.name
                 if not dst.exists():
                     dst.symlink_to(src)

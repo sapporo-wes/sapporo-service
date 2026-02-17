@@ -32,6 +32,20 @@ RO-Crate generation is triggered from `run.sh` after the workflow engine finishe
 
 If RO-Crate generation itself fails, `run.sh` writes `{"@error": "RO-Crate generation failed. Check stderr.log for details."}` to `ro-crate-metadata.json` and appends the Python error traceback to `stderr.log`. The `@error` key in the response indicates a generation failure, distinguishing it from a valid RO-Crate (which contains `@graph`) or a run where RO-Crate was not generated (which returns `null` via the API).
 
+## Graceful Degradation
+
+sapporo-service accepts arbitrary workflow engines and workflow languages via the WES API. Unknown engines or languages are expected cases, not errors. The RO-Crate generation applies the following fallback rules to produce valid metadata without crashing. All fallbacks are normal operation and do not emit warning logs (to prevent log file bloat in production).
+
+| Condition | Fallback Behavior |
+|---|---|
+| Unknown workflow language (`ro-crate-py` `LANG_MAP` miss) | Generic `ComputerLanguage` entity with `name` = workflow type string. WDL is special-cased with `@id` = `https://openwdl.org` |
+| Unknown workflow engine (`_ENGINE_URL_MAP` miss) | `SoftwareApplication` with fragment identifier (`#engine_name`). No `url` property |
+| Local workflow file not found on disk | URL string used as-is for `ComputationalWorkflow` identifier |
+| File metadata I/O error (`stat`, read, hash) | Error suppressed; affected properties omitted from the entity |
+| Non-numeric `exit_code` | `FailedActionStatus` set; `exitCode` property omitted |
+| Output file disappeared after listing | File skipped; remaining outputs processed normally |
+| Missing `run_request.json` | `ValueError` raised with a descriptive message (generation cannot proceed) |
+
 ## Entity Graph
 
 ```text
@@ -87,6 +101,8 @@ The `ComputationalWorkflow` entity represents the executed workflow. It conforms
 | `NFL` | Nextflow |
 | `SMK` | Snakemake |
 
+Unknown workflow types fall back to a generic `ComputerLanguage` entity with `name` set to the type string. The MIME type (`encodingFormat`) falls back to `text/plain`. These fallbacks are normal operation and do not produce log output.
+
 ### CreateAction
 
 The `CreateAction` entity records the execution provenance:
@@ -124,7 +140,7 @@ sapporo automatically runs bioinformatics analysis tools on output files to embe
 
 ### MultiQC Statistics
 
-[MultiQC](https://multiqc.info/) is run automatically on the entire run directory after workflow completion. If MultiQC finds supported tool outputs (e.g., FastQC, samtools), it generates a `multiqc_general_stats.json` file. This file is:
+[MultiQC](https://multiqc.info/) is run in a Docker container (`quay.io/biocontainers/multiqc:1.33--pyhdfd78af_0`) automatically on the entire run directory after workflow completion. If Docker is not available, MultiQC is skipped. If MultiQC finds supported tool outputs (e.g., FastQC, samtools), it generates a `multiqc_general_stats.json` file. This file is:
 
 - Stored at `{run_dir}/multiqc_general_stats.json`.
 - Added to the crate as a `File` entity with full content embedded.
@@ -132,7 +148,7 @@ sapporo automatically runs bioinformatics analysis tools on output files to embe
 
 ### samtools Stats (BAM/SAM)
 
-For output files with BAM (`.bam`) or SAM (`.sam`) format (detected via EDAM ontology), `samtools flagstats` is run in a Docker container (`quay.io/biocontainers/samtools:1.15.1`). The resulting `FileStats` entity includes:
+For output files with BAM (`.bam`) or SAM (`.sam`) format (detected via EDAM ontology), `samtools flagstats` is run in a Docker container (`quay.io/biocontainers/samtools:1.23--h96c455f_0`). The resulting `FileStats` entity includes:
 
 | Property | Description |
 |---|---|
@@ -146,7 +162,7 @@ For output files with BAM (`.bam`) or SAM (`.sam`) format (detected via EDAM ont
 
 ### vcftools Stats (VCF)
 
-For output files with VCF format (`.vcf`, `.vcf.gz`), `vcf-stats` is run in a Docker container (`quay.io/biocontainers/vcftools:0.1.16`). The resulting `FileStats` entity includes:
+For output files with VCF format (`.vcf`, `.vcf.gz`), `vcf-stats` is run in a Docker container (`quay.io/biocontainers/vcftools:0.1.17--pl5321h077b44d_0`). The resulting `FileStats` entity includes:
 
 | Property | Description |
 |---|---|
@@ -193,10 +209,10 @@ When [authentication](authentication.md) is enabled, this endpoint is protected 
 
 RO-Crate generation is implemented in `sapporo/ro_crate.py` and called from `run.sh` after the workflow engine completes (or fails). It runs in the same subprocess as the workflow execution.
 
-The entry point is `generate_ro_crate(run_dir)`, invoked from `run.sh` as:
+The entry point is `generate_ro_crate(run_dir)`, invoked from `run.sh` via the CLI as:
 
 ```bash
-python3 -c "from sapporo.ro_crate import generate_ro_crate; generate_ro_crate('${run_dir}')"
+sapporo-cli generate-ro-crate ${run_dir}
 ```
 
 The generation flow:
@@ -205,8 +221,8 @@ The generation flow:
 2. Add the `ComputationalWorkflow` entity from the run request.
 3. Add `SoftwareApplication` entities for the workflow engine and sapporo.
 4. Build the `CreateAction` with inputs, outputs, logs, and metadata.
-5. Run MultiQC and attach statistics.
-6. Run samtools/vcftools on applicable output files.
+5. Run MultiQC in Docker and attach statistics (skipped if Docker is unavailable).
+6. Run samtools/vcftools in Docker on applicable output files (skipped if Docker is unavailable).
 7. Write `ro-crate-metadata.json` and `README.md` to the run directory.
 
 ## Validation

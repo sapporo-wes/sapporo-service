@@ -3,7 +3,8 @@
 import hashlib
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+from unittest.mock import patch
 
 import pytest
 from hypothesis import given, settings
@@ -19,11 +20,16 @@ from sapporo.ro_crate import (
     WORKFLOW_RUN_PROFILE,
     _ensure_tz,
     add_create_action,
+    add_file_stats,
+    add_multiqc_stats,
+    add_samtools_stats,
+    add_vcftools_stats,
     add_workflow_entity,
     compute_sha256,
     count_lines,
     create_base_crate,
     extract_docker_image,
+    find_or_generate_software_ins,
     generate_ro_crate,
     generate_ro_crate_metadata,
     infer_parameter_type,
@@ -32,6 +38,9 @@ from sapporo.ro_crate import (
     resolve_workflow_language,
 )
 from tests.unit.conftest import create_run_dir, make_run_request_form
+
+if TYPE_CHECKING:
+    from pytest_mock import MockerFixture
 
 RUN_ID = "ab12cd34-ef56-7890-abcd-ef1234567890"
 
@@ -1425,3 +1434,540 @@ class TestRoCrateImprovements:
         f = tmp_path / "empty.txt"
         f.write_text("", encoding="utf-8")
         assert count_lines(f) == 0
+
+
+# === Bioinformatics extensions ===
+
+
+def _make_file_entity(tmp_path: Path, filename: str, content: bytes = b"\x00" * 100) -> Any:
+    """Create a File entity with EDAM encoding for testing bioinformatics stats."""
+    from rocrate.model.file import File as RoFile
+
+    f = tmp_path / filename
+    f.write_bytes(content)
+    crate = create_base_crate()
+    file_ins = RoFile(crate, f, filename)
+    populate_file_metadata(file_ins, f, include_content=False)
+    crate.add(file_ins)
+
+    return crate, file_ins
+
+
+class TestAddMultiqcStats:
+    def test_skips_when_docker_not_available(self, tmp_path: Path) -> None:
+        """Should return immediately when docker binary is not found."""
+        crate = create_base_crate()
+        action = crate.add(
+            __import__("rocrate.model.contextentity", fromlist=["ContextEntity"]).ContextEntity(
+                crate, "#test-action", properties={"@type": "CreateAction"}
+            )
+        )
+        with patch("sapporo.ro_crate.shutil.which", return_value=None):
+            add_multiqc_stats(crate, tmp_path, action)
+        assert action.get("multiqcStats") is None
+
+    def test_skips_when_docker_fails(self, tmp_path: Path, mocker: "MockerFixture") -> None:
+        """Should log warning and continue when Docker command fails."""
+        from subprocess import CompletedProcess
+
+        from rocrate.model.contextentity import ContextEntity
+
+        crate = create_base_crate()
+        action = ContextEntity(crate, "#test-action", properties={"@type": "CreateAction"})
+        crate.add(action)
+
+        mocker.patch("sapporo.ro_crate.shutil.which", return_value="/usr/bin/docker")
+        mocker.patch(
+            "sapporo.ro_crate.subprocess.run",
+            return_value=CompletedProcess(args=[], returncode=1, stdout=b"", stderr=b"image not found"),
+        )
+
+        add_multiqc_stats(crate, tmp_path, action)
+        assert action.get("multiqcStats") is None
+
+    def test_adds_stats_when_multiqc_produces_output(self, tmp_path: Path, mocker: "MockerFixture") -> None:
+        """Should add multiqcStats entity when MultiQC generates stats."""
+        from subprocess import CompletedProcess
+
+        from rocrate.model.contextentity import ContextEntity
+
+        crate = create_base_crate()
+        action = ContextEntity(crate, "#test-action", properties={"@type": "CreateAction"})
+        crate.add(action)
+
+        # Pre-create the multiqc_data directory as Docker would
+        multiqc_data = tmp_path / "multiqc_data"
+        multiqc_data.mkdir()
+        stats_content = [{"sample": "test", "total_reads": 1000}]
+        (multiqc_data / "multiqc_general_stats.json").write_text(json.dumps(stats_content), encoding="utf-8")
+
+        mocker.patch("sapporo.ro_crate.shutil.which", return_value="/usr/bin/docker")
+        mocker.patch(
+            "sapporo.ro_crate.subprocess.run",
+            return_value=CompletedProcess(args=[], returncode=0, stdout=b"", stderr=b""),
+        )
+
+        add_multiqc_stats(crate, tmp_path, action)
+        assert action.get("multiqcStats") is not None
+        # multiqc_data directory should be cleaned up
+        assert not multiqc_data.exists()
+        # Stats file should be moved to run_dir
+        assert (tmp_path / "multiqc_general_stats.json").exists()
+
+
+class TestAddSamtoolsStats:
+    _FLAGSTATS_JSON = json.dumps(
+        {
+            "QC-passed reads": {
+                "total": 1000,
+                "mapped": 950,
+                "duplicates": 50,
+            },
+            "QC-failed reads": {"total": 0, "mapped": 0, "duplicates": 0},
+        }
+    ).encode()
+
+    def test_adds_stats_on_success(self, tmp_path: Path, mocker: "MockerFixture") -> None:
+        """Should add FileStats entity with correct properties."""
+        from subprocess import CompletedProcess
+
+        crate, file_ins = _make_file_entity(tmp_path, "test.bam")
+
+        mocker.patch(
+            "sapporo.ro_crate.subprocess.run",
+            return_value=CompletedProcess(args=[], returncode=0, stdout=self._FLAGSTATS_JSON, stderr=b""),
+        )
+
+        add_samtools_stats(crate, file_ins)
+        stats_ref = file_ins.get("stats")
+        assert stats_ref is not None
+        # Resolve the stats entity
+        stats_entity = None
+        for entity in crate.get_entities():
+            types = entity.get("@type", [])
+            if not isinstance(types, list):
+                types = [types]
+            if "FileStats" in types:
+                stats_entity = entity
+                break
+        assert stats_entity is not None
+        assert stats_entity["totalReads"] == 1000
+        assert stats_entity["mappedReads"] == 950
+        assert stats_entity["unmappedReads"] == 50
+        assert stats_entity["duplicateReads"] == 50
+        assert stats_entity["mappedRate"] == pytest.approx(0.95)
+        assert stats_entity["unmappedRate"] == pytest.approx(0.05)
+        assert stats_entity["duplicateRate"] == pytest.approx(0.05)
+
+    def test_skips_on_docker_failure(self, tmp_path: Path, mocker: "MockerFixture") -> None:
+        """Should return without adding stats when Docker fails."""
+        from subprocess import CompletedProcess
+
+        crate, file_ins = _make_file_entity(tmp_path, "test.bam")
+
+        mocker.patch(
+            "sapporo.ro_crate.subprocess.run",
+            return_value=CompletedProcess(args=[], returncode=1, stdout=b"", stderr=b"error"),
+        )
+
+        add_samtools_stats(crate, file_ins)
+        assert file_ins.get("stats") is None
+
+    def test_skips_on_invalid_json(self, tmp_path: Path, mocker: "MockerFixture") -> None:
+        """Should skip when samtools output is not valid JSON."""
+        from subprocess import CompletedProcess
+
+        crate, file_ins = _make_file_entity(tmp_path, "test.bam")
+
+        mocker.patch(
+            "sapporo.ro_crate.subprocess.run",
+            return_value=CompletedProcess(args=[], returncode=0, stdout=b"not json", stderr=b""),
+        )
+
+        add_samtools_stats(crate, file_ins)
+        assert file_ins.get("stats") is None
+
+    def test_zero_total_reads_no_division_error(self, tmp_path: Path, mocker: "MockerFixture") -> None:
+        """Should handle total==0 without ZeroDivisionError."""
+        from subprocess import CompletedProcess
+
+        zero_stats = json.dumps(
+            {
+                "QC-passed reads": {"total": 0, "mapped": 0, "duplicates": 0},
+                "QC-failed reads": {"total": 0, "mapped": 0, "duplicates": 0},
+            }
+        ).encode()
+        crate, file_ins = _make_file_entity(tmp_path, "test.bam")
+
+        mocker.patch(
+            "sapporo.ro_crate.subprocess.run",
+            return_value=CompletedProcess(args=[], returncode=0, stdout=zero_stats, stderr=b""),
+        )
+
+        add_samtools_stats(crate, file_ins)
+        stats_entity = None
+        for entity in crate.get_entities():
+            types = entity.get("@type", [])
+            if not isinstance(types, list):
+                types = [types]
+            if "FileStats" in types:
+                stats_entity = entity
+                break
+        assert stats_entity is not None
+        assert stats_entity["mappedRate"] == 0.0
+        assert stats_entity["unmappedRate"] == 0.0
+        assert stats_entity["duplicateRate"] == 0.0
+
+    def test_generated_by_has_samtools_software(self, tmp_path: Path, mocker: "MockerFixture") -> None:
+        """FileStats should reference samtools SoftwareApplication via generatedBy."""
+        from subprocess import CompletedProcess
+
+        crate, file_ins = _make_file_entity(tmp_path, "test.bam")
+
+        mocker.patch(
+            "sapporo.ro_crate.subprocess.run",
+            return_value=CompletedProcess(args=[], returncode=0, stdout=self._FLAGSTATS_JSON, stderr=b""),
+        )
+
+        add_samtools_stats(crate, file_ins)
+        stats_entity = None
+        for entity in crate.get_entities():
+            types = entity.get("@type", [])
+            if not isinstance(types, list):
+                types = [types]
+            if "FileStats" in types:
+                stats_entity = entity
+                break
+        assert stats_entity is not None
+        generated_by = stats_entity.get("generatedBy")
+        assert generated_by is not None
+
+
+class TestAddVcftoolsStats:
+    _VCFSTATS_OUTPUT = b"""\
+$VAR1 = {
+          'count' => 42,
+          'snp_count' => 30,
+          'indel_count' => 12,
+        };
+"""
+
+    def test_adds_stats_on_success(self, tmp_path: Path, mocker: "MockerFixture") -> None:
+        """Should add FileStats entity with correct properties."""
+        from subprocess import CompletedProcess
+
+        crate, file_ins = _make_file_entity(tmp_path, "test.vcf", content=b"##fileformat=VCFv4.2\n")
+
+        mocker.patch(
+            "sapporo.ro_crate.subprocess.run",
+            return_value=CompletedProcess(args=[], returncode=0, stdout=self._VCFSTATS_OUTPUT, stderr=b""),
+        )
+
+        add_vcftools_stats(crate, file_ins)
+        stats_entity = None
+        for entity in crate.get_entities():
+            types = entity.get("@type", [])
+            if not isinstance(types, list):
+                types = [types]
+            if "FileStats" in types:
+                stats_entity = entity
+                break
+        assert stats_entity is not None
+        assert stats_entity["variantCount"] == 42
+        assert stats_entity["snpsCount"] == 30
+        assert stats_entity["indelsCount"] == 12
+
+    def test_skips_on_docker_failure(self, tmp_path: Path, mocker: "MockerFixture") -> None:
+        """Should return without adding stats when Docker fails."""
+        from subprocess import CompletedProcess
+
+        crate, file_ins = _make_file_entity(tmp_path, "test.vcf", content=b"##fileformat=VCFv4.2\n")
+
+        mocker.patch(
+            "sapporo.ro_crate.subprocess.run",
+            return_value=CompletedProcess(args=[], returncode=1, stdout=b"", stderr=b"error"),
+        )
+
+        add_vcftools_stats(crate, file_ins)
+        assert file_ins.get("stats") is None
+
+    def test_generated_by_has_vcftools_software(self, tmp_path: Path, mocker: "MockerFixture") -> None:
+        """FileStats should reference vcftools SoftwareApplication via generatedBy."""
+        from subprocess import CompletedProcess
+
+        crate, file_ins = _make_file_entity(tmp_path, "test.vcf", content=b"##fileformat=VCFv4.2\n")
+
+        mocker.patch(
+            "sapporo.ro_crate.subprocess.run",
+            return_value=CompletedProcess(args=[], returncode=0, stdout=self._VCFSTATS_OUTPUT, stderr=b""),
+        )
+
+        add_vcftools_stats(crate, file_ins)
+        stats_entity = None
+        for entity in crate.get_entities():
+            types = entity.get("@type", [])
+            if not isinstance(types, list):
+                types = [types]
+            if "FileStats" in types:
+                stats_entity = entity
+                break
+        assert stats_entity is not None
+        generated_by = stats_entity.get("generatedBy")
+        assert generated_by is not None
+
+
+class TestAddFileStats:
+    def test_skips_when_docker_not_available(self, tmp_path: Path) -> None:
+        """Should return immediately when docker binary is not found."""
+        crate, file_ins = _make_file_entity(tmp_path, "test.bam")
+        with patch("sapporo.ro_crate.shutil.which", return_value=None):
+            add_file_stats(crate, file_ins)
+        assert file_ins.get("stats") is None
+
+    def test_dispatches_to_samtools_for_bam(self, tmp_path: Path, mocker: "MockerFixture") -> None:
+        """Should call add_samtools_stats for BAM files."""
+        crate, file_ins = _make_file_entity(tmp_path, "test.bam")
+        mocker.patch("sapporo.ro_crate.shutil.which", return_value="/usr/bin/docker")
+        mock_samtools = mocker.patch("sapporo.ro_crate.add_samtools_stats")
+        mock_vcftools = mocker.patch("sapporo.ro_crate.add_vcftools_stats")
+
+        add_file_stats(crate, file_ins)
+        mock_samtools.assert_called_once_with(crate, file_ins)
+        mock_vcftools.assert_not_called()
+
+    def test_dispatches_to_vcftools_for_vcf(self, tmp_path: Path, mocker: "MockerFixture") -> None:
+        """Should call add_vcftools_stats for VCF files."""
+        crate, file_ins = _make_file_entity(tmp_path, "test.vcf", content=b"##fileformat=VCFv4.2\n")
+        mocker.patch("sapporo.ro_crate.shutil.which", return_value="/usr/bin/docker")
+        mock_samtools = mocker.patch("sapporo.ro_crate.add_samtools_stats")
+        mock_vcftools = mocker.patch("sapporo.ro_crate.add_vcftools_stats")
+
+        add_file_stats(crate, file_ins)
+        mock_vcftools.assert_called_once_with(crate, file_ins)
+        mock_samtools.assert_not_called()
+
+
+# === Robustness tests ===
+
+
+class TestRobustness:
+    def test_unknown_workflow_type_does_not_crash(self, tmp_path: Path) -> None:
+        """Completely unknown workflow_type should produce valid metadata with generic ComputerLanguage."""
+        rd = create_run_dir(
+            tmp_path,
+            RUN_ID,
+            run_request_dict={
+                "workflow_params": "{}",
+                "workflow_type": "UNKNOWN_LANG",
+                "workflow_type_version": "1.0",
+                "tags": {},
+                "workflow_engine": "cwltool",
+                "workflow_engine_version": None,
+                "workflow_engine_parameters": None,
+                "workflow_url": "https://example.com/wf.unknown",
+                "workflow_attachment": [],
+                "workflow_attachment_obj": [],
+            },
+            exit_code="0",
+            end_time="2024-01-01T00:10:00",
+            wf_params="{}",
+        )
+        jsonld = generate_ro_crate_metadata(rd)
+        graph = jsonld["@graph"]
+        assert "@graph" in jsonld
+
+        lang_entities = [e for e in graph if e.get("@id") == "UNKNOWN_LANG"]
+        assert len(lang_entities) == 1
+        assert lang_entities[0]["name"] == "UNKNOWN_LANG"
+
+    def test_unknown_workflow_engine_does_not_crash(self) -> None:
+        """Unknown engine name should produce SoftwareApplication with fragment identifier."""
+        crate = create_base_crate()
+        sw = find_or_generate_software_ins(crate, "my_custom_engine", "0.1.0")
+        assert sw["@id"] == "#my_custom_engine"
+        assert sw["name"] == "my_custom_engine"
+        assert sw.get("url") is None
+
+    def test_missing_local_workflow_file_does_not_crash(self, tmp_path: Path) -> None:
+        """Local workflow file not on disk should not crash, uses URL string as identifier."""
+        rd = create_run_dir(
+            tmp_path,
+            RUN_ID,
+            run_request_dict={
+                "workflow_params": "{}",
+                "workflow_type": "CWL",
+                "workflow_type_version": "v1.0",
+                "tags": {},
+                "workflow_engine": "cwltool",
+                "workflow_engine_version": None,
+                "workflow_engine_parameters": None,
+                "workflow_url": "nonexistent_wf.cwl",
+                "workflow_attachment": [],
+                "workflow_attachment_obj": [],
+            },
+            exit_code="0",
+            end_time="2024-01-01T00:10:00",
+            wf_params="{}",
+        )
+        # Do NOT create the file - it should fallback gracefully
+        jsonld = generate_ro_crate_metadata(rd)
+        assert "@graph" in jsonld
+        graph = jsonld["@graph"]
+        wf_entities = [e for e in graph if isinstance(e.get("@type"), list) and "ComputationalWorkflow" in e["@type"]]
+        assert len(wf_entities) >= 1
+        assert wf_entities[0]["@id"] == "nonexistent_wf.cwl"
+
+    def test_missing_run_request_raises_clear_error(self, tmp_path: Path) -> None:
+        """Missing run_request.json should raise TypeError with descriptive message."""
+        rd = tmp_path / "aa" / "aabbccdd"
+        rd.mkdir(parents=True)
+        with pytest.raises(TypeError, match=r"run_request\.json is missing or invalid"):
+            generate_ro_crate_metadata(rd)
+
+    def test_non_numeric_exit_code(self, tmp_path: Path) -> None:
+        """Non-numeric exit_code should not crash; sets FailedActionStatus without exitCode."""
+        rd = create_run_dir(
+            tmp_path,
+            RUN_ID,
+            exit_code="SIGKILL",
+            end_time="2024-01-01T00:10:00",
+            wf_params="{}",
+        )
+        jsonld = generate_ro_crate_metadata(rd)
+        graph = jsonld["@graph"]
+        action = next(e for e in graph if e.get("@type") == "CreateAction")
+        assert action["actionStatus"] == "http://schema.org/FailedActionStatus"
+        assert "exitCode" not in action
+
+    def test_empty_outputs_dir(self, tmp_path: Path) -> None:
+        """Empty outputs directory should produce result == []."""
+        rd = create_run_dir(
+            tmp_path,
+            RUN_ID,
+            exit_code="0",
+            end_time="2024-01-01T00:10:00",
+            wf_params="{}",
+        )
+        jsonld = generate_ro_crate_metadata(rd)
+        graph = jsonld["@graph"]
+        action = next(e for e in graph if e.get("@type") == "CreateAction")
+        assert action["result"] == []
+
+    def test_output_file_disappeared(self, tmp_path: Path) -> None:
+        """Output file that disappears after listing should be skipped."""
+        rd = create_run_dir(
+            tmp_path,
+            RUN_ID,
+            exit_code="0",
+            end_time="2024-01-01T00:10:00",
+            wf_params="{}",
+            output_files={"result.txt": "output data", "vanished.txt": "will disappear"},
+            outputs_json=[],
+        )
+        # Remove one output file to simulate disappearance
+        from sapporo.config import RUN_DIR_STRUCTURE
+
+        rd.joinpath(RUN_DIR_STRUCTURE["outputs_dir"], "vanished.txt").unlink()
+
+        jsonld = generate_ro_crate_metadata(rd)
+        graph = jsonld["@graph"]
+        action = next(e for e in graph if e.get("@type") == "CreateAction")
+        result = action.get("result", [])
+        if not isinstance(result, list):
+            result = [result]
+        result_ids = {r["@id"] if isinstance(r, dict) else r.id for r in result}
+        assert any("result.txt" in rid for rid in result_ids)
+        assert not any("vanished.txt" in rid for rid in result_ids)
+
+
+# === Robustness PBT tests ===
+
+
+class TestRobustnessPBT:
+    @given(st.text(min_size=1, max_size=50))
+    @settings(max_examples=50)
+    def test_pbt_any_workflow_type_does_not_crash(self, wf_type: str) -> None:
+        """Any workflow_type string should not crash resolve_workflow_language."""
+        crate = create_base_crate()
+        req = make_run_request_form(workflow_type=wf_type, workflow_type_version="1.0")
+        lang = resolve_workflow_language(crate, req)
+        assert lang is not None
+
+    @given(st.text(min_size=1, max_size=50))
+    @settings(max_examples=50)
+    def test_pbt_any_engine_name_does_not_crash(self, engine_name: str) -> None:
+        """Any engine name should not crash find_or_generate_software_ins."""
+        crate = create_base_crate()
+        sw = find_or_generate_software_ins(crate, engine_name, "1.0")
+        assert sw is not None
+        assert sw["name"] == engine_name
+
+    @given(st.text(min_size=0, max_size=200))
+    @settings(max_examples=50)
+    def test_pbt_any_timestamp_does_not_crash(self, ts: str) -> None:
+        """Any string should not crash _ensure_tz (returns str or None)."""
+        result = _ensure_tz(ts)
+        assert result is None or isinstance(result, str)
+
+    @given(st.text(min_size=0, max_size=500))
+    @settings(max_examples=50)
+    def test_pbt_extract_docker_image_never_crashes(self, cmd: str) -> None:
+        """Any string should not crash extract_docker_image."""
+        result = extract_docker_image(cmd)
+        assert result is None or (isinstance(result, tuple) and len(result) == 2)
+
+
+# === Edge case tests ===
+
+
+class TestEdgeCases:
+    def test_wdl_workflow_type(self) -> None:
+        """WDL should produce correct ComputerLanguage even though not in LANG_MAP."""
+        crate = create_base_crate()
+        req = make_run_request_form(workflow_type="WDL", workflow_type_version="1.0")
+        lang = resolve_workflow_language(crate, req)
+        assert lang["name"] == "Workflow Description Language"
+        assert lang["@id"] == "https://openwdl.org"
+        assert lang.get("alternateName") == "WDL"
+
+    def test_symlink_output_file(self, tmp_path: Path) -> None:
+        """Symlinked output file should be followed and included."""
+        rd = create_run_dir(
+            tmp_path,
+            RUN_ID,
+            exit_code="0",
+            end_time="2024-01-01T00:10:00",
+            wf_params="{}",
+            output_files={"real_output.txt": "real content"},
+            outputs_json=[],
+        )
+        from sapporo.config import RUN_DIR_STRUCTURE
+
+        outputs_dir = rd.joinpath(RUN_DIR_STRUCTURE["outputs_dir"])
+        real_file = outputs_dir.joinpath("real_output.txt")
+        symlink_path = outputs_dir.joinpath("link.txt")
+        symlink_path.symlink_to(real_file)
+
+        jsonld = generate_ro_crate_metadata(rd)
+        graph = jsonld["@graph"]
+        action = next(e for e in graph if e.get("@type") == "CreateAction")
+        result = action.get("result", [])
+        if not isinstance(result, list):
+            result = [result]
+        # Should have at least real_output.txt (link.txt resolves to same file, may be deduplicated)
+        assert len(result) >= 1
+
+    def test_binary_file_metadata_does_not_crash(self, tmp_path: Path) -> None:
+        """Binary file should not crash populate_file_metadata."""
+        f = tmp_path.joinpath("binary.bin")
+        f.write_bytes(bytes(range(256)))
+        crate = create_base_crate()
+        from rocrate.model.file import File as RoFile
+
+        file_ins = RoFile(crate, f, f.name)
+        populate_file_metadata(file_ins, f)
+        assert file_ins.get("sha256") is not None
+        assert file_ins.get("contentSize") == 256
+        enc = file_ins.get("encodingFormat")
+        first = enc[0] if isinstance(enc, list) else enc
+        assert isinstance(first, str)
