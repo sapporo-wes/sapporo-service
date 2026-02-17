@@ -65,7 +65,7 @@ Poll the run status using the `run_id` from the previous step:
 curl -fsSL localhost:1122/runs/${RUN_ID}/status | jq .
 ```
 
-The run progresses through these states: `QUEUED` -> `INITIALIZING` -> `RUNNING` -> `COMPLETE`. See [API Specification - Run States](api-spec.md#run-states) for the full state list.
+The run progresses through these states: `QUEUED` -> `INITIALIZING` -> `RUNNING` -> `COMPLETE`. See [WES Compatibility](wes-compatibility.md) for the full state list.
 
 Retrieve the full run details:
 
@@ -98,4 +98,4 @@ curl -fsSL -o result.html "localhost:1122/runs/${RUN_ID}/outputs/qc_result_1.htm
 - [Installation](installation.md) - Install with pip, configure Docker volume mounts
 - [Configuration](configuration.md) - Customize CLI options, restrict executable workflows
 - [Authentication](authentication.md) - Enable JWT authentication
-- [API Specification](api-spec.md) - Full endpoint reference and request/response examples
+- [RO-Crate](ro-crate.md) - Understand the provenance metadata generated for each run

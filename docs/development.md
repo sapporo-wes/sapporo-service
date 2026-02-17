@@ -114,7 +114,7 @@ uv run mypy
 The OpenAPI specification file (`openapi/sapporo-wes-spec-X.X.X.yml`) is generated from the FastAPI application. Regenerate it after changing schemas, endpoint descriptions, or the spec version:
 
 ```bash
-uv run python -m sapporo.config
+uv run sapporo-cli generate-openapi
 ```
 
 The generated file should be committed to the repository.
@@ -126,7 +126,7 @@ The generated file should be committed to the repository.
 To bump the spec version:
 
 1. Update `SAPPORO_WES_SPEC_VERSION` in `sapporo/config.py`
-2. Regenerate the spec: `uv run python -m sapporo.config`
+2. Regenerate the spec: `uv run sapporo-cli generate-openapi`
 3. Rename the output file if the major/minor version changed
 
 ## Release Process

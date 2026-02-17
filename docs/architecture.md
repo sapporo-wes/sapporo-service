@@ -50,7 +50,7 @@ Override the default `run.sh` location using `--run-sh` or `SAPPORO_RUN_SH`. See
 - `USR1` -> `CANCELED` (user-requested cancellation)
 - Non-zero exit from a `run_<engine>()` function -> `EXECUTOR_ERROR`
 
-RO-Crate metadata is generated only on the success path (`COMPLETE` state). Error and cancellation paths (`SYSTEM_ERROR`, `EXECUTOR_ERROR`, `CANCELED`) skip RO-Crate generation because it is a heavyweight operation (Python startup, file hashing, optional Docker-based tools) and its preconditions may not be satisfied in error states.
+RO-Crate metadata is generated on the `COMPLETE` and `EXECUTOR_ERROR` paths. For `EXECUTOR_ERROR`, the RO-Crate uses `FailedActionStatus` and may have no output files. If RO-Crate generation itself fails, `run.sh` writes `{"@error": "RO-Crate generation failed. Check stderr.log for details."}` to `ro-crate-metadata.json` and appends the Python error traceback to `stderr.log`. The `SYSTEM_ERROR` and `CANCELED` paths skip RO-Crate generation because their preconditions (e.g., run request, start time) may not be satisfied.
 
 ### Adding a New Engine
 
@@ -120,11 +120,4 @@ The SQLite database (`sapporo.db`) is an **index**, not a data store. It is rebu
 
 ## RO-Crate
 
-After each run completes, the service generates [RO-Crate](https://www.researchobject.org/ro-crate/) metadata (`ro-crate-metadata.json`) following the Workflow Run Crate profile. This captures:
-
-- Workflow document and parameters
-- Input/output file references
-- MultiQC quality statistics (when applicable)
-- BAM/VCF file statistics via samtools/vcftools (when applicable)
-
-RO-Crate generation is called from `run.sh` after the workflow engine completes, so it runs in the same subprocess as the workflow execution.
+After each run completes (or fails at the executor level), the service generates [RO-Crate](https://www.researchobject.org/ro-crate/) metadata (`ro-crate-metadata.json`). See [RO-Crate](ro-crate.md) for the full specification including conformance profiles, entity graph, custom properties, bioinformatics extensions, and validation.

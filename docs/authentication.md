@@ -116,7 +116,7 @@ Keycloak is available at `http://localhost:8080` with the admin credentials defi
 All passwords are stored as Argon2 hashes. Generate password hashes using the CLI:
 
 ```bash
-python -m sapporo.cli hash-password
+sapporo-cli hash-password
 # Follow the prompts to enter and confirm your password
 # Output: Password hash: $argon2id$v=19$m=65536,t=3,p=4$...
 ```
@@ -124,7 +124,7 @@ python -m sapporo.cli hash-password
 Or with an inline password (not recommended for interactive use):
 
 ```bash
-python -m sapporo.cli hash-password --password "your_password"
+sapporo-cli hash-password --password "your_password"
 ```
 
 ### Secret Key Generation
@@ -132,7 +132,7 @@ python -m sapporo.cli hash-password --password "your_password"
 Generate a cryptographically secure secret key:
 
 ```bash
-python -m sapporo.cli generate-secret
+sapporo-cli generate-secret
 # Output: Secret key: <44-character secure random string>
 ```
 

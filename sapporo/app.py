@@ -165,13 +165,13 @@ def init_app_state() -> None:
                 if is_weak:
                     warning_msg = (
                         "WARNING: Weak secret_key detected in auth_config.json. "
-                        "Please generate a strong secret key using: python -m sapporo.cli generate-secret"
+                        "Please generate a strong secret key using: sapporo-cli generate-secret"
                     )
                     LOGGER.warning(warning_msg)
                     if not get_config().debug:
                         msg = (
                             "Weak secret_key is not allowed in production mode. "
-                            "Generate a strong secret key using: python -m sapporo.cli generate-secret"
+                            "Generate a strong secret key using: sapporo-cli generate-secret"
                         )
                         raise ValueError(msg)
     except Exception as e:

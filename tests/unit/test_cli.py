@@ -1,5 +1,6 @@
 import sys
 from argparse import Namespace
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -224,3 +225,126 @@ def test_main_hash_password_help_contains_password_argument_help(capsys: pytest.
     assert "Password to hash" in captured.out
     assert "XXPassword" not in captured.out
     assert "--password" in captured.out
+
+
+# === generate-ro-crate ===
+
+
+def test_generate_ro_crate_nonexistent_dir_exits_with_error(capsys: pytest.CaptureFixture[str]) -> None:
+    sys.argv = ["sapporo-cli", "generate-ro-crate", "/nonexistent/path"]
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert "does not exist" in captured.err
+
+
+def test_generate_ro_crate_file_not_dir_exits_with_error(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    file_path = tmp_path / "not_a_dir.txt"
+    file_path.write_text("hello")
+    sys.argv = ["sapporo-cli", "generate-ro-crate", str(file_path)]
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert "is not a directory" in captured.err
+
+
+def test_generate_ro_crate_calls_generate_with_correct_path(tmp_path: Path, mocker: "MockerFixture") -> None:
+    mock_fn = mocker.patch("sapporo.cli._validate_run_dir", return_value=tmp_path)
+    mock_generate = mocker.patch("sapporo.ro_crate.generate_ro_crate")
+    sys.argv = ["sapporo-cli", "generate-ro-crate", str(tmp_path)]
+    main()
+    mock_fn.assert_called_once_with(str(tmp_path))
+    mock_generate.assert_called_once_with(str(tmp_path))
+
+
+# === dump-outputs ===
+
+
+def test_dump_outputs_nonexistent_dir_exits_with_error(capsys: pytest.CaptureFixture[str]) -> None:
+    sys.argv = ["sapporo-cli", "dump-outputs", "/nonexistent/path"]
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert "does not exist" in captured.err
+
+
+def test_dump_outputs_calls_dump_with_correct_path(tmp_path: Path, mocker: "MockerFixture") -> None:
+    mock_fn = mocker.patch("sapporo.cli._validate_run_dir", return_value=tmp_path)
+    mock_dump = mocker.patch("sapporo.run.dump_outputs_list")
+    sys.argv = ["sapporo-cli", "dump-outputs", str(tmp_path)]
+    main()
+    mock_fn.assert_called_once_with(str(tmp_path))
+    mock_dump.assert_called_once_with(str(tmp_path))
+
+
+# === generate-openapi ===
+
+
+def test_generate_openapi_with_output_flag(
+    tmp_path: Path, mocker: "MockerFixture", capsys: pytest.CaptureFixture[str]
+) -> None:
+    output_file = tmp_path / "spec.yml"
+    mock_app = mocker.MagicMock()
+    mock_app.openapi.return_value = {"openapi": "3.0.0"}
+    mocker.patch("sapporo.app.create_app", return_value=mock_app)
+    mocker.patch("sapporo.config.dump_openapi_schema", return_value="openapi: '3.0.0'\n")
+    mocker.patch("sapporo.config.get_config")
+
+    sys.argv = ["sapporo-cli", "generate-openapi", "--output", str(output_file)]
+    main()
+
+    assert output_file.exists()
+    assert output_file.read_text() == "openapi: '3.0.0'\n"
+    captured = capsys.readouterr()
+    assert "OpenAPI spec written to:" in captured.out
+
+
+def test_generate_openapi_default_output_path(
+    tmp_path: Path, mocker: "MockerFixture", capsys: pytest.CaptureFixture[str]
+) -> None:
+    mock_app = mocker.MagicMock()
+    mock_app.openapi.return_value = {"openapi": "3.0.0"}
+    mocker.patch("sapporo.app.create_app", return_value=mock_app)
+    mocker.patch("sapporo.config.dump_openapi_schema", return_value="openapi: '3.0.0'\n")
+    mocker.patch("sapporo.config.get_config")
+    mocker.patch("sapporo.config.SAPPORO_WES_SPEC_VERSION", "2.1.0")
+    mocker.patch.object(Path, "write_text")
+    mocker.patch.object(Path, "mkdir")
+
+    sys.argv = ["sapporo-cli", "generate-openapi"]
+    main()
+
+    captured = capsys.readouterr()
+    assert "sapporo-wes-spec-2.1.0.yml" in captured.out
+
+
+def test_generate_openapi_restores_sys_argv(mocker: "MockerFixture") -> None:
+    mock_app = mocker.MagicMock()
+    mocker.patch("sapporo.app.create_app", return_value=mock_app)
+    mocker.patch("sapporo.config.dump_openapi_schema", return_value="openapi: '3.0.0'\n")
+    mocker.patch("sapporo.config.get_config")
+    mocker.patch.object(Path, "write_text")
+    mocker.patch.object(Path, "mkdir")
+
+    original = ["sapporo-cli", "generate-openapi"]
+    sys.argv = original[:]
+    main()
+
+    assert sys.argv == original
+
+
+# === help: new subcommands ===
+
+
+def test_main_help_contains_new_subcommands(capsys: pytest.CaptureFixture[str]) -> None:
+    sys.argv = ["sapporo-cli", "--help"]
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+    assert exc_info.value.code == 0
+    captured = capsys.readouterr()
+    assert "generate-ro-crate" in captured.out
+    assert "dump-outputs" in captured.out
+    assert "generate-openapi" in captured.out

@@ -55,12 +55,15 @@ tests = [
     "pytest-mock",
     "pytest-randomly",
     "pytest",
+    "roc-validator",
     "ruff",
+    "runcrate",
     "types-PyYAML",
 ]
 
 [project.scripts]
 sapporo = "sapporo.app:main"
+sapporo-cli = "sapporo.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["sapporo"]
@@ -170,6 +173,7 @@ ignore = [
     "PT011",   # Pytest raises too broad
     "S101",    # Use of assert
     "S106",    # Hardcoded password in tests (test data)
+    "S607",    # Partial executable path in subprocess (test fixtures)
     "SLF001",  # Private member access
     "T201",    # Print for debugging output
 ]

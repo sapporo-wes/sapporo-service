@@ -42,6 +42,7 @@ nav:
   - WES Compatibility: wes-compatibility.md
   - Authentication: authentication.md
   - Architecture: architecture.md
+  - RO-Crate: ro-crate.md
   - Development: development.md
 
 extra:

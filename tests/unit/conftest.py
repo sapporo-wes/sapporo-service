@@ -193,6 +193,15 @@ def create_run_dir(
     run_request_dict: dict[str, Any] | None = None,
     username: str | None = None,
     tags: dict[str, str] | None = None,
+    exit_code: str | None = None,
+    cmd: str | None = None,
+    stdout_content: str | None = None,
+    stderr_content: str | None = None,
+    wf_params: str | None = None,
+    outputs_json: list[dict[str, str]] | None = None,
+    output_files: dict[str, str | bytes] | None = None,
+    system_logs_content: str | None = None,
+    wf_engine_params_content: str | None = None,
 ) -> Path:
     """Create a run directory structure under run_dir following RUN_DIR_STRUCTURE."""
     from sapporo.config import RUN_DIR_STRUCTURE
@@ -217,16 +226,50 @@ def create_run_dir(
         "workflow_engine_version": None,
         "workflow_engine_parameters": None,
         "workflow_url": "https://example.com/wf.cwl",
+        "workflow_attachment": [],
+        "workflow_attachment_obj": [],
     }
     rd.joinpath(RUN_DIR_STRUCTURE["run_request"]).write_text(json.dumps(request, indent=2), encoding="utf-8")
 
     runtime_info = {"sapporo_version": "test", "base_url": "http://localhost:1122"}
     rd.joinpath(RUN_DIR_STRUCTURE["runtime_info"]).write_text(json.dumps(runtime_info, indent=2), encoding="utf-8")
 
-    rd.joinpath(RUN_DIR_STRUCTURE["system_logs"]).write_text("[]", encoding="utf-8")
+    rd.joinpath(RUN_DIR_STRUCTURE["system_logs"]).write_text(
+        system_logs_content if system_logs_content is not None else "[]", encoding="utf-8"
+    )
 
     if username is not None:
         rd.joinpath(RUN_DIR_STRUCTURE["username"]).write_text(username, encoding="utf-8")
+
+    if exit_code is not None:
+        rd.joinpath(RUN_DIR_STRUCTURE["exit_code"]).write_text(exit_code, encoding="utf-8")
+
+    if cmd is not None:
+        rd.joinpath(RUN_DIR_STRUCTURE["cmd"]).write_text(cmd, encoding="utf-8")
+
+    if stdout_content is not None:
+        rd.joinpath(RUN_DIR_STRUCTURE["stdout"]).write_text(stdout_content, encoding="utf-8")
+
+    if stderr_content is not None:
+        rd.joinpath(RUN_DIR_STRUCTURE["stderr"]).write_text(stderr_content, encoding="utf-8")
+
+    if wf_params is not None:
+        rd.joinpath(RUN_DIR_STRUCTURE["wf_params"]).write_text(wf_params, encoding="utf-8")
+
+    if wf_engine_params_content is not None:
+        rd.joinpath(RUN_DIR_STRUCTURE["wf_engine_params"]).write_text(wf_engine_params_content, encoding="utf-8")
+
+    if outputs_json is not None:
+        rd.joinpath(RUN_DIR_STRUCTURE["outputs"]).write_text(json.dumps(outputs_json), encoding="utf-8")
+
+    if output_files is not None:
+        for file_name, content in output_files.items():
+            out_path = rd.joinpath(RUN_DIR_STRUCTURE["outputs_dir"], file_name)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            if isinstance(content, bytes):
+                out_path.write_bytes(content)
+            else:
+                out_path.write_text(content, encoding="utf-8")
 
     return rd
 

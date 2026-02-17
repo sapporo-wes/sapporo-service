@@ -20,8 +20,7 @@ function run_wf() {
     date -u +"%Y-%m-%dT%H:%M:%S" >"${end_time}"
     echo 0 >"${exit_code}"
     echo "COMPLETE" >"${state}"
-    # TODO: Re-enable after RO-Crate rework
-    # generate_ro_crate
+    generate_ro_crate
     exit 0
 }
 
@@ -180,11 +179,12 @@ D_API_VER="-e DOCKER_API_VERSION=1.44"
 DOCKER_CMD="docker run --rm ${D_SOCK} ${D_HOST} ${D_API_VER} ${D_TMP} -v ${run_dir}:${run_dir} -w=${exe_dir}"
 
 function generate_outputs_list() {
-    python3 -c "from sapporo.run import dump_outputs_list; dump_outputs_list('${run_dir}')" || { executor_error $?; }
+    sapporo-cli dump-outputs "${run_dir}" || { executor_error $?; }
 }
 
 function generate_ro_crate() {
-    python3 -c "from sapporo.ro_crate import generate_ro_crate; generate_ro_crate('${run_dir}')" || echo "{}" >"${ro_crate}"
+    sapporo-cli generate-ro-crate "${run_dir}" 2>>"${stderr}" \
+        || echo '{"@error": "RO-Crate generation failed. Check stderr.log for details."}' >"${ro_crate}"
     # If you want to upload ro-crate-metadata.json, write the process here.
 }
 
@@ -201,6 +201,7 @@ function executor_error() {
     echo "${original_exit_code}" >"${exit_code}"
     date -u +"%Y-%m-%dT%H:%M:%S" >"${end_time}"
     echo "EXECUTOR_ERROR" >"${state}"
+    generate_ro_crate
     exit "${original_exit_code}"
 }
 

@@ -1,8 +1,13 @@
 import importlib.metadata
+import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 from unicodedata import normalize
+
+if TYPE_CHECKING:
+    from sapporo.config import RunDirStructureKeys
 
 
 def inside_docker() -> bool:
@@ -28,6 +33,27 @@ def sapporo_version() -> str:
 
 def user_agent() -> str:
     return f"sapporo/{sapporo_version()}"
+
+
+def read_run_dir_file(run_dir: Path, key: "RunDirStructureKeys", one_line: bool = False, raw: bool = False) -> Any:
+    """Read a file from a run directory by its RUN_DIR_STRUCTURE key."""
+    from sapporo.config import RUN_DIR_STRUCTURE
+
+    if "dir" in key:
+        return None
+    file_path = run_dir / RUN_DIR_STRUCTURE[key]
+    if not file_path.is_file():
+        return None
+
+    with file_path.open(mode="r", encoding="utf-8") as f:
+        if one_line:
+            return f.readline().strip()
+        if raw:
+            return f.read()
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return f.read()
 
 
 _filename_char_whitelist_re = re.compile(r"[^A-Za-z0-9_.-]+")
