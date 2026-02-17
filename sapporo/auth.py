@@ -1,15 +1,19 @@
 import contextlib
 import datetime
+import logging
 import os
 import re
+import time
 from functools import cache
+from threading import RLock
 from typing import Any, Literal
 
 import httpx
 import jwt
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from fastapi import Depends
+from cachetools import TTLCache
+from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.security.utils import get_authorization_scheme_param
 from jwt import PyJWKSet
@@ -25,6 +29,8 @@ from sapporo.exceptions import (
     raise_unauthorized,
 )
 from sapporo.utils import user_agent
+
+LOGGER = logging.getLogger(__name__)
 
 # Password hasher instance
 _password_hasher = PasswordHasher()
@@ -100,6 +106,7 @@ class TokenPayload(BaseModel):
 
 
 class ExternalEndpointMetadata(BaseModel):
+    issuer: str
     authorization_endpoint: str
     token_endpoint: str
     jwks_uri: str
@@ -309,6 +316,23 @@ def check_valid_username(username: str) -> None:
 
 # === External Mode Functions ===
 
+HTTPX_TIMEOUT = 10.0
+IDP_METADATA_TTL = 3600  # 1 hour
+JWKS_TTL = 300  # 5 minutes
+ALLOWED_ALGORITHMS = ["RS256", "RS384", "RS512"]
+_MAX_RETRIES = 3
+_RETRY_BASE_DELAY = 0.5  # seconds
+
+_metadata_cache: TTLCache[str, ExternalEndpointMetadata] = TTLCache(maxsize=1, ttl=IDP_METADATA_TTL)
+_jwks_cache: TTLCache[str, PyJWKSet] = TTLCache(maxsize=1, ttl=JWKS_TTL)
+_cache_lock = RLock()
+
+
+def clear_external_auth_caches() -> None:
+    with _cache_lock:
+        _metadata_cache.clear()
+        _jwks_cache.clear()
+
 
 def _is_insecure_idp_allowed() -> bool:
     """Check if insecure (HTTP) IdP connections are allowed via environment variable."""
@@ -325,29 +349,53 @@ def _validate_https_url(url: str, context: str) -> None:
         )
 
 
-@cache
+def _fetch_once(url: str) -> httpx.Response:
+    """Execute a single HTTP GET request with timeout."""
+    with httpx.Client(timeout=HTTPX_TIMEOUT) as client:
+        res = client.get(url, follow_redirects=True, headers={"User-Agent": user_agent()})
+        res.raise_for_status()
+        return res
+
+
+def _fetch_with_retry(url: str, context: str) -> httpx.Response:
+    """Fetch a URL with retry and exponential backoff."""
+    last_exc: Exception | None = None
+    for attempt in range(_MAX_RETRIES):
+        try:
+            return _fetch_once(url)
+        except httpx.HTTPError as exc:  # noqa: PERF203
+            last_exc = exc
+            LOGGER.warning("Attempt %d/%d to fetch %s failed: %s", attempt + 1, _MAX_RETRIES, context, exc)
+            if attempt < _MAX_RETRIES - 1:
+                time.sleep(_RETRY_BASE_DELAY * (2**attempt))
+    msg = f"Failed to fetch {context} after {_MAX_RETRIES} retries: {last_exc}"
+    raise HTTPException(status_code=500, detail=msg)
+
+
 def fetch_endpoint_metadata() -> ExternalEndpointMetadata:
+    with _cache_lock:
+        cached: ExternalEndpointMetadata | None = _metadata_cache.get("metadata")
+        if cached is not None:
+            return cached
+
     auth_config = get_auth_config()
     idp_url = auth_config.external_config.idp_url
-
-    # Validate HTTPS for IdP URL
     _validate_https_url(idp_url, "External IdP URL")
 
     well_known_url = f"{idp_url}/.well-known/openid-configuration"
     try:
-        with httpx.Client() as client:
-            res = client.get(well_known_url, follow_redirects=True, headers={"User-Agent": user_agent()})
-            res.raise_for_status()
-            metadata = ExternalEndpointMetadata.model_validate(res.json())
+        res = _fetch_with_retry(well_known_url, "IdP metadata")
+        metadata = ExternalEndpointMetadata.model_validate(res.json())
 
-            # Also validate endpoints returned by the IdP
-            _validate_https_url(metadata.token_endpoint, "Token endpoint")
-            _validate_https_url(metadata.jwks_uri, "JWKS URI")
-            _validate_https_url(metadata.authorization_endpoint, "Authorization endpoint")
-
-            return metadata
-    except (httpx.HTTPError, ValueError, KeyError):
+        _validate_https_url(metadata.token_endpoint, "Token endpoint")
+        _validate_https_url(metadata.jwks_uri, "JWKS URI")
+        _validate_https_url(metadata.authorization_endpoint, "Authorization endpoint")
+    except (ValueError, KeyError):
         raise_internal_error("Failed to fetch IdP metadata from the well-known endpoint")
+    else:
+        with _cache_lock:
+            _metadata_cache["metadata"] = metadata
+        return metadata
 
 
 async def external_create_access_token(username: str, password: str) -> str:
@@ -366,7 +414,7 @@ async def external_create_access_token(username: str, password: str) -> str:
     }
 
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=HTTPX_TIMEOUT) as client:
             res = await client.post(token_url, data=data, headers=headers, follow_redirects=True)
             res.raise_for_status()
             return str(res.json().get("access_token", ""))
@@ -375,33 +423,61 @@ async def external_create_access_token(username: str, password: str) -> str:
 
 
 def external_decode_token(token: str) -> TokenPayload:
-    jwks = fetch_jwks()
+    try:
+        unverified_header = jwt.get_unverified_header(token)
+    except jwt.exceptions.DecodeError:
+        raise_invalid_token()
 
-    # Extract the kid and alg from the token header
-    unverified_header = jwt.get_unverified_header(token)
-    kid = unverified_header["kid"]
-    alg = unverified_header["alg"]
+    kid = unverified_header.get("kid")
+    if kid is None:
+        raise_invalid_token()
+
+    alg = unverified_header.get("alg")
+    if alg not in ALLOWED_ALGORITHMS:
+        raise_invalid_token()
+
+    metadata = fetch_endpoint_metadata()
+    jwks = fetch_jwks()
 
     jwk_key = next((k.key for k in jwks.keys if k.key_id == kid), None)
     if jwk_key is None:
-        raise_invalid_token()
+        # Key rotation: re-fetch JWKS and try again
+        jwks = fetch_jwks(force_refresh=True)
+        jwk_key = next((k.key for k in jwks.keys if k.key_id == kid), None)
+        if jwk_key is None:
+            raise_invalid_token()
 
     auth_config = get_auth_config()
     jwt_audience = auth_config.external_config.jwt_audience
 
     try:
-        return TokenPayload.model_validate(jwt.decode(token, jwk_key, algorithms=[alg], audience=jwt_audience))
+        return TokenPayload.model_validate(
+            jwt.decode(
+                token,
+                jwk_key,
+                algorithms=ALLOWED_ALGORITHMS,
+                audience=jwt_audience,
+                issuer=metadata.issuer,
+            )
+        )
     except (jwt.PyJWTError, ValueError, KeyError):
         raise_invalid_token()
 
 
-@cache
-def fetch_jwks() -> PyJWKSet:
+def fetch_jwks(force_refresh: bool = False) -> PyJWKSet:
+    if not force_refresh:
+        with _cache_lock:
+            cached: PyJWKSet | None = _jwks_cache.get("jwks")
+            if cached is not None:
+                return cached
+
     jwks_uri = fetch_endpoint_metadata().jwks_uri
     try:
-        with httpx.Client() as client:
-            res = client.get(jwks_uri, follow_redirects=True, headers={"User-Agent": user_agent()})
-            res.raise_for_status()
-            return PyJWKSet.from_dict(res.json())
-    except (httpx.HTTPError, ValueError, KeyError):
+        res = _fetch_with_retry(jwks_uri, "JWKS")
+        jwk_set = PyJWKSet.from_dict(res.json())
+    except (ValueError, KeyError):
         raise_internal_error("Failed to fetch JWKS from the IdP")
+    else:
+        with _cache_lock:
+            _jwks_cache["jwks"] = jwk_set
+        return jwk_set

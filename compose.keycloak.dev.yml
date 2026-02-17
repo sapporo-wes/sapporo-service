@@ -1,16 +1,22 @@
 services:
   keycloak:
-    # https://hub.docker.com/r/keycloak/keycloak/tags
-    image: quay.io/keycloak/keycloak:24.0.5
+    # https://quay.io/repository/keycloak/keycloak?tab=tags
+    image: quay.io/keycloak/keycloak:26.3.1
     container_name: sapporo-keycloak-dev
     environment:
-      - KEYCLOAK_ADMIN=sapporo-admin-user
-      - KEYCLOAK_ADMIN_PASSWORD=sapporo-admin-password
+      - KC_BOOTSTRAP_ADMIN_USERNAME=sapporo-admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=sapporo-admin-password
     volumes:
-      - ${PWD}/keycloak-data:/opt/keycloak/data
+      - ${PWD}/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     ports:
       - 127.0.0.1:8080:8080
-    command: ["start-dev"]
+    command: ["start-dev", "--import-realm"]
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /realms/sapporo-dev HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && timeout 1 cat <&3 | head -1 | grep -q '200 OK'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     networks:
       - sapporo-dev-network
     init: true

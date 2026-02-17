@@ -226,6 +226,15 @@ filecache = [
 ]
 
 [[package]]
+name = "cachetools"
+version = "7.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d4/07/56595285564e90777d758ebd383d6b0b971b87729bbe2184a849932a3736/cachetools-7.0.1.tar.gz", hash = "sha256:e31e579d2c5b6e2944177a0397150d312888ddf4e16e12f1016068f0c03b8341", size = 36126, upload-time = "2026-02-10T22:24:05.03Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ed/9e/5faefbf9db1db466d633735faceda1f94aa99ce506ac450d232536266b32/cachetools-7.0.1-py3-none-any.whl", hash = "sha256:8f086515c254d5664ae2146d14fc7f65c9a4bce75152eb247e5a9c5e6d7b2ecf", size = 13484, upload-time = "2026-02-10T22:24:03.741Z" },
+]
+
+[[package]]
 name = "cattrs"
 version = "25.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3021,6 +3030,7 @@ source = { editable = "." }
 dependencies = [
     { name = "apscheduler" },
     { name = "argon2-cffi" },
+    { name = "cachetools" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "multiqc" },
@@ -3046,6 +3056,7 @@ tests = [
     { name = "roc-validator" },
     { name = "ruff" },
     { name = "runcrate" },
+    { name = "types-cachetools" },
     { name = "types-pyyaml" },
 ]
 
@@ -3058,6 +3069,7 @@ dev = [
 requires-dist = [
     { name = "apscheduler" },
     { name = "argon2-cffi" },
+    { name = "cachetools" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "hypothesis", marker = "extra == 'tests'" },
@@ -3078,6 +3090,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'tests'" },
     { name = "runcrate", marker = "extra == 'tests'" },
     { name = "sqlmodel" },
+    { name = "types-cachetools", marker = "extra == 'tests'" },
     { name = "types-pyyaml", marker = "extra == 'tests'" },
     { name = "uvicorn", extras = ["standard"] },
 ]
@@ -3501,6 +3514,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c7/68/71c1a15b5f65f40e91b65da23b8224dad41349894535a97f63a52e462196/typeguard-4.4.4.tar.gz", hash = "sha256:3a7fd2dffb705d4d0efaed4306a704c89b9dee850b688f060a8b1615a79e5f74", size = 75203, upload-time = "2025-06-18T09:56:07.624Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1b/a9/e3aee762739c1d7528da1c3e06d518503f8b6c439c35549b53735ba52ead/typeguard-4.4.4-py3-none-any.whl", hash = "sha256:b5f562281b6bfa1f5492470464730ef001646128b180769880468bd84b68b09e", size = 34874, upload-time = "2025-06-18T09:56:05.999Z" },
+]
+
+[[package]]
+name = "types-cachetools"
+version = "6.2.0.20251022"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3b/a8/f9bcc7f1be63af43ef0170a773e2d88817bcc7c9d8769f2228c802826efe/types_cachetools-6.2.0.20251022.tar.gz", hash = "sha256:f1d3c736f0f741e89ec10f0e1b0138625023e21eb33603a930c149e0318c0cef", size = 9608, upload-time = "2025-10-22T03:03:58.16Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/98/2d/8d821ed80f6c2c5b427f650bf4dc25b80676ed63d03388e4b637d2557107/types_cachetools-6.2.0.20251022-py3-none-any.whl", hash = "sha256:698eb17b8f16b661b90624708b6915f33dbac2d185db499ed57e4997e7962cad", size = 9341, upload-time = "2025-10-22T03:03:57.036Z" },
 ]
 
 [[package]]

@@ -301,3 +301,177 @@ def sapporo_auth_env() -> Generator[dict[str, Any]]:
                 with contextlib.suppress(ProcessLookupError):
                     os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
                 proc.wait()
+
+
+# === External auth (Keycloak) helpers ===
+
+KEYCLOAK_URL = "http://localhost:8080"
+KEYCLOAK_REALM = "sapporo-dev"
+KEYCLOAK_REALM_URL = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}"
+
+_EXT_USER1 = {"username": "test-user", "password": "test-user-password"}
+_EXT_USER2 = {"username": "test-user-2", "password": "test-user-2-password"}
+
+SAPPORO_EXT_PUBLIC_PORT = 1124
+SAPPORO_EXT_CONFIDENTIAL_PORT = 1125
+EXT_PUBLIC_BASE_URL = f"http://{SAPPORO_HOST}:{SAPPORO_EXT_PUBLIC_PORT}"
+EXT_CONFIDENTIAL_BASE_URL = f"http://{SAPPORO_HOST}:{SAPPORO_EXT_CONFIDENTIAL_PORT}"
+
+
+def get_keycloak_token(username: str, password: str, client_id: str = "sapporo-service-dev") -> str:
+    """Obtain an access token from Keycloak via Resource Owner Password Grant."""
+    token_url = f"{KEYCLOAK_REALM_URL}/protocol/openid-connect/token"
+    data = {
+        "grant_type": "password",
+        "client_id": client_id,
+        "username": username,
+        "password": password,
+    }
+    with httpx.Client(timeout=10) as client:
+        res = client.post(token_url, data=data)
+        res.raise_for_status()
+        token: str = res.json()["access_token"]
+        return token
+
+
+def _build_external_auth_config(
+    client_mode: str,
+    client_id: str,
+    client_secret: str | None = None,
+    jwt_audience: str = "account",
+) -> dict[str, Any]:
+    return {
+        "auth_enabled": True,
+        "idp_provider": "external",
+        "sapporo_auth_config": {
+            "secret_key": "unused",
+            "expires_delta_hours": 24,
+            "users": [],
+        },
+        "external_config": {
+            "idp_url": KEYCLOAK_REALM_URL,
+            "jwt_audience": jwt_audience,
+            "client_mode": client_mode,
+            "client_id": client_id,
+            "client_secret": client_secret,
+        },
+    }
+
+
+def _start_sapporo_external(
+    auth_config: dict[str, Any],
+    port: int,
+    tmp_dir: str,
+) -> subprocess.Popen[bytes]:
+    """Start a sapporo instance with external auth config."""
+    auth_config_path = Path(tmp_dir) / "auth_config.json"
+    auth_config_path.write_text(json.dumps(auth_config, indent=2))
+    run_dir = Path(tmp_dir) / "runs"
+    run_dir.mkdir(exist_ok=True)
+
+    env = os.environ.copy()
+    env["SAPPORO_ALLOW_INSECURE_IDP"] = "true"
+
+    return subprocess.Popen(
+        [
+            "sapporo",
+            "--port",
+            str(port),
+            "--auth-config",
+            str(auth_config_path),
+            "--run-dir",
+            str(run_dir),
+            "--debug",
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        process_group=0,
+        env=env,
+    )
+
+
+def _wait_for_sapporo(base_url: str, timeout: int = 30) -> bool:
+    """Wait until sapporo is ready."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with httpx.Client(base_url=base_url, timeout=5) as c:
+                r = c.get("/service-info")
+                if r.status_code in (200, 401):
+                    return True
+        except httpx.ConnectError:
+            pass
+        time.sleep(1)
+    return False
+
+
+def _kill_process(proc: subprocess.Popen[bytes]) -> None:
+    """Gracefully stop a subprocess."""
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+        proc.wait(timeout=10)
+    except (subprocess.TimeoutExpired, ProcessLookupError):
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        proc.wait()
+
+
+@pytest.fixture(scope="session")
+def sapporo_ext_public_env() -> Generator[dict[str, Any]]:
+    """Launch a sapporo instance with external auth (public mode).
+
+    Requires Keycloak running at localhost:8080 with sapporo-dev realm.
+    """
+    auth_config = _build_external_auth_config(
+        client_mode="public",
+        client_id="sapporo-service-dev",
+    )
+
+    with tempfile.TemporaryDirectory(prefix="sapporo_ext_pub_") as tmp_dir:
+        proc = _start_sapporo_external(auth_config, SAPPORO_EXT_PUBLIC_PORT, tmp_dir)
+
+        if not _wait_for_sapporo(EXT_PUBLIC_BASE_URL):
+            _kill_process(proc)
+            msg = f"External auth (public) sapporo failed to start on port {SAPPORO_EXT_PUBLIC_PORT}"
+            raise RuntimeError(msg)
+
+        try:
+            with httpx.Client(base_url=EXT_PUBLIC_BASE_URL, timeout=30) as client:
+                yield {
+                    "client": client,
+                    "user1": _EXT_USER1,
+                    "user2": _EXT_USER2,
+                }
+        finally:
+            _kill_process(proc)
+
+
+@pytest.fixture(scope="session")
+def sapporo_ext_confidential_env() -> Generator[dict[str, Any]]:
+    """Launch a sapporo instance with external auth (confidential mode).
+
+    Requires Keycloak running at localhost:8080 with sapporo-dev realm.
+    """
+    auth_config = _build_external_auth_config(
+        client_mode="confidential",
+        client_id="sapporo-service-dev-confidential",
+        client_secret="sapporo-dev-client-secret",
+    )
+
+    with tempfile.TemporaryDirectory(prefix="sapporo_ext_conf_") as tmp_dir:
+        proc = _start_sapporo_external(auth_config, SAPPORO_EXT_CONFIDENTIAL_PORT, tmp_dir)
+
+        if not _wait_for_sapporo(EXT_CONFIDENTIAL_BASE_URL):
+            _kill_process(proc)
+            msg = f"External auth (confidential) sapporo failed to start on port {SAPPORO_EXT_CONFIDENTIAL_PORT}"
+            raise RuntimeError(msg)
+
+        try:
+            with httpx.Client(base_url=EXT_CONFIDENTIAL_BASE_URL, timeout=30) as client:
+                yield {
+                    "client": client,
+                    "user1": _EXT_USER1,
+                    "user2": _EXT_USER2,
+                }
+        finally:
+            _kill_process(proc)

@@ -21,6 +21,7 @@ from sapporo.ro_crate import (
     add_create_action,
     add_workflow_entity,
     compute_sha256,
+    count_lines,
     create_base_crate,
     extract_docker_image,
     generate_ro_crate,
@@ -939,8 +940,8 @@ class TestRoCrateFullGeneration:
         assert action["exitCode"] == 1
         assert "error" in action
         assert "workflow failed" in action["error"]
-        # Failed run should have no result
-        assert action.get("result") is None
+        # Failed run should have empty result array
+        assert action["result"] == []
 
     def test_timestamps_have_timezone(self, tmp_path: Path) -> None:
         """Timestamps without timezone should get +00:00 appended."""
@@ -1259,3 +1260,168 @@ class TestNewProperties:
             subject_of = [subject_of]
         subject_ids = {s["@id"] for s in subject_of}
         assert "workflow_engine_params.txt" in subject_ids
+
+
+# === RO-Crate improvements ===
+
+
+class TestRoCrateImprovements:
+    """Tests for RO-Crate generation improvements (WRROC 0.5 compliance)."""
+
+    def test_create_action_id_is_fragment(self, tmp_path: Path) -> None:
+        """CreateAction @id should start with '#'."""
+        rd = create_run_dir(
+            tmp_path,
+            RUN_ID,
+            exit_code="0",
+            end_time="2024-01-01T00:10:00",
+            wf_params="{}",
+        )
+        jsonld = generate_ro_crate_metadata(rd)
+        graph = jsonld["@graph"]
+        action = next(e for e in graph if e.get("@type") == "CreateAction")
+        assert action["@id"].startswith("#")
+
+    def test_run_id_from_runtime_info(self, tmp_path: Path) -> None:
+        """run_id should be taken from runtime_info.json."""
+        custom_run_id = "custom-run-id-12345"
+        rd = create_run_dir(tmp_path, RUN_ID, exit_code="0", end_time="2024-01-01T00:10:00", wf_params="{}")
+        # Overwrite runtime_info with custom run_id
+        from sapporo.config import RUN_DIR_STRUCTURE
+
+        runtime_info = {"run_id": custom_run_id, "sapporo_version": "test", "base_url": "http://localhost:1122"}
+        rd.joinpath(RUN_DIR_STRUCTURE["runtime_info"]).write_text(json.dumps(runtime_info), encoding="utf-8")
+
+        jsonld = generate_ro_crate_metadata(rd)
+        graph = jsonld["@graph"]
+        action = next(e for e in graph if e.get("@type") == "CreateAction")
+        assert action["@id"] == f"#{custom_run_id}"
+        root = next(e for e in graph if e["@id"] == "./")
+        assert custom_run_id in root["name"]
+
+    def test_run_id_fallback_to_dirname(self, tmp_path: Path) -> None:
+        """When runtime_info has no run_id, fall back to dirname."""
+        rd = create_run_dir(tmp_path, RUN_ID, exit_code="0", end_time="2024-01-01T00:10:00", wf_params="{}")
+        # Overwrite runtime_info without run_id
+        from sapporo.config import RUN_DIR_STRUCTURE
+
+        runtime_info = {"sapporo_version": "test", "base_url": "http://localhost:1122"}
+        rd.joinpath(RUN_DIR_STRUCTURE["runtime_info"]).write_text(json.dumps(runtime_info), encoding="utf-8")
+
+        jsonld = generate_ro_crate_metadata(rd)
+        graph = jsonld["@graph"]
+        action = next(e for e in graph if e.get("@type") == "CreateAction")
+        # dirname is the run_id (last component of rd)
+        assert action["@id"] == f"#{rd.name}"
+
+    def test_failed_run_has_empty_result_array(self, tmp_path: Path) -> None:
+        """Failed run should have result == [] and object as a list."""
+        rd = create_run_dir(
+            tmp_path,
+            RUN_ID,
+            exit_code="1",
+            end_time="2024-01-01T00:05:00",
+            wf_params="{}",
+            stderr_content="Error\n",
+        )
+        jsonld = generate_ro_crate_metadata(rd)
+        graph = jsonld["@graph"]
+        action = next(e for e in graph if e.get("@type") == "CreateAction")
+        assert action["result"] == []
+        assert isinstance(action["object"], list)
+
+    def test_encoding_format_never_inode(self, tmp_path: Path) -> None:
+        """EncodingFormat should never contain 'inode/'."""
+        rd = create_run_dir(
+            tmp_path,
+            RUN_ID,
+            exit_code="0",
+            end_time="2024-01-01T00:10:00",
+            wf_params="{}",
+            output_files={"empty_file": ""},
+            outputs_json=[],
+        )
+        jsonld = generate_ro_crate_metadata(rd)
+        graph = jsonld["@graph"]
+        for entity in graph:
+            enc = entity.get("encodingFormat")
+            if enc is None:
+                continue
+            values = enc if isinstance(enc, list) else [enc]
+            for v in values:
+                if isinstance(v, str):
+                    assert not v.startswith("inode/"), f"Entity {entity['@id']} has inode/ MIME type"
+
+    def test_container_image_has_tag(self, tmp_path: Path) -> None:
+        """ContainerImage entity should have a 'tag' property."""
+        rd = create_run_dir(
+            tmp_path,
+            RUN_ID,
+            exit_code="0",
+            end_time="2024-01-01T00:10:00",
+            wf_params="{}",
+            cmd="docker run --rm quay.io/commonwl/cwltool:3.1.0 --outdir /out wf.cwl",
+        )
+        jsonld = generate_ro_crate_metadata(rd)
+        graph = jsonld["@graph"]
+        containers = [e for e in graph if e.get("@type") == "ContainerImage"]
+        assert len(containers) >= 1
+        assert containers[0]["tag"] == "3.1.0"
+
+    def test_docker_hub_registry_url(self, tmp_path: Path) -> None:
+        """Docker Hub images should use https://docker.io as registry."""
+        rd = create_run_dir(
+            tmp_path,
+            RUN_ID,
+            exit_code="0",
+            end_time="2024-01-01T00:10:00",
+            wf_params="{}",
+            cmd="docker run --rm nextflow/nextflow:25.10.4 nextflow run wf.nf",
+        )
+        jsonld = generate_ro_crate_metadata(rd)
+        graph = jsonld["@graph"]
+        containers = [e for e in graph if e.get("@type") == "ContainerImage"]
+        assert len(containers) >= 1
+        assert containers[0]["registry"] == "https://docker.io"
+
+    def test_software_application_uses_software_version(self, tmp_path: Path) -> None:
+        """SoftwareApplication should use 'softwareVersion' instead of 'version'."""
+        rd = create_run_dir(
+            tmp_path,
+            RUN_ID,
+            exit_code="0",
+            end_time="2024-01-01T00:10:00",
+            wf_params="{}",
+        )
+        jsonld = generate_ro_crate_metadata(rd)
+        graph = jsonld["@graph"]
+        sw_entities = [
+            e
+            for e in graph
+            if "SoftwareApplication"
+            in (e.get("@type", []) if isinstance(e.get("@type"), list) else [e.get("@type", "")])
+        ]
+        for sw in sw_entities:
+            assert "softwareVersion" in sw, f"SoftwareApplication {sw['@id']} missing softwareVersion"
+
+    def test_ensure_tz_invalid_returns_none(self) -> None:
+        """Invalid timestamp should return None."""
+        assert _ensure_tz("not-a-timestamp") is None
+
+    def test_count_lines_no_trailing_newline(self, tmp_path: Path) -> None:
+        """'hello' (no trailing newline) should count as 1 line."""
+        f = tmp_path / "no_newline.txt"
+        f.write_text("hello", encoding="utf-8")
+        assert count_lines(f) == 1
+
+    def test_count_lines_single_newline(self, tmp_path: Path) -> None:
+        r"""'hello\n' should count as 1 line."""
+        f = tmp_path / "with_newline.txt"
+        f.write_text("hello\n", encoding="utf-8")
+        assert count_lines(f) == 1
+
+    def test_count_lines_empty_file(self, tmp_path: Path) -> None:
+        """Empty file should count as 0 lines."""
+        f = tmp_path / "empty.txt"
+        f.write_text("", encoding="utf-8")
+        assert count_lines(f) == 0

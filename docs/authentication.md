@@ -95,19 +95,94 @@ curl -X GET -H "Authorization: Bearer $TOKEN" localhost:1122/runs
 
 In external mode, integrate with an IdP like Keycloak. Users authenticate with the IdP, which issues JWTs that the sapporo-service verifies.
 
+### Security Considerations
+
+The external mode enforces the following security measures when verifying JWTs issued by the IdP:
+
+- **Algorithm restriction**: Only RS256, RS384, and RS512 are accepted. HMAC-based algorithms (e.g., HS256) are rejected to prevent key confusion attacks.
+- **Issuer verification**: The `iss` claim in the JWT is validated against the `issuer` field from the IdP's OIDC Discovery metadata.
+- **JWKS key rotation**: When a JWT's `kid` header does not match any cached key, the JWKS is re-fetched from the IdP. If the key is still not found after refresh, the token is rejected.
+- **TTL-based caching**: OIDC Discovery metadata is cached for 1 hour. JWKS is cached for 5 minutes. This ensures timely pickup of key rotations while reducing load on the IdP.
+- **HTTP timeout**: All HTTP requests to the IdP use a 10-second timeout to prevent hanging.
+- **Retry with exponential backoff**: Transient HTTP errors when fetching metadata or JWKS are retried up to 3 times with exponential backoff (0.5s, 1.0s, 2.0s).
+
 ### Keycloak Development Setup
 
-For testing external authentication with Keycloak, use the development compose file alongside the main development environment:
+A pre-configured Keycloak realm is provided for development and testing. The realm is automatically imported on first start via `keycloak/realm-export.json`.
 
 ```bash
-# Start the development environment first
-docker compose -f compose.dev.yml up -d --build
-
-# Start Keycloak
+# Start Keycloak (realm is auto-imported)
 docker compose -f compose.keycloak.dev.yml up -d
+
+# Wait for healthcheck to pass
+docker compose -f compose.keycloak.dev.yml ps
+
+# Start sapporo with external auth
+export SAPPORO_ALLOW_INSECURE_IDP=true
+sapporo --auth-config auth_config.json --debug
 ```
 
-Keycloak is available at `http://localhost:8080` with the admin credentials defined in `compose.keycloak.dev.yml`. Configure a realm and client to issue JWTs that the sapporo-service can verify.
+Keycloak admin console: `http://localhost:8080` (sapporo-admin / `sapporo-admin-password`)
+
+#### Pre-configured Clients
+
+| Client ID | Type | Secret | Use case |
+|---|---|---|---|
+| `sapporo-service-dev` | public | N/A | Frontend direct authentication |
+| `sapporo-service-dev-confidential` | confidential | `sapporo-dev-client-secret` | Server-to-server authentication |
+
+Both clients have `directAccessGrantsEnabled: true` (Resource Owner Password Grant) for testing convenience.
+
+#### Test Users
+
+| Username | Password |
+|---|---|
+| `test-user` | `test-user-password` |
+| `test-user-2` | `test-user-2-password` |
+
+#### auth_config.json Examples
+
+Public mode (frontend obtains tokens directly from Keycloak):
+
+```json
+{
+  "auth_enabled": true,
+  "idp_provider": "external",
+  "sapporo_auth_config": {
+    "secret_key": "unused",
+    "expires_delta_hours": 24,
+    "users": []
+  },
+  "external_config": {
+    "idp_url": "http://localhost:8080/realms/sapporo-dev",
+    "jwt_audience": "account",
+    "client_mode": "public",
+    "client_id": "sapporo-service-dev",
+    "client_secret": null
+  }
+}
+```
+
+Confidential mode (sapporo proxies token requests to Keycloak):
+
+```json
+{
+  "auth_enabled": true,
+  "idp_provider": "external",
+  "sapporo_auth_config": {
+    "secret_key": "unused",
+    "expires_delta_hours": 24,
+    "users": []
+  },
+  "external_config": {
+    "idp_url": "http://localhost:8080/realms/sapporo-dev",
+    "jwt_audience": "account",
+    "client_mode": "confidential",
+    "client_id": "sapporo-service-dev-confidential",
+    "client_secret": "sapporo-dev-client-secret"
+  }
+}
+```
 
 ## CLI Utilities
 

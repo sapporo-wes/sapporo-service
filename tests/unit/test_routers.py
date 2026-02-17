@@ -74,8 +74,7 @@ def _clear_module_caches() -> None:
     sapporo.factory.create_service_info.cache_clear()
     sapporo.factory.create_executable_wfs.cache_clear()
     sapporo.auth.get_auth_config.cache_clear()
-    sapporo.auth.fetch_endpoint_metadata.cache_clear()
-    sapporo.auth.fetch_jwks.cache_clear()
+    sapporo.auth.clear_external_auth_caches()
     sapporo.database.create_db_engine.cache_clear()
 
 

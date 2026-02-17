@@ -28,6 +28,7 @@ classifiers = [
 dependencies = [
     "apscheduler",
     "argon2-cffi",
+    "cachetools",
     "fastapi",
     "httpx",
     "multiqc",
@@ -58,6 +59,7 @@ tests = [
     "roc-validator",
     "ruff",
     "runcrate",
+    "types-cachetools",
     "types-PyYAML",
 ]
 

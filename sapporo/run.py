@@ -32,7 +32,7 @@ def prepare_run_dir(run_id: str, run_request: RunRequestForm, username: str | No
 
     write_file(run_id, "state", State.INITIALIZING)
     write_file(run_id, "start_time", now_str())
-    write_file(run_id, "runtime_info", dump_runtime_info())
+    write_file(run_id, "runtime_info", dump_runtime_info(run_id))
     write_file(run_id, "run_request", run_request.model_dump())
     write_file(run_id, "wf_params", run_request.workflow_params)
     write_file(run_id, "wf_engine_params", wf_engine_params_to_str(run_request))
@@ -70,8 +70,9 @@ def write_file(run_id: str, key: RunDirStructureKeys, content: Any) -> None:
         f.write(content)
 
 
-def dump_runtime_info() -> dict[str, Any]:
+def dump_runtime_info(run_id: str) -> dict[str, Any]:
     return {
+        "run_id": run_id,
         "sapporo_version": sapporo_version(),
         "base_url": get_config().base_url,
     }
@@ -203,9 +204,9 @@ def append_system_logs(run_id: str, log: str) -> None:
 # Called from run.sh
 def dump_outputs_list(run_dir: str | Path) -> None:
     run_dir = Path(run_dir).resolve()
-    run_id = run_dir.name
     with run_dir.joinpath(RUN_DIR_STRUCTURE["runtime_info"]).open(mode="r", encoding="utf-8") as f:
         runtime_info = json.load(f)
+    run_id = runtime_info.get("run_id", run_dir.name)
     base_url = runtime_info["base_url"]
     outputs_dir = run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"])
     output_files = sorted(list_files(outputs_dir))

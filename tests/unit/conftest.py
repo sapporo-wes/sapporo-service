@@ -7,6 +7,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from hypothesis import HealthCheck
@@ -95,7 +96,7 @@ def _clear_all_caches() -> Generator[None, None, None]:
 
 
 def _do_clear_caches() -> None:
-    from sapporo.auth import fetch_endpoint_metadata, fetch_jwks, get_auth_config
+    from sapporo.auth import clear_external_auth_caches, get_auth_config
     from sapporo.config import _load_ga4gh_wes_spec, _load_pkg_dir, get_config
     from sapporo.database import create_db_engine
     from sapporo.factory import create_executable_wfs, create_service_info
@@ -106,8 +107,7 @@ def _do_clear_caches() -> None:
     create_service_info.cache_clear()
     create_executable_wfs.cache_clear()
     get_auth_config.cache_clear()
-    fetch_endpoint_metadata.cache_clear()
-    fetch_jwks.cache_clear()
+    clear_external_auth_caches()
     create_db_engine.cache_clear()
 
 
@@ -231,7 +231,7 @@ def create_run_dir(
     }
     rd.joinpath(RUN_DIR_STRUCTURE["run_request"]).write_text(json.dumps(request, indent=2), encoding="utf-8")
 
-    runtime_info = {"sapporo_version": "test", "base_url": "http://localhost:1122"}
+    runtime_info = {"run_id": run_id, "sapporo_version": "test", "base_url": "http://localhost:1122"}
     rd.joinpath(RUN_DIR_STRUCTURE["runtime_info"]).write_text(json.dumps(runtime_info, indent=2), encoding="utf-8")
 
     rd.joinpath(RUN_DIR_STRUCTURE["system_logs"]).write_text(
@@ -312,3 +312,109 @@ def make_upload_file(filename: str, content: bytes = b"test content") -> Starlet
         filename=filename,
         headers=Headers({"content-type": "application/octet-stream"}),
     )
+
+
+# === External auth test helpers ===
+
+_MOCK_IDP_ISSUER = "https://example.com/realms/test"
+_MOCK_IDP_METADATA = {
+    "issuer": _MOCK_IDP_ISSUER,
+    "authorization_endpoint": f"{_MOCK_IDP_ISSUER}/protocol/openid-connect/auth",
+    "token_endpoint": f"{_MOCK_IDP_ISSUER}/protocol/openid-connect/token",
+    "jwks_uri": f"{_MOCK_IDP_ISSUER}/protocol/openid-connect/certs",
+}
+
+
+@pytest.fixture(scope="session")
+def rsa_keypair() -> tuple[Any, Any]:
+    """Generate an RSA key pair for JWT signing in tests."""
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    public_key = private_key.public_key()
+    return private_key, public_key
+
+
+@pytest.fixture(scope="session")
+def rsa_keypair_2() -> tuple[Any, Any]:
+    """Generate a second RSA key pair for key rotation tests."""
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    public_key = private_key.public_key()
+    return private_key, public_key
+
+
+def build_jwks_dict(public_key: Any, kid: str = "test-kid-1") -> dict[str, Any]:
+    """Build a JWKS dict from an RSA public key."""
+    numbers = public_key.public_numbers()
+
+    def _int_to_base64url(n: int) -> str:
+        import base64
+
+        byte_length = (n.bit_length() + 7) // 8
+        return base64.urlsafe_b64encode(n.to_bytes(byte_length, "big")).rstrip(b"=").decode()
+
+    return {
+        "keys": [
+            {
+                "kty": "RSA",
+                "use": "sig",
+                "kid": kid,
+                "alg": "RS256",
+                "n": _int_to_base64url(numbers.n),
+                "e": _int_to_base64url(numbers.e),
+            }
+        ]
+    }
+
+
+def create_signed_jwt(
+    private_key: Any,
+    kid: str = "test-kid-1",
+    algorithm: str = "RS256",
+    issuer: str = _MOCK_IDP_ISSUER,
+    audience: str = "account",
+    subject: str = "test-user",
+    expired: bool = False,
+    extra_claims: dict[str, Any] | None = None,
+) -> str:
+    """Create a signed JWT token for testing."""
+    import datetime
+
+    import jwt as pyjwt
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    payload: dict[str, Any] = {
+        "sub": subject,
+        "iss": issuer,
+        "aud": audience,
+        "iat": now,
+        "exp": now - datetime.timedelta(hours=1) if expired else now + datetime.timedelta(hours=1),
+        "preferred_username": subject,
+    }
+    if extra_claims:
+        payload.update(extra_claims)
+
+    headers: dict[str, str] = {"kid": kid}
+    return pyjwt.encode(payload, private_key, algorithm=algorithm, headers=headers)
+
+
+class MockHttpxResponse:
+    """Mock httpx.Response for testing HTTP calls."""
+
+    def __init__(self, json_data: Any, status_code: int = 200) -> None:
+        self._json_data = json_data
+        self.status_code = status_code
+
+    def json(self) -> Any:
+        return self._json_data
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            msg = f"HTTP {self.status_code}"
+            raise httpx.HTTPStatusError(
+                msg,
+                request=httpx.Request("GET", "https://example.com"),
+                response=httpx.Response(self.status_code),
+            )

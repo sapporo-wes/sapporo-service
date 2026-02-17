@@ -145,13 +145,16 @@ def load_run_request(obj: dict[str, Any]) -> RunRequestForm:
 def count_lines(file_path: Path) -> int:
     block_size = 65536
     count = 0
+    last_char = ""
     with file_path.open("r") as f:
         while True:
             buffer = f.read(block_size)
             if not buffer:
                 break
             count += buffer.count("\n")
-
+            last_char = buffer[-1]
+    if last_char and last_char != "\n":
+        count += 1
     return count
 
 
@@ -213,12 +216,14 @@ def _ensure_tz(timestamp: str | None) -> str | None:
     """
     if timestamp is None:
         return None
-    if re.search(r"[Zz]$", timestamp):
-        return re.sub(r"[Zz]$", "+00:00", timestamp)
-    if re.search(r"[+-]\d{2}:\d{2}$", timestamp):
-        return timestamp
-
-    return f"{timestamp}+00:00"
+    try:
+        dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00").replace("z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat()
+    except ValueError:
+        logging.getLogger("sapporo").warning("Invalid timestamp format: %s", timestamp)
+        return None
 
 
 # === Base crate ===
@@ -420,7 +425,7 @@ def add_container_image(crate: ROCrate, run_dir: Path) -> ContextEntity | None:
         registry = f"https://{first_part}"
     else:
         container_id = f"https://docker.io/{image_name}"
-        registry = "https://hub.docker.com"
+        registry = "https://docker.io"
     container = ContextEntity(
         crate,
         container_id,
@@ -429,6 +434,7 @@ def add_container_image(crate: ROCrate, run_dir: Path) -> ContextEntity | None:
             "name": f"{image_name}:{image_tag}",
             "additionalType": {"@id": "https://w3id.org/ro/terms/workflow-run#DockerImage"},
             "registry": registry,
+            "tag": image_tag,
         },
     )
     crate.add(container)
@@ -659,7 +665,7 @@ def add_create_action(
     """Create and populate the main CreateAction entity."""
     action = ContextEntity(
         crate,
-        identifier=run_id,
+        identifier=f"#{run_id}",
         properties={"@type": "CreateAction", "name": f"Sapporo workflow run {run_id}"},
     )
     action.append_to("instrument", wf, compact=True)
@@ -715,6 +721,12 @@ def add_create_action(
     # MultiQC stats
     add_multiqc_stats(crate, run_dir, action)
 
+    # Ensure result and object are always arrays (even for failed runs with no outputs/inputs)
+    if action.get("result") is None:
+        action["result"] = []
+    if action.get("object") is None:
+        action["object"] = []
+
     return action
 
 
@@ -728,9 +740,7 @@ def populate_file_metadata(
 
     The instance itself is updated in place.
     """
-    if file_path.is_file() is False:
-        return
-    if file_path.exists() is False:
+    if not file_path.is_file():
         return
 
     stat_result = file_path.stat()
@@ -747,6 +757,8 @@ def populate_file_metadata(
             file_ins["text"] = file_path.read_text()
 
     mime_type = magic.from_file(str(file_path), mime=True)
+    if mime_type.startswith("inode/"):
+        mime_type = "application/octet-stream"
     file_ins["encodingFormat"] = mime_type
 
     edam = inspect_edam_format(file_path)
@@ -935,7 +947,7 @@ def find_or_generate_software_ins(crate: ROCrate, name: str, version: str) -> So
 
     url = _ENGINE_URL_MAP.get(name.lower())
     identifier = url or f"#{name}"
-    props: dict[str, Any] = {"name": name, "version": version}
+    props: dict[str, Any] = {"name": name, "softwareVersion": version}
     if url is not None:
         props["url"] = url
     software_ins = SoftwareApplication(crate, identifier=identifier, properties=props)
@@ -971,7 +983,8 @@ def generate_ro_crate_metadata(run_dir: Path) -> dict[str, Any]:
     crate = create_base_crate()
 
     run_request = load_run_request(read_run_dir_file(run_dir, "run_request"))
-    run_id = run_dir.name
+    runtime_info = read_run_dir_file(run_dir, "runtime_info")
+    run_id = runtime_info["run_id"] if isinstance(runtime_info, dict) and "run_id" in runtime_info else run_dir.name
 
     # Root Data Entity: REQUIRED properties
     crate.name = f"Sapporo WES run {run_id}"
@@ -1033,7 +1046,8 @@ def generate_ro_crate(inputted_run_dir: str) -> None:
         msg = f"{run_dir} is not a directory."
         raise NotADirectoryError(msg)
 
-    run_id = run_dir.name
+    runtime_info = read_run_dir_file(run_dir, "runtime_info")
+    run_id = runtime_info["run_id"] if isinstance(runtime_info, dict) and "run_id" in runtime_info else run_dir.name
     readme_path = run_dir / "README.md"
     readme_path.write_text(
         f"# Sapporo WES run {run_id}\n\nRO-Crate for workflow run `{run_id}` executed by Sapporo WES.\n",

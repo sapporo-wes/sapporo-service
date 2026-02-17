@@ -281,7 +281,9 @@ def test_dump_runtime_info_contains_version_and_base_url(mocker: "MockerFixture"
     _setup_config(mocker, tmp_path)
     from sapporo.run import dump_runtime_info
 
-    info = dump_runtime_info()
+    info = dump_runtime_info("test-run-id")
+    assert "run_id" in info
+    assert info["run_id"] == "test-run-id"
     assert "sapporo_version" in info
     assert "base_url" in info
     assert isinstance(info["sapporo_version"], str)
