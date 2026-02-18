@@ -24,52 +24,93 @@ function run_wf() {
     exit 0
 }
 
+function _write_and_run() {
+    # Write the command to cmd.txt and execute it
+    local -n _cmd_ref=$1
+    printf '%s ' "${_cmd_ref[@]}" >"${cmd}"
+    echo "" >>"${cmd}"
+    "${_cmd_ref[@]}" 1>"${stdout}" 2>"${stderr}" || { executor_error $?; }
+}
+
+function _append_engine_params() {
+    # Append wf_engine_params (word-split) to the given array
+    local -n _arr_ref=$1
+    if [[ -n "${wf_engine_params}" ]]; then
+        local -a extra
+        read -ra extra <<< "${wf_engine_params}"
+        _arr_ref+=("${extra[@]}")
+    fi
+}
+
 function run_cwltool() {
     local container="quay.io/commonwl/cwltool:3.1.20260108082145"
-    local cmd_txt="${DOCKER_CMD} ${container} --outdir ${outputs_dir} ${wf_engine_params} ${wf_url} ${wf_params}"
-    echo "${cmd_txt}" >"${cmd}"
-    eval "${cmd_txt}" 1>"${stdout}" 2>"${stderr}" || { executor_error $?; }
+    local -a cmd_arr=(docker run --rm
+        -v /var/run/docker.sock:/var/run/docker.sock
+        -e DOCKER_HOST=unix:///var/run/docker.sock
+        -e DOCKER_API_VERSION=1.44
+        -v /tmp:/tmp
+        -v "${run_dir}:${run_dir}"
+        "-w=${exe_dir}"
+        "${container}"
+        --outdir "${outputs_dir}")
+    _append_engine_params cmd_arr
+    cmd_arr+=("${wf_url}" "${wf_params}")
+    _write_and_run cmd_arr
 }
 
 function run_nextflow() {
     local container="nextflow/nextflow:25.10.4"
-    local cmd_txt="docker run --rm ${D_SOCK} ${D_HOST} -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} nextflow run ${wf_url} ${wf_engine_params} -params-file ${wf_params} --outdir ${outputs_dir} -work-dir ${exe_dir}"
-    echo "${cmd_txt}" >"${cmd}"
-    eval "${cmd_txt}" 1>"${stdout}" 2>"${stderr}" || { executor_error $?; }
+    local -a cmd_arr=(docker run --rm
+        -v /var/run/docker.sock:/var/run/docker.sock
+        -e DOCKER_HOST=unix:///var/run/docker.sock
+        -v "${run_dir}:${run_dir}"
+        "-w=${exe_dir}"
+        "${container}"
+        nextflow run "${wf_url}")
+    _append_engine_params cmd_arr
+    cmd_arr+=(-params-file "${wf_params}" --outdir "${outputs_dir}" -work-dir "${exe_dir}")
+    _write_and_run cmd_arr
 }
 
 function run_toil() {
     local container="quay.io/ucsc_cgl/toil:9.1.1"
-    local cmd_txt="${DOCKER_CMD} -e TOIL_WORKDIR=${exe_dir} ${container} toil-cwl-runner ${wf_engine_params} ${wf_url} ${wf_params}"
-    echo "${cmd_txt}" >"${cmd}"
-    eval "${cmd_txt}" 1>"${stdout}" 2>"${stderr}" || { executor_error $?; }
+    local -a cmd_arr=(docker run --rm
+        -v /var/run/docker.sock:/var/run/docker.sock
+        -e DOCKER_HOST=unix:///var/run/docker.sock
+        -e DOCKER_API_VERSION=1.44
+        -v "${run_dir}:${run_dir}"
+        "-w=${exe_dir}"
+        -e "TOIL_WORKDIR=${exe_dir}"
+        "${container}"
+        toil-cwl-runner --outdir "${outputs_dir}")
+    _append_engine_params cmd_arr
+    cmd_arr+=("${wf_url}" "${wf_params}")
+    _write_and_run cmd_arr
 }
 
 function run_cromwell() {
     local container="ghcr.io/sapporo-wes/cromwell-with-docker:92"
-    local wf_type
-    wf_type=$(jq -r ".workflow_type" "${run_request}")
-    local cmd_txt="docker run --rm ${D_SOCK} ${D_HOST} ${D_TMP} -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} run ${wf_engine_params} ${wf_url} -i ${wf_params} -m ${exe_dir}/metadata.json"
-    echo "${cmd_txt}" >"${cmd}"
-    eval "${cmd_txt}" 1>"${stdout}" 2>"${stderr}" || { executor_error $?; }
+    local -a cmd_arr=(docker run --rm
+        -v /var/run/docker.sock:/var/run/docker.sock
+        -e DOCKER_HOST=unix:///var/run/docker.sock
+        -v /tmp:/tmp
+        -v "${run_dir}:${run_dir}"
+        "-w=${exe_dir}"
+        "${container}"
+        run)
+    _append_engine_params cmd_arr
+    cmd_arr+=("${wf_url}" -i "${wf_params}" -m "${exe_dir}/metadata.json")
+    _write_and_run cmd_arr
 
-    # Handling outputs based on workflow type
+    # Copy WDL outputs from Cromwell metadata
     if [[ ! -f "${exe_dir}/metadata.json" ]]; then
         echo "Warning: metadata.json not found" >>"${stderr}"
     else
-        if [[ "${wf_type}" == "CWL" ]]; then
-            while read -r output_file; do
-                if [[ -n "${output_file}" && -f "${output_file}" ]]; then
-                    cp "${output_file}" "${outputs_dir}/" || true
-                fi
-            done < <(jq -r '.outputs[].location // empty' "${exe_dir}/metadata.json" 2>>"${stderr}")
-        elif [[ "${wf_type}" == "WDL" ]]; then
-            while read -r output_file; do
-                if [[ -n "${output_file}" && -f "${output_file}" ]]; then
-                    cp "${output_file}" "${outputs_dir}/" || true
-                fi
-            done < <(jq -r '.outputs | to_entries[] | .value // empty' "${exe_dir}/metadata.json" 2>>"${stderr}")
-        fi
+        while read -r output_file; do
+            if [[ -n "${output_file}" && -f "${output_file}" ]]; then
+                cp "${output_file}" "${outputs_dir}/" || true
+            fi
+        done < <(jq -r '.outputs | to_entries[] | .value // empty' "${exe_dir}/metadata.json" 2>>"${stderr}")
     fi
 }
 
@@ -85,10 +126,20 @@ function run_snakemake() {
     fi
 
     local container="snakemake/snakemake:v9.16.3"
-    local smk_common="--configfile ${wf_params} --snakefile ${wf_url_local}"
-    local cmd_txt="docker run --rm -v ${run_dir}:${run_dir} -w=${exe_dir} ${container} bash -c 'snakemake ${wf_engine_params} ${smk_common} && snakemake ${smk_common} --summary 2>/dev/null | tail -n +2 | cut -f 1 > ${exe_dir}/.snakemake_outputs'"
-    echo "${cmd_txt}" >"${cmd}"
-    eval "${cmd_txt}" 1>"${stdout}" 2>"${stderr}" || { executor_error $?; }
+    local -a cmd_arr=(docker run --rm
+        -v "${run_dir}:${run_dir}"
+        "-w=${exe_dir}"
+        "${container}"
+        bash -c)
+    # Build the inner shell command as a single string for bash -c
+    local -a smk_parts=(snakemake)
+    _append_engine_params smk_parts
+    smk_parts+=(--configfile "${wf_params}" --snakefile "${wf_url_local}")
+    local smk_run
+    smk_run=$(printf '%q ' "${smk_parts[@]}")
+    local inner_cmd="${smk_run} && snakemake --configfile ${wf_params} --snakefile ${wf_url_local} --summary 2>/dev/null | tail -n +2 | cut -f 1 > ${exe_dir}/.snakemake_outputs"
+    cmd_arr+=("${inner_cmd}")
+    _write_and_run cmd_arr
 
     while read -r file_path; do
         local dir_path
@@ -101,28 +152,40 @@ function run_snakemake() {
 
 function run_ep3() {
     local container="ghcr.io/tom-tan/ep3:v1.7.0"
-    local cmd_txt="${DOCKER_CMD} ${container} ep3-runner --verbose --outdir ${outputs_dir} ${wf_engine_params} ${wf_url} ${wf_params}"
-    echo "${cmd_txt}" >"${cmd}"
-    eval "${cmd_txt}" 1>"${stdout}" 2>"${stderr}" || { executor_error $?; }
+    local -a cmd_arr=(docker run --rm
+        -v /var/run/docker.sock:/var/run/docker.sock
+        -e DOCKER_HOST=unix:///var/run/docker.sock
+        -e DOCKER_API_VERSION=1.44
+        -v /tmp:/tmp
+        -v "${run_dir}:${run_dir}"
+        "-w=${exe_dir}"
+        "${container}"
+        ep3-runner --verbose --outdir "${outputs_dir}")
+    _append_engine_params cmd_arr
+    cmd_arr+=("${wf_url}" "${wf_params}")
+    _write_and_run cmd_arr
 }
 
 function run_streamflow() {
-    local wf_url_local
-    if [[ "${wf_url}" == http://* ]] || [[ "${wf_url}" == https://* ]]; then
-        wf_url_local="${exe_dir}/$(basename "${wf_url}")"
-        curl -fsSL -o "${wf_url_local}" "${wf_url}" || { executor_error $?; }
-    elif [[ "${wf_url}" == /* ]]; then
-        wf_url_local="${wf_url}"
-    else
-        wf_url_local="${exe_dir}/${wf_url}"
-    fi
-
+    # StreamFlow's DockerConnector requires the docker CLI binary.
+    # In a DinD setup the dev-container's /usr/local/bin/docker is NOT on the
+    # host filesystem, so we copy it into exe_dir (which IS host-mounted) and
+    # bind-mount it into the StreamFlow container.
+    local docker_stage="${exe_dir}/.docker-bin"
+    cp "$(command -v docker)" "${docker_stage}"
     local container="alphaunito/streamflow:0.2.0.dev14"
-    local wf_basename
-    wf_basename=$(basename "${wf_url_local}")
-    local cmd_txt="docker run --mount type=bind,source=${run_dir},target=/streamflow/project --mount type=bind,source=${outputs_dir},target=/streamflow/results ${container} run /streamflow/project/exe/${wf_basename}"
-    echo "${cmd_txt}" >"${cmd}"
-    eval "${cmd_txt}" 1>"${stdout}" 2>"${stderr}" || { executor_error $?; }
+    local -a cmd_arr=(docker run --rm
+        -v /var/run/docker.sock:/var/run/docker.sock
+        -e DOCKER_HOST=unix:///var/run/docker.sock
+        -v "${docker_stage}:/usr/bin/docker:ro"
+        -v /tmp:/tmp
+        -v "${run_dir}:${run_dir}"
+        "-w=${exe_dir}"
+        "${container}"
+        cwl-runner --outdir "${outputs_dir}")
+    _append_engine_params cmd_arr
+    cmd_arr+=("${wf_url}" "${wf_params}")
+    _write_and_run cmd_arr
 }
 
 function cancel() {
@@ -171,12 +234,7 @@ wf_engine=$(jq -r ".workflow_engine" "${run_request}")
 wf_url=$(jq -r ".workflow_url" "${run_request}")
 wf_engine_params=$(head -n 1 "${wf_engine_params_file}")
 
-# Define Docker command settings
-D_SOCK="-v /var/run/docker.sock:/var/run/docker.sock"
-D_HOST="-e DOCKER_HOST=unix:///var/run/docker.sock"
-D_TMP="-v /tmp:/tmp"
-D_API_VER="-e DOCKER_API_VERSION=1.44"
-DOCKER_CMD="docker run --rm ${D_SOCK} ${D_HOST} ${D_API_VER} ${D_TMP} -v ${run_dir}:${run_dir} -w=${exe_dir}"
+# Docker command settings are now defined per-engine in each run_* function
 
 function generate_outputs_list() {
     sapporo-cli dump-outputs "${run_dir}" || { executor_error $?; }

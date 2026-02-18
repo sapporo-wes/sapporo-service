@@ -44,6 +44,15 @@ The `--debug` flag enables hot-reloading and verbose logging. Access `http://loc
 
 ## Testing
 
+### Adding Tests
+
+1. Add tests to the `test_<module>.py` file corresponding to the target module
+2. Naming convention: `test_<target>_<condition>_<expected_result>()`
+3. Use hypothesis `@given` when property-based testing is applicable
+4. Confirm PASS with `uv run pytest -v`
+5. Confirm lint-clean with `uv run ruff check tests/` and `uv run ruff format --check tests/`
+6. Optionally verify detection power with `uv run mutmut run --paths-to-mutate sapporo/<module>.py`
+
 ### Running Tests
 
 ```bash
@@ -79,14 +88,40 @@ uv run mutmut results
 uv run mutmut show <mutant_id>
 ```
 
-### Adding Tests
+### Integration Tests
 
-1. Add tests to the `test_<module>.py` file corresponding to the target module
-2. Naming convention: `test_<target>_<condition>_<expected_result>()`
-3. Use hypothesis `@given` when property-based testing is applicable
-4. Confirm PASS with `uv run pytest -v`
-5. Confirm lint-clean with `uv run ruff check tests/` and `uv run ruff format --check tests/`
-6. Optionally verify detection power with `uv run mutmut run --paths-to-mutate sapporo/<module>.py`
+Integration tests require a running sapporo instance with Docker-in-Docker
+support (e.g., via `compose.dev.yml`). Each test file exercises a specific
+workflow engine:
+
+| Test File | Engine | Workflow Type |
+|---|---|---|
+| `test_cwltool.py` | cwltool | CWL |
+| `test_toil.py` | toil | CWL |
+| `test_ep3.py` | ep3 | CWL |
+| `test_cromwell.py` | cromwell | WDL |
+| `test_nextflow.py` | nextflow | NFL |
+| `test_snakemake.py` | snakemake | SMK |
+| `test_ro_crate.py` | all of the above | (multi-engine RO-Crate validation) |
+
+Run integration tests inside the development container:
+
+```bash
+docker compose -f compose.dev.yml up -d --build
+docker compose -f compose.dev.yml exec app bash
+
+# Start sapporo in background
+sapporo --debug &
+
+# Run all integration tests
+pytest tests/integration/ -v
+
+# Run a specific engine
+pytest tests/integration/test_toil.py -v
+
+# Exclude slow tests (large workflows, roc-validator)
+pytest tests/integration/ -v -m "not slow"
+```
 
 ## Linting and Type Checking
 

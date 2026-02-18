@@ -44,7 +44,7 @@
         "25.10.4"
       ]
     },
-    "toil (experimental)": {
+    "toil": {
       "workflow_engine_version": [
         "9.1.1"
       ]
@@ -59,7 +59,7 @@
         "v9.16.3"
       ]
     },
-    "ep3 (experimental)": {
+    "ep3": {
       "workflow_engine_version": [
         "v1.7.0"
       ]

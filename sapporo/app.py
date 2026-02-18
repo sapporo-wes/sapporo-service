@@ -227,6 +227,13 @@ def create_app() -> FastAPI:
         },
     )
 
+    auth_config = get_auth_config()
+    if auth_config.auth_enabled and app_config.allow_origin == "*":
+        LOGGER.warning(
+            "Authentication is enabled but CORS allows all origins (allow_origin='*'). "
+            "Consider restricting allow_origin to trusted domains in production."
+        )
+
     app.add_middleware(
         CustomCORSMiddleware,
         allow_origins=[app_config.allow_origin],

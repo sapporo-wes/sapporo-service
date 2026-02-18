@@ -75,6 +75,9 @@ services:
     networks:
       - sapporo-network
     init: true
+
+networks:
+  sapporo-network:
 ```
 
 ### Volume Mounts (Docker-in-Docker)

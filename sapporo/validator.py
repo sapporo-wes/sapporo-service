@@ -1,4 +1,5 @@
 import json
+import re
 
 from fastapi import UploadFile
 
@@ -7,6 +8,8 @@ from sapporo.exceptions import raise_bad_request, raise_forbidden, raise_not_fou
 from sapporo.factory import create_executable_wfs, create_service_info
 from sapporo.run_io import read_file
 from sapporo.schemas import RunRequestForm
+
+_UUID_PATTERN = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
 
 
 def validate_run_request(
@@ -26,14 +29,26 @@ def validate_run_request(
     The form data is validated and converted into an intermediate RunRequestForm schema,
     which is then used to create the final RunRequest schema for internal use.
     """
-    _wf_params = json.loads(wf_params) if wf_params is not None else {}
+    try:
+        _wf_params = json.loads(wf_params) if wf_params is not None else {}
+    except json.JSONDecodeError:
+        raise_bad_request("Invalid JSON in workflow_params.")
     wf_type, wf_type_version = validate_wf_type_and_version(wf_type, wf_type_version)
-    _tags = json.loads(tags) if tags is not None else {}
+    try:
+        _tags = json.loads(tags) if tags is not None else {}
+    except json.JSONDecodeError:
+        raise_bad_request("Invalid JSON in tags.")
     wf_engine, wf_engine_version = validate_wf_engine_type_and_version(wf_engine, wf_engine_version)
-    wf_engine_parameters = json.loads(wf_engine_parameters) if wf_engine_parameters is not None else None
+    try:
+        wf_engine_parameters = json.loads(wf_engine_parameters) if wf_engine_parameters is not None else None
+    except json.JSONDecodeError:
+        raise_bad_request("Invalid JSON in workflow_engine_parameters.")
     if not wf_url:
         raise_bad_request("workflow_url is required.")
-    _wf_attachment_obj = json.loads(wf_attachment_obj) if wf_attachment_obj is not None else []
+    try:
+        _wf_attachment_obj = json.loads(wf_attachment_obj) if wf_attachment_obj is not None else []
+    except json.JSONDecodeError:
+        raise_bad_request("Invalid JSON in workflow_attachment_obj.")
 
     # Check executable_wfs
     executable_wfs = create_executable_wfs()
@@ -97,6 +112,8 @@ def validate_run_id(run_id: str, username: str | None) -> None:
     Note: This function directly checks the run directory without using the database.
     Although this approach may seem confusing, it is based on the concept that the master data is stored in the run directory.
     """
+    if not _UUID_PATTERN.match(run_id):
+        raise_bad_request(f"Invalid run_id format: {run_id}")
     specific_run_dir = get_config().run_dir.joinpath(run_id[:2]).joinpath(run_id)
     if not specific_run_dir.exists():
         raise_not_found("Run ID", run_id)

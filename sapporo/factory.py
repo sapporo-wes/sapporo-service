@@ -177,8 +177,11 @@ def create_executable_wfs() -> ExecutableWorkflows:
 
 
 def create_ro_crate_response(run_id: str) -> dict[str, Any]:
+    from sapporo.exceptions import raise_not_found
     from sapporo.run_io import read_file
 
-    ro_crate: dict[str, Any] = read_file(run_id, "ro_crate")
+    ro_crate: dict[str, Any] | None = read_file(run_id, "ro_crate")
+    if ro_crate is None:
+        raise_not_found("ro-crate-metadata", run_id)
 
     return ro_crate

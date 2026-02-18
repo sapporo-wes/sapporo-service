@@ -60,7 +60,10 @@ def read_file(run_id: str, key: RunDirStructureKeys) -> Any:
         if key in ["start_time", "end_time", "stdout", "stderr", "username"]:
             return content
         if key in ["pid", "exit_code"]:
-            return int(content)
+            try:
+                return int(content)
+            except ValueError:
+                return None
         if key == "ro_crate":
             return json.loads(content)
 

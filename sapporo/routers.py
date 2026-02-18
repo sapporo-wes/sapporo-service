@@ -100,6 +100,8 @@ async def get_service_info(
 async def list_runs(
     page_size: int = Query(
         10,
+        ge=1,
+        le=1000,
         description=GA4GH_WES_SPEC["paths"]["/runs"]["get"]["parameters"][0]["description"],
     ),
     page_token: str | None = Query(
@@ -259,22 +261,25 @@ async def run_workflow(
             if json_req.workflow_attachment_obj
             else None,
         )
+        prepare_run_dir(run_id, run_request, username)
     else:
-        form = await request.form()
-        run_request = validate_run_request(
-            str(form.get("workflow_params")) if form.get("workflow_params") is not None else None,
-            str(form.get("workflow_type", "")),
-            str(form.get("workflow_type_version")) if form.get("workflow_type_version") is not None else None,
-            str(form.get("tags")) if form.get("tags") is not None else None,
-            str(form.get("workflow_engine", "")),
-            str(form.get("workflow_engine_version")) if form.get("workflow_engine_version") is not None else None,
-            str(form.get("workflow_engine_parameters")) if form.get("workflow_engine_parameters") is not None else None,
-            str(form.get("workflow_url")) if form.get("workflow_url") is not None else None,
-            cast("list[UploadFile]", form.getlist("workflow_attachment")),
-            str(form.get("workflow_attachment_obj")) if form.get("workflow_attachment_obj") is not None else None,
-        )
+        async with request.form() as form:
+            run_request = validate_run_request(
+                str(form.get("workflow_params")) if form.get("workflow_params") is not None else None,
+                str(form.get("workflow_type", "")),
+                str(form.get("workflow_type_version")) if form.get("workflow_type_version") is not None else None,
+                str(form.get("tags")) if form.get("tags") is not None else None,
+                str(form.get("workflow_engine", "")),
+                str(form.get("workflow_engine_version")) if form.get("workflow_engine_version") is not None else None,
+                str(form.get("workflow_engine_parameters"))
+                if form.get("workflow_engine_parameters") is not None
+                else None,
+                str(form.get("workflow_url")) if form.get("workflow_url") is not None else None,
+                cast("list[UploadFile]", form.getlist("workflow_attachment")),
+                str(form.get("workflow_attachment_obj")) if form.get("workflow_attachment_obj") is not None else None,
+            )
+            prepare_run_dir(run_id, run_request, username)
 
-    prepare_run_dir(run_id, run_request, username)
     add_run_db(create_run_summary(run_id), username)
     background_tasks.add_task(post_run_task, run_id, run_request)
     return RunId(run_id=run_id)
@@ -563,10 +568,14 @@ async def get_run_ro_crate(
     username = token and extract_username(decode_token(token))
     validate_run_id(run_id, username)
     if download:
+        stream, content_length = ro_crate_zip_stream(run_id)
         return StreamingResponse(
-            ro_crate_zip_stream(run_id),
+            stream,
             media_type="application/zip",
-            headers={"Content-Disposition": f"attachment; filename=sapporo_{run_id}_ro_crate.zip"},
+            headers={
+                "Content-Disposition": f"attachment; filename=sapporo_{run_id}_ro_crate.zip",
+                "Content-Length": str(content_length),
+            },
         )
     return JSONResponse(
         content=create_ro_crate_response(run_id),

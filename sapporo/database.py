@@ -15,6 +15,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 import secrets
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -101,34 +102,93 @@ def db_runs_to_run_summaries(runs: list[Run]) -> list[RunSummary]:
 # === CRUD func ===
 
 
-def init_db() -> None:
-    """Regenerate the database from scratch if an existing one is found.
+def _full_rebuild(session: Session, disk_run_ids: set[str]) -> None:
+    """Full rebuild: index all runs from disk."""
+    count = 0
+    for run_id in disk_run_ids:
+        run_summary = create_run_summary(run_id)
+        username: str | None = read_file(run_id, "username")
+        run = Run(
+            run_id=run_summary.run_id,
+            username=username,
+            state=run_summary.state,
+            start_time=run_summary.start_time and time_str_to_dt(run_summary.start_time),
+            end_time=run_summary.end_time and time_str_to_dt(run_summary.end_time),
+            tags=json.dumps(run_summary.tags),
+        )
+        session.add(run)
+        count += 1
+    session.commit()
+    LOGGER.debug("DB initialized: %d runs indexed", count)
 
-    Master data is stored under the each run directory, so if an existing database is found,
-    it will be deleted and regenerated from scratch.
+
+def _incremental_sync(session: Session, disk_run_ids: set[str]) -> None:
+    """Incremental sync: add new, update non-terminal, remove deleted."""
+    db_runs = session.exec(select(Run)).all()
+    db_run_map = {r.run_id: r for r in db_runs}
+    db_run_ids = set(db_run_map.keys())
+
+    terminal_states = {State.COMPLETE, State.EXECUTOR_ERROR, State.SYSTEM_ERROR, State.CANCELED, State.DELETED}
+
+    added = 0
+    for run_id in disk_run_ids - db_run_ids:
+        run_summary = create_run_summary(run_id)
+        username: str | None = read_file(run_id, "username")
+        run = Run(
+            run_id=run_summary.run_id,
+            username=username,
+            state=run_summary.state,
+            start_time=run_summary.start_time and time_str_to_dt(run_summary.start_time),
+            end_time=run_summary.end_time and time_str_to_dt(run_summary.end_time),
+            tags=json.dumps(run_summary.tags),
+        )
+        session.add(run)
+        added += 1
+
+    updated = 0
+    for run_id, db_run in db_run_map.items():
+        if run_id not in disk_run_ids:
+            continue
+        if db_run.state in terminal_states:
+            continue
+        run_summary = create_run_summary(run_id)
+        db_run.state = run_summary.state or State.UNKNOWN
+        db_run.end_time = time_str_to_dt(run_summary.end_time) if run_summary.end_time else None
+        session.add(db_run)
+        updated += 1
+
+    removed = 0
+    for run_id in db_run_ids - disk_run_ids:
+        db_run = db_run_map[run_id]
+        session.delete(db_run)
+        removed += 1
+
+    session.commit()
+    LOGGER.debug("DB synced: added=%d, updated=%d, removed=%d", added, updated, removed)
+
+
+def init_db() -> None:
+    """Initialize or incrementally update the database.
+
+    On first run (no DB file), creates the schema and indexes all runs.
+    On subsequent runs, performs an incremental sync:
+    - Adds new runs not yet in the DB.
+    - Updates state/end_time for runs in non-terminal states.
+    - Removes DB entries for runs whose directories have been deleted.
     """
     engine = create_db_engine()
     get_config().run_dir.mkdir(parents=True, exist_ok=True)
-    if get_config().run_dir.joinpath(DATABASE_NAME).exists():
-        SQLModel.metadata.drop_all(engine)
+
+    db_exists = get_config().run_dir.joinpath(DATABASE_NAME).exists()
     SQLModel.metadata.create_all(engine)
-    count = 0
+
+    disk_run_ids = set(glob_all_run_ids())
+
     with get_session() as session:
-        for run_id in glob_all_run_ids():
-            run_summary = create_run_summary(run_id)
-            username: str | None = read_file(run_id, "username")
-            run = Run(
-                run_id=run_summary.run_id,
-                username=username,
-                state=run_summary.state,
-                start_time=run_summary.start_time and time_str_to_dt(run_summary.start_time),
-                end_time=run_summary.end_time and time_str_to_dt(run_summary.end_time),
-                tags=json.dumps(run_summary.tags),
-            )
-            session.add(run)
-            count += 1
-        session.commit()
-    LOGGER.debug("DB initialized: %d runs indexed", count)
+        if not db_exists:
+            _full_rebuild(session, disk_run_ids)
+        else:
+            _incremental_sync(session, disk_run_ids)
 
 
 def add_run_db(
@@ -239,9 +299,12 @@ def _build_filter_query(
     if run_ids is not None:
         query = query.where(Run.run_id.in_(run_ids))  # type: ignore[attr-defined]
     if tags is not None:
+        tag_key_pattern = re.compile(r"^[a-zA-Z0-9_.\-]+$")
         for tag in tags:
             key, _, value = tag.partition(":")
             if key and value:
+                if not tag_key_pattern.match(key):
+                    raise_bad_request(f"Invalid tag key: {key}")
                 query = query.where(func.json_extract(Run.tags, f"$.{key}") == value)
     return query
 

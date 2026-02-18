@@ -45,7 +45,7 @@ All CLI options can be set via environment variables with the `SAPPORO_` prefix:
 
 | CLI Option | Environment Variable | Default |
 |---|---|---|
-| `--host` | `SAPPORO_HOST` | `127.0.0.1` |
+| `--host` | `SAPPORO_HOST` | `127.0.0.1` (Docker 内では `0.0.0.0`) |
 | `--port` | `SAPPORO_PORT` | `1122` |
 | `--debug` | `SAPPORO_DEBUG` | `False` |
 | `--run-dir` | `SAPPORO_RUN_DIR` | `./runs` |
@@ -65,6 +65,8 @@ Priority: CLI arguments > Environment variables > Default values.
 
 Customize the response of `GET /service-info` by providing a JSON file via `--service-info`. The default is bundled at `sapporo/service_info.json`.
 
+The file is **partially merged** with built-in defaults: fields present in the file override the defaults, while missing fields fall back to built-in values. This means you only need to specify the fields you want to customize.
+
 ## executable_workflows.json
 
 Restrict which workflows can be executed using `--executable-workflows` or `SAPPORO_EXECUTABLE_WORKFLOWS`.
@@ -82,11 +84,27 @@ Format:
 - An empty array allows all workflows.
 - Each URL must be a remote resource (http/https).
 - Any `workflow_url` in `POST /runs` must match this list or the request returns a 400 Bad Request error.
-- Query available workflows via `GET /executable_workflows`.
+- Query available workflows via `GET /executable-workflows`.
 
 ## Custom run.sh
 
 Override the default `run.sh` script using `--run-sh` or `SAPPORO_RUN_SH`. This allows you to customize how workflow engines are invoked, add environment-specific upload or cleanup logic, or integrate new engines without modifying the bundled script. See [Architecture - run.sh](architecture.md#runsh-workflow-engine-abstraction) for details on the script structure.
+
+## Supported Engine / Workflow Type Combinations
+
+The sapporo API validates engines and workflow types independently, but only
+certain combinations actually work at runtime. The default `run.sh` supports
+the following:
+
+| Engine | Workflow Type | Container Image | Notes |
+|---|---|---|---|
+| cwltool | CWL | `quay.io/commonwl/cwltool:3.1.20260108082145` | |
+| toil | CWL | `quay.io/ucsc_cgl/toil:9.1.1` | |
+| ep3 | CWL | `ghcr.io/tom-tan/ep3:v1.7.0` | |
+| cromwell | WDL | `ghcr.io/sapporo-wes/cromwell-with-docker:92` | CWL support was removed in Cromwell 85 |
+| nextflow | NFL | `nextflow/nextflow:25.10.4` | |
+| snakemake | SMK | `snakemake/snakemake:v9.16.3` | |
+| streamflow | CWL | `alphaunito/streamflow:0.2.0.dev14` | Pre-release; uses cwl-runner interface |
 
 ## Output File Download
 

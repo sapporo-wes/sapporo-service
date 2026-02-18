@@ -1,15 +1,16 @@
+import contextlib
 import json
 import logging
 import os
 import shutil
 import signal
+import time
 import traceback
-import zipfile
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from io import BytesIO
 from pathlib import Path
 from subprocess import Popen
+from threading import Thread
 from urllib import parse
 
 import httpx
@@ -129,6 +130,9 @@ def fork_run(run_id: str) -> None:
         )
     if process.pid is not None:
         write_file(run_id, "pid", process.pid)
+    # Reap the child process in a background thread to prevent zombie processes
+    reaper = Thread(target=process.wait, daemon=True)
+    reaper.start()
     LOGGER.debug("Run forked: run_id=%s, pid=%d", run_id, process.pid or -1)
 
 
@@ -187,7 +191,12 @@ def cancel_run_task(run_id: str) -> None:
         write_file(run_id, "state", State.CANCELING)
         pid: int | None = read_file(run_id, "pid")
         if pid is not None:
-            os.kill(pid, signal.SIGUSR1)
+            try:
+                os.kill(pid, signal.SIGUSR1)
+            except ProcessLookupError:
+                LOGGER.warning("Process %d not found when canceling run %s", pid, run_id)
+            except PermissionError:
+                LOGGER.warning("Permission denied when canceling run %s (pid=%d)", run_id, pid)
         else:
             write_file(run_id, "state", State.UNKNOWN)
 
@@ -199,10 +208,30 @@ KEEP_FILES = [
 ]
 
 
+def _wait_for_process_exit(pid: int, timeout: float = 30.0) -> bool:
+    """Wait for a process to exit, sending SIGKILL on timeout."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return True
+        time.sleep(0.5)
+    # Timeout: force kill
+    with contextlib.suppress(ProcessLookupError):
+        os.kill(pid, signal.SIGKILL)
+    return False
+
+
 def delete_run_task(run_id: str) -> None:
     LOGGER.debug("Run deleted: run_id=%s", run_id)
     # 1. Cancel the run if it is running.
     cancel_run_task(run_id)
+
+    # 1.5 Wait for the process to exit before deleting files.
+    pid: int | None = read_file(run_id, "pid")
+    if pid is not None and not _wait_for_process_exit(pid):
+        LOGGER.warning("Process %d did not exit in time for run %s, sent SIGKILL", pid, run_id)
 
     # 2. Transition to DELETING immediately (non-blocking).
     write_file(run_id, "state", State.DELETING)
@@ -228,23 +257,11 @@ def outputs_zip_stream(run_id: str, name: str | None = None) -> tuple[Iterable[b
     return iter(zs), len(zs)
 
 
-def ro_crate_zip_stream(run_id: str) -> Iterable[bytes]:
+def ro_crate_zip_stream(run_id: str) -> tuple[Iterable[bytes], int]:
     run_dir = resolve_run_dir(run_id)
     base_dir_name = f"sapporo_{run_id}_ro_crate"
-
-    with BytesIO() as buffer:
-        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-            for path in run_dir.glob("**/*"):
-                if path.is_dir() and not any(path.iterdir()):
-                    # Empty directory
-                    arc_path = f"{base_dir_name}/{path.relative_to(run_dir)}/"
-                    zf.writestr(arc_path, "")
-                if path.is_file():
-                    arc_path = f"{base_dir_name}/{path.relative_to(run_dir)}"
-                    zf.write(path, arc_path)
-        buffer.seek(0)
-        while chunk := buffer.read(8192):
-            yield chunk
+    zs = ZipStream.from_path(run_dir, arcname=base_dir_name, sized=True)
+    return iter(zs), len(zs)
 
 
 def bulk_delete_run_tasks(run_ids: list[str]) -> None:

@@ -765,7 +765,7 @@ def populate_file_metadata(
     with contextlib.suppress(OSError):
         file_ins["sha256"] = compute_sha256(file_path)
 
-    if include_content and (include_force or file_ins["contentSize"] < 10 * 1024):
+    if include_content and (include_force or file_ins["contentSize"] <= 10 * 1024):
         with contextlib.suppress(OSError, UnicodeDecodeError):
             file_ins["text"] = file_path.read_text()
 
@@ -816,7 +816,11 @@ def add_multiqc_stats(crate: ROCrate, run_dir: Path, create_action_ins: ContextE
         "--no-report",
         "/work",
     ]
-    proc = subprocess.run(cmd, capture_output=True, check=False)
+    try:
+        proc = subprocess.run(cmd, capture_output=True, check=False, timeout=300)
+    except subprocess.TimeoutExpired:
+        LOGGER.warning("MultiQC Docker command timed out after 300s")
+        return
     if proc.returncode != 0:
         LOGGER.warning("MultiQC Docker command failed (rc=%d): %s", proc.returncode, proc.stderr.decode()[:500])
 
@@ -876,7 +880,11 @@ def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
         "json",
         source.name,
     ]
-    proc = subprocess.run(cmd, capture_output=True, check=False)
+    try:
+        proc = subprocess.run(cmd, capture_output=True, check=False, timeout=300)
+    except subprocess.TimeoutExpired:
+        LOGGER.warning("samtools Docker command timed out for %s after 300s", file_ins.id)
+        return
     if proc.returncode != 0:
         LOGGER.warning(
             "samtools Docker command failed for %s (rc=%d): %s",
@@ -932,7 +940,11 @@ def add_vcftools_stats(crate: ROCrate, file_ins: File) -> None:
         "vcf-stats",
         source.name,
     ]
-    proc = subprocess.run(cmd, capture_output=True, check=False)
+    try:
+        proc = subprocess.run(cmd, capture_output=True, check=False, timeout=300)
+    except subprocess.TimeoutExpired:
+        LOGGER.warning("vcftools Docker command timed out for %s after 300s", file_ins.id)
+        return
     if proc.returncode != 0:
         LOGGER.warning(
             "vcftools Docker command failed for %s (rc=%d): %s",

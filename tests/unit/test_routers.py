@@ -378,16 +378,15 @@ class TestRunWorkflow:
                 },
             )
 
-    def test_invalid_json_params_raises_json_decode_error(self, mocker: "MockerFixture", tmp_path: Path) -> None:
-        """Verify that invalid JSON in workflow_params raises JSONDecodeError.
+    def test_invalid_json_params_returns_400(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        """Verify that invalid JSON in workflow_params returns 400.
 
-        validate_run_request passes workflow_params through json.loads without
-        catching JSONDecodeError.  Starlette 0.52+ always re-raises from
-        ServerErrorMiddleware, so the exception propagates through TestClient.
+        validate_run_request catches JSONDecodeError from json.loads
+        and raises HTTPException with status 400.
         """
         client = _client_with_mock_run_tasks(mocker, tmp_path)
-        with pytest.raises(json.JSONDecodeError):
-            _post_run_form(client, workflow_params="not-valid-json{{{")
+        res = _post_run_form(client, workflow_params="not-valid-json{{{")
+        assert res.status_code == 400
 
 
 # === GET /runs/{run_id} ===
@@ -404,7 +403,7 @@ class TestGetRunLog:
 
     def test_nonexistent_run_returns_404(self, mocker: "MockerFixture", tmp_path: Path) -> None:
         client = _client_with_mock_run_tasks(mocker, tmp_path)
-        res = client.get("/runs/nonexistent-run-id-0000-000000000000")
+        res = client.get("/runs/00000000-0000-0000-0000-ffffffffffff")
         assert res.status_code == 404
 
     def test_contains_run_request_and_state(self, mocker: "MockerFixture", tmp_path: Path) -> None:
@@ -436,7 +435,7 @@ class TestGetRunStatus:
 
     def test_nonexistent_run_returns_404(self, mocker: "MockerFixture", tmp_path: Path) -> None:
         client = _client_with_mock_run_tasks(mocker, tmp_path)
-        res = client.get("/runs/nonexistent-run-id-0000-000000000000/status")
+        res = client.get("/runs/00000000-0000-0000-0000-ffffffffffff/status")
         assert res.status_code == 404
 
 
@@ -471,7 +470,7 @@ class TestCancelRun:
 
     def test_nonexistent_run_returns_404(self, mocker: "MockerFixture", tmp_path: Path) -> None:
         client = _client_with_mock_run_tasks(mocker, tmp_path)
-        res = client.post("/runs/nonexistent-run-id-0000-000000000000/cancel")
+        res = client.post("/runs/00000000-0000-0000-0000-ffffffffffff/cancel")
         assert res.status_code == 404
 
 
@@ -490,7 +489,7 @@ class TestDeleteRun:
 
     def test_nonexistent_run_returns_404(self, mocker: "MockerFixture", tmp_path: Path) -> None:
         client = _client_with_mock_run_tasks(mocker, tmp_path)
-        res = client.delete("/runs/nonexistent-run-id-0000-000000000000")
+        res = client.delete("/runs/00000000-0000-0000-0000-ffffffffffff")
         assert res.status_code == 404
 
 
@@ -511,7 +510,7 @@ class TestDeleteRuns:
 
     def test_nonexistent_ids_returns_404(self, mocker: "MockerFixture", tmp_path: Path) -> None:
         client = _client_with_mock_run_tasks(mocker, tmp_path)
-        res = client.delete("/runs", params={"run_ids": ["nonexistent-id-000000000000"]})
+        res = client.delete("/runs", params={"run_ids": ["00000000-0000-0000-0000-ffffffffffff"]})
         assert res.status_code == 404
 
     def test_empty_ids_returns_422(self, mocker: "MockerFixture", tmp_path: Path) -> None:
@@ -623,19 +622,18 @@ class TestGetRunRoCrate:
         assert "application/ld+json" in res.headers["content-type"]
         assert res.json()["@context"] == "https://w3id.org/ro/crate/1.1/context"
 
-    def test_missing_metadata_returns_null_content(self, mocker: "MockerFixture", tmp_path: Path) -> None:
-        """Verify that missing ro-crate metadata returns 200 with null.
+    def test_missing_metadata_returns_404(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        """Verify that missing ro-crate metadata returns 404.
 
-        When ro-crate-metadata.json is absent, read_file returns None and
-        the endpoint returns 200 with ``null`` as the JSON body.
+        When ro-crate-metadata.json is absent, create_ro_crate_response
+        raises a 404 Not Found error.
         """
         client = _client_with_mock_run_tasks(mocker, tmp_path)
         run_id = "aabbccdd-0000-0000-0000-000000001502"
         create_run_dir(tmp_path, run_id)
 
         res = client.get(f"/runs/{run_id}/ro-crate")
-        assert res.status_code == 200
-        assert res.json() is None
+        assert res.status_code == 404
 
 
 # === POST /token, GET /me ===

@@ -172,23 +172,7 @@ For output files with VCF format (`.vcf`, `.vcf.gz`), `vcf-stats` is run in a Do
 
 ### EDAM Format Auto-detection
 
-Output files are automatically annotated with [EDAM ontology](http://edamontology.org/) format identifiers based on file extension. EDAM entities use `@type: "Thing"` as they represent ontology terms rather than web resources. Supported extensions include:
-
-| Extension | EDAM Format |
-|---|---|
-| `.bam` | BAM (`format_2572`) |
-| `.sam` | SAM (`format_2573`) |
-| `.vcf`, `.vcf.gz` | VCF (`format_3016`) |
-| `.fastq`, `.fq`, `.fastq.gz`, `.fq.gz` | FASTQ (`format_1930`) |
-| `.fa`, `.fasta` | FASTA (`format_1929`) |
-| `.bed` | BED (`format_3003`) |
-| `.gtf` | GTF (`format_2306`) |
-| `.gff` | GFF3 (`format_1975`) |
-| `.bw` | bigWig (`format_3006`) |
-| `.bb` | bigBed (`format_3004`) |
-| `.wig` | WIG (`format_3005`) |
-
-Common non-bioinformatics formats (JSON, CSV, TSV, HTML, YAML, Markdown, ZIP, gzip, plain text) are also mapped to their IANA media types.
+Output files are automatically annotated with [EDAM ontology](http://edamontology.org/) format identifiers based on file extension. EDAM entities use `@type: "Thing"` as they represent ontology terms rather than web resources. The mapping is defined in `sapporo/ro_crate.py` (`EDAM_MAPPING` dict). Common non-bioinformatics formats (JSON, CSV, TSV, HTML, YAML, Markdown, ZIP, gzip, plain text) are also mapped to their IANA media types.
 
 ## API Endpoint
 

@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -113,7 +112,7 @@ def test_validate_run_id_with_nonexistent_run_raises_404(mocker: "MockerFixture"
     mock_get_config(mocker, app_config)
 
     with pytest.raises(HTTPException) as exc_info:
-        validate_run_id("nonexistent-run-id", None)
+        validate_run_id("00000000-0000-0000-0000-000000000000", None)
     assert exc_info.value.status_code == 404
 
 
@@ -177,7 +176,7 @@ def test_validate_run_request_with_invalid_json_params_raises_error(mocker: "Moc
 
     from sapporo.validator import validate_run_request
 
-    with pytest.raises(json.JSONDecodeError):
+    with pytest.raises(HTTPException) as exc_info:
         validate_run_request(
             wf_params="{invalid json",
             wf_type="CWL",
@@ -190,6 +189,7 @@ def test_validate_run_request_with_invalid_json_params_raises_error(mocker: "Moc
             wf_attachment=[],
             wf_attachment_obj=None,
         )
+    assert exc_info.value.status_code == 400
 
 
 def test_validate_run_request_with_restricted_wf_url_raises_400(mocker: "MockerFixture") -> None:
@@ -340,7 +340,7 @@ def test_validate_run_request_with_invalid_tags_json_raises_error(mocker: "Mocke
         return_value=ExecutableWorkflows(workflows=[]),
     )
 
-    with pytest.raises(json.JSONDecodeError):
+    with pytest.raises(HTTPException) as exc_info:
         validate_run_request(
             wf_params=None,
             wf_type="CWL",
@@ -353,6 +353,7 @@ def test_validate_run_request_with_invalid_tags_json_raises_error(mocker: "Mocke
             wf_attachment=[],
             wf_attachment_obj=None,
         )
+    assert exc_info.value.status_code == 400
 
 
 def test_validate_run_request_with_invalid_wf_engine_parameters_json_raises_error(mocker: "MockerFixture") -> None:
@@ -362,7 +363,7 @@ def test_validate_run_request_with_invalid_wf_engine_parameters_json_raises_erro
         return_value=ExecutableWorkflows(workflows=[]),
     )
 
-    with pytest.raises(json.JSONDecodeError):
+    with pytest.raises(HTTPException) as exc_info:
         validate_run_request(
             wf_params=None,
             wf_type="CWL",
@@ -375,6 +376,7 @@ def test_validate_run_request_with_invalid_wf_engine_parameters_json_raises_erro
             wf_attachment=[],
             wf_attachment_obj=None,
         )
+    assert exc_info.value.status_code == 400
 
 
 def test_validate_run_request_with_invalid_wf_attachment_obj_json_raises_error(mocker: "MockerFixture") -> None:
@@ -384,7 +386,7 @@ def test_validate_run_request_with_invalid_wf_attachment_obj_json_raises_error(m
         return_value=ExecutableWorkflows(workflows=[]),
     )
 
-    with pytest.raises(json.JSONDecodeError):
+    with pytest.raises(HTTPException) as exc_info:
         validate_run_request(
             wf_params=None,
             wf_type="CWL",
@@ -397,6 +399,7 @@ def test_validate_run_request_with_invalid_wf_attachment_obj_json_raises_error(m
             wf_attachment=[],
             wf_attachment_obj="[not valid json",
         )
+    assert exc_info.value.status_code == 400
 
 
 # === validate_run_request: required field rejection ===

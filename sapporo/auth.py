@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import datetime
 import logging
@@ -378,12 +379,8 @@ def _fetch_with_retry(url: str, context: str) -> httpx.Response:
     raise HTTPException(status_code=500, detail=msg)
 
 
-def fetch_endpoint_metadata() -> ExternalEndpointMetadata:
-    with _cache_lock:
-        cached: ExternalEndpointMetadata | None = _metadata_cache.get("metadata")
-        if cached is not None:
-            return cached
-
+def _fetch_endpoint_metadata_sync() -> ExternalEndpointMetadata:
+    """Fetch endpoint metadata synchronously."""
     auth_config = get_auth_config()
     idp_url = auth_config.external_config.idp_url
     _validate_https_url(idp_url, "External IdP URL")
@@ -404,9 +401,19 @@ def fetch_endpoint_metadata() -> ExternalEndpointMetadata:
         return metadata
 
 
+def fetch_endpoint_metadata() -> ExternalEndpointMetadata:
+    with _cache_lock:
+        cached: ExternalEndpointMetadata | None = _metadata_cache.get("metadata")
+        if cached is not None:
+            return cached
+
+    return _fetch_endpoint_metadata_sync()
+
+
 async def external_create_access_token(username: str, password: str) -> str:
     auth_config = get_auth_config()
-    token_url = fetch_endpoint_metadata().token_endpoint
+    metadata = await asyncio.to_thread(fetch_endpoint_metadata)
+    token_url = metadata.token_endpoint
     data: dict[str, str | None] = {
         "grant_type": "password",
         "client_id": auth_config.external_config.client_id,
@@ -470,13 +477,8 @@ def external_decode_token(token: str) -> TokenPayload:
         raise_invalid_token()
 
 
-def fetch_jwks(force_refresh: bool = False) -> PyJWKSet:
-    if not force_refresh:
-        with _cache_lock:
-            cached: PyJWKSet | None = _jwks_cache.get("jwks")
-            if cached is not None:
-                return cached
-
+def _fetch_jwks_sync(force_refresh: bool = False) -> PyJWKSet:
+    """Fetch JWKS synchronously."""
     jwks_uri = fetch_endpoint_metadata().jwks_uri
     try:
         res = _fetch_with_retry(jwks_uri, "JWKS")
@@ -487,3 +489,13 @@ def fetch_jwks(force_refresh: bool = False) -> PyJWKSet:
         with _cache_lock:
             _jwks_cache["jwks"] = jwk_set
         return jwk_set
+
+
+def fetch_jwks(force_refresh: bool = False) -> PyJWKSet:
+    if not force_refresh:
+        with _cache_lock:
+            cached: PyJWKSet | None = _jwks_cache.get("jwks")
+            if cached is not None:
+                return cached
+
+    return _fetch_jwks_sync(force_refresh)

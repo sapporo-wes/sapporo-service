@@ -29,31 +29,33 @@ When authentication is enabled, each run is associated with a username, ensuring
 
 Configure authentication via `auth_config.json`:
 
+The built-in default (`sapporo/auth_config.json`) ships with authentication disabled:
+
 ```json
 {
-  "auth_enabled": true,
+  "auth_enabled": false,
   "idp_provider": "sapporo",
   "sapporo_auth_config": {
-    "secret_key": "your_secure_secret_key_here",
+    "secret_key": "sapporo_secret_key_please_change_this",
     "expires_delta_hours": 24,
     "users": [
       {
-        "username": "user1",
+        "username": "sapporo-dev-user",
         "password_hash": "$argon2id$v=19$m=65536,t=3,p=4$..."
       }
     ]
   },
   "external_config": {
-    "idp_url": "https://keycloak.example.com/realms/your-realm",
+    "idp_url": "http://sapporo-keycloak-dev:8080/realms/sapporo-dev",
     "jwt_audience": "account",
     "client_mode": "public",
-    "client_id": "sapporo-client",
-    "client_secret": "client-secret-here"
+    "client_id": "sapporo-service-dev",
+    "client_secret": "example-client-secret"
   }
 }
 ```
 
-Override the location using `--auth-config` or `SAPPORO_AUTH_CONFIG`.
+To enable authentication, set `auth_enabled` to `true` and configure the appropriate mode. Override the location using `--auth-config` or `SAPPORO_AUTH_CONFIG`.
 
 ### Configuration Fields
 
@@ -208,7 +210,7 @@ Generate a cryptographically secure secret key:
 
 ```bash
 sapporo-cli generate-secret
-# Output: Secret key: <44-character secure random string>
+# Output: Secret key: <43-character secure random string>
 ```
 
 In production mode (non-debug), weak secret keys are rejected. Always use a generated secret key in production deployments.

@@ -65,6 +65,33 @@ _ENGINE_CONFIGS: list[dict[str, Any]] = [
         "params_file": SMK_DIR / "config.json",
         "attachments": [SMK_DIR / "Snakefile", SMK_DIR / "input.txt"],
     },
+    {
+        "id": "toil",
+        "wf_type": "CWL",
+        "wf_type_version": "v1.2",
+        "wf_engine": "toil",
+        "wf_url": "hello.cwl",
+        "params_file": CWL_DIR / "hello_params.json",
+        "attachments": [CWL_DIR / "hello.cwl", CWL_DIR / "input.txt"],
+    },
+    {
+        "id": "ep3",
+        "wf_type": "CWL",
+        "wf_type_version": "v1.2",
+        "wf_engine": "ep3",
+        "wf_url": "hello.cwl",
+        "params_file": CWL_DIR / "hello_params.json",
+        "attachments": [CWL_DIR / "hello.cwl", CWL_DIR / "input.txt"],
+    },
+    {
+        "id": "streamflow",
+        "wf_type": "CWL",
+        "wf_type_version": "v1.2",
+        "wf_engine": "streamflow",
+        "wf_url": "hello.cwl",
+        "params_file": CWL_DIR / "hello_params.json",
+        "attachments": [CWL_DIR / "hello.cwl", CWL_DIR / "input.txt"],
+    },
 ]
 
 
@@ -87,11 +114,14 @@ def _get_ro_crate_json(client: httpx.Client, run_id: str, *, timeout: int = 30) 
     """Get RO-Crate JSON, retrying until @graph is present.
 
     run.sh sets COMPLETE *before* calling generate_ro_crate, so a short
-    polling window is needed.
+    polling window is needed. Tolerates 404 responses (file not yet written).
     """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         res = client.get(f"/runs/{run_id}/ro-crate")
+        if res.status_code == 404:
+            time.sleep(2)
+            continue
         res.raise_for_status()
         result: dict[str, Any] = res.json()
         if result and "@graph" in result:
