@@ -25,7 +25,7 @@ def hash_password(args: Namespace) -> None:
         password = getpass("Enter password: ")
         password_confirm = getpass("Confirm password: ")
         if password != password_confirm:
-            print("Error: Passwords do not match.", file=sys.stderr)
+            print("Error: Passwords do not match", file=sys.stderr)
             sys.exit(1)
 
     hasher = PasswordHasher()
@@ -43,10 +43,10 @@ def _validate_run_dir(run_dir_str: str) -> Path:
     """Validate that the given path is an existing directory."""
     run_dir = Path(run_dir_str).resolve()
     if not run_dir.exists():
-        print(f"Error: '{run_dir}' does not exist.", file=sys.stderr)
+        print(f"Error: '{run_dir}' does not exist", file=sys.stderr)
         sys.exit(1)
     if not run_dir.is_dir():
-        print(f"Error: '{run_dir}' is not a directory.", file=sys.stderr)
+        print(f"Error: '{run_dir}' is not a directory", file=sys.stderr)
         sys.exit(1)
     return run_dir
 

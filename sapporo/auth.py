@@ -255,7 +255,7 @@ def spr_create_access_token(username: str, password: str) -> str:
     if expires_delta is None:
         expires_delta = DEFAULT_JWT_EXPIRES_HOURS
     if expires_delta > MAX_JWT_EXPIRES_HOURS:
-        LOGGER.warning("expires_delta_hours (%d) exceeds maximum (%d), capping.", expires_delta, MAX_JWT_EXPIRES_HOURS)
+        LOGGER.warning("expires_delta_hours (%d) exceeds maximum (%d), capping", expires_delta, MAX_JWT_EXPIRES_HOURS)
         expires_delta = MAX_JWT_EXPIRES_HOURS
 
     iat = datetime.datetime.now(datetime.timezone.utc)
@@ -269,7 +269,9 @@ def spr_create_access_token(username: str, password: str) -> str:
         iss=f"{get_config().base_url}/auth",
     )
 
-    return jwt.encode(payload.model_dump(), secret_key, algorithm=SAPPORO_SIGNATURE_ALGORITHM)
+    token = jwt.encode(payload.model_dump(), secret_key, algorithm=SAPPORO_SIGNATURE_ALGORITHM)
+    LOGGER.debug("Token issued for user: %s", username)
+    return token
 
 
 def spr_check_user(username: str, password: str) -> None:
@@ -291,11 +293,13 @@ def spr_check_user(username: str, password: str) -> None:
         # that could reveal whether a username exists
         with contextlib.suppress(Exception):
             _password_hasher.verify("$argon2id$v=19$m=65536,t=3,p=4$dummy$dummy", password)
+        LOGGER.warning("Authentication failed for user: %s", username)
         raise_invalid_credentials()
 
     try:
         _password_hasher.verify(target_user.password_hash, password)
     except VerifyMismatchError:
+        LOGGER.warning("Authentication failed for user: %s", username)
         raise_invalid_credentials()
 
 

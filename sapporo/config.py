@@ -1,4 +1,3 @@
-import logging
 from functools import cache
 from importlib.resources import files
 from pathlib import Path
@@ -144,12 +143,12 @@ def logging_config(debug: bool = False) -> dict[str, Any]:
         "formatters": {
             "default": {
                 "()": "uvicorn.logging.DefaultFormatter",
-                "fmt": "%(levelprefix)s %(message)s",
+                "fmt": "%(asctime)s %(levelprefix)s %(name)s - %(message)s",
                 "use_colors": True,
             },
             "sqlalchemy": {
                 "()": "uvicorn.logging.DefaultFormatter",
-                "fmt": "%(levelprefix)s DB - %(message)s",
+                "fmt": "%(asctime)s %(levelprefix)s %(name)s - %(message)s",
                 "use_colors": True,
             },
         },
@@ -174,9 +173,6 @@ def logging_config(debug: bool = False) -> dict[str, Any]:
             },
         },
     }
-
-
-LOGGER = logging.getLogger("sapporo")
 
 
 # === Const ===

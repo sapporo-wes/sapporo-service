@@ -32,6 +32,8 @@ from sapporo.config import RUN_DIR_STRUCTURE
 from sapporo.schemas import FileObject, RunRequestForm
 from sapporo.utils import read_run_dir_file, tail_file
 
+LOGGER = logging.getLogger(__name__)
+
 # === Constants ===
 
 PROCESS_RUN_PROFILE = "https://w3id.org/ro/wfrun/process/0.5"
@@ -222,7 +224,7 @@ def _ensure_tz(timestamp: str | None) -> str | None:
             dt = dt.replace(tzinfo=timezone.utc)
         return dt.isoformat()
     except ValueError:
-        logging.getLogger("sapporo").warning("Invalid timestamp format: %s", timestamp)
+        LOGGER.warning("Invalid timestamp format: %s", timestamp)
         return None
 
 
@@ -798,7 +800,6 @@ def add_multiqc_stats(crate: ROCrate, run_dir: Path, create_action_ins: ContextE
     if shutil.which("docker") is None:
         return
 
-    logger = logging.getLogger("sapporo")
     cmd = [
         "docker",
         "run",
@@ -817,7 +818,7 @@ def add_multiqc_stats(crate: ROCrate, run_dir: Path, create_action_ins: ContextE
     ]
     proc = subprocess.run(cmd, capture_output=True, check=False)
     if proc.returncode != 0:
-        logger.warning("MultiQC Docker command failed (rc=%d): %s", proc.returncode, proc.stderr.decode()[:500])
+        LOGGER.warning("MultiQC Docker command failed (rc=%d): %s", proc.returncode, proc.stderr.decode()[:500])
 
     multiqc_data_dir = run_dir / "multiqc_data"
     multiqc_stats = run_dir / RUN_DIR_STRUCTURE["multiqc_stats"]
@@ -859,7 +860,6 @@ def add_file_stats(crate: ROCrate, file_ins: File) -> None:
 
 def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
     """Add samtools flagstats statistics to the file instance."""
-    logger = logging.getLogger("sapporo")
     source = file_ins.source
     cmd = [
         "docker",
@@ -878,7 +878,7 @@ def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
     ]
     proc = subprocess.run(cmd, capture_output=True, check=False)
     if proc.returncode != 0:
-        logger.warning(
+        LOGGER.warning(
             "samtools Docker command failed for %s (rc=%d): %s",
             file_ins.id,
             proc.returncode,
@@ -913,13 +913,12 @@ def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
         file_ins.append_to("stats", stats_ins, compact=True)
         crate.add(stats_ins)
     except json.JSONDecodeError:
-        logging.getLogger("sapporo").warning("Failed to parse samtools output for %s", file_ins.id)
+        LOGGER.warning("Failed to parse samtools output for %s", file_ins.id)
         return
 
 
 def add_vcftools_stats(crate: ROCrate, file_ins: File) -> None:
     """Add vcftools statistics to the file instance."""
-    logger = logging.getLogger("sapporo")
     source = file_ins.source
     cmd = [
         "docker",
@@ -935,7 +934,7 @@ def add_vcftools_stats(crate: ROCrate, file_ins: File) -> None:
     ]
     proc = subprocess.run(cmd, capture_output=True, check=False)
     if proc.returncode != 0:
-        logger.warning(
+        LOGGER.warning(
             "vcftools Docker command failed for %s (rc=%d): %s",
             file_ins.id,
             proc.returncode,
@@ -964,7 +963,7 @@ def add_vcftools_stats(crate: ROCrate, file_ins: File) -> None:
         file_ins.append_to("stats", stats_ins, compact=True)
         crate.add(stats_ins)
     except (UnicodeDecodeError, ValueError):
-        logging.getLogger("sapporo").warning("Failed to parse vcftools output for %s", file_ins.id)
+        LOGGER.warning("Failed to parse vcftools output for %s", file_ins.id)
         return
 
 

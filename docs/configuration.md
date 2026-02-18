@@ -98,3 +98,26 @@ Override the default `run.sh` script using `--run-sh` or `SAPPORO_RUN_SH`. This 
 ## Run Cleanup
 
 Automatically remove old run directories using `--run-remove-older-than-days` or `SAPPORO_RUN_REMOVE_OLDER_THAN_DAYS`. The service periodically cleans up runs with a start time older than the specified number of days. The value must be an integer greater than or equal to 1; specifying `0` raises a `ValueError`.
+
+## Logging
+
+### Output
+
+All log messages are written to **stderr**. Standard output is not used for logging.
+
+### Format
+
+```text
+2025-01-01 12:00:00 INFO     sapporo.run - Starting workflow run
+```
+
+Format string: `%(asctime)s %(levelprefix)s %(name)s - %(message)s`
+
+### Log Level
+
+Controlled by the `--debug` flag (or `SAPPORO_DEBUG`):
+
+| Flag | Root level | SQLAlchemy level |
+|---|---|---|
+| Off (default) | INFO | WARNING |
+| `--debug` | DEBUG | INFO |

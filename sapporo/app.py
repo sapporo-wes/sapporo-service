@@ -1,3 +1,4 @@
+import logging
 import logging.config
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -13,7 +14,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import Message, Receive, Scope, Send
 
 from sapporo.auth import get_auth_config
-from sapporo.config import LOGGER, PKG_DIR, add_openapi_info, get_config, logging_config
+from sapporo.config import PKG_DIR, add_openapi_info, get_config, logging_config
 from sapporo.database import init_db
 from sapporo.factory import create_executable_wfs, create_service_info
 from sapporo.routers import router
@@ -21,13 +22,15 @@ from sapporo.run import remove_old_runs
 from sapporo.schemas import ErrorResponse
 from sapporo.utils import mask_sensitive
 
+LOGGER = logging.getLogger(__name__)
+
 
 def fix_error_handler(app: FastAPI) -> None:
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(_request: Request, exc: StarletteHTTPException) -> JSONResponse:
         app_config = get_config()
         if app_config.debug:
-            LOGGER.exception("Something http exception occurred.", exc_info=exc)
+            LOGGER.exception("HTTP exception occurred", exc_info=exc)
         return JSONResponse(
             status_code=exc.status_code,
             content=ErrorResponse(
@@ -40,7 +43,7 @@ def fix_error_handler(app: FastAPI) -> None:
     async def request_validation_exception_handler(_request: Request, exc: RequestValidationError) -> JSONResponse:
         app_config = get_config()
         if app_config.debug:
-            LOGGER.exception("Request validation error occurred.", exc_info=exc)
+            LOGGER.exception("Request validation error occurred", exc_info=exc)
         return JSONResponse(
             status_code=400,
             content=ErrorResponse(
@@ -50,8 +53,8 @@ def fix_error_handler(app: FastAPI) -> None:
         )
 
     @app.exception_handler(Exception)
-    async def generic_exception_handler(_request: Request, _exc: Exception) -> JSONResponse:
-        # If a general Exception occurs, a traceback will be output without using LOGGER.
+    async def generic_exception_handler(_request: Request, exc: Exception) -> JSONResponse:
+        LOGGER.exception("Unhandled exception occurred", exc_info=exc)
         return JSONResponse(
             status_code=500,
             content=ErrorResponse(
@@ -109,7 +112,7 @@ def init_app_state() -> None:
     Specifically, validate the configuration files such as service_info.json, auth_config.json,
     executable_workflows.json, etc., and the initial state of the application.
     """
-    LOGGER.info("=== Initializing app state... ====")
+    LOGGER.info("Initializing app state")
 
     service_info_path = get_config().service_info
     if not service_info_path.exists():
@@ -165,8 +168,8 @@ def init_app_state() -> None:
                 is_weak = secret_key in weak_keys or len(secret_key) < min_secret_key_length
                 if is_weak:
                     warning_msg = (
-                        "WARNING: Weak secret_key detected in auth_config.json. "
-                        "Please generate a strong secret key using: sapporo-cli generate-secret"
+                        "Weak secret_key detected in auth_config.json, "
+                        "generate a strong key using: sapporo-cli generate-secret"
                     )
                     LOGGER.warning(warning_msg)
                     if not get_config().debug:
@@ -181,7 +184,7 @@ def init_app_state() -> None:
     masked = mask_sensitive(auth_config.model_dump(), {"secret_key", "password_hash", "client_secret"})
     LOGGER.info("Auth config: %s", masked)
 
-    LOGGER.info("=== App state initialized. ===")
+    LOGGER.info("App state initialized")
 
 
 @asynccontextmanager
@@ -193,21 +196,20 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     scheduler.add_job(init_db, "interval", minutes=snapshot_interval)
     scheduler.add_job(remove_old_runs, "interval", minutes=snapshot_interval)
     scheduler.start()
-    LOGGER.info("DB snapshot scheduler started.")
+    LOGGER.info("DB snapshot scheduler started")
 
     try:
         yield
     except Exception as e:
-        LOGGER.exception("An unexpected error occurred.", exc_info=e)
+        LOGGER.exception("Unexpected error occurred", exc_info=e)
         # do not raise
     finally:
         scheduler.shutdown()
-        LOGGER.info("DB snapshot scheduler stopped.")
+        LOGGER.info("DB snapshot scheduler stopped")
 
 
 def create_app() -> FastAPI:
     app_config = get_config()
-    logging.config.dictConfig(logging_config(app_config.debug))  # Reconfigure logging
 
     app = FastAPI(
         root_path=app_config.url_prefix,

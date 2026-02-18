@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import shutil
 import signal
@@ -14,7 +15,7 @@ from urllib import parse
 import httpx
 from zipstream import ZipStream
 
-from sapporo.config import LOGGER, RUN_DIR_STRUCTURE, get_config
+from sapporo.config import RUN_DIR_STRUCTURE, get_config
 from sapporo.factory import create_service_info
 from sapporo.run_io import (
     dump_runtime_info,
@@ -37,6 +38,8 @@ __all__ = [
 ]
 from sapporo.schemas import RunRequestForm, State
 from sapporo.utils import now_str, secure_filepath, user_agent
+
+LOGGER = logging.getLogger(__name__)
 
 
 def prepare_run_dir(run_id: str, run_request: RunRequestForm, username: str | None) -> None:
@@ -126,6 +129,7 @@ def fork_run(run_id: str) -> None:
         )
     if process.pid is not None:
         write_file(run_id, "pid", process.pid)
+    LOGGER.debug("Run forked: run_id=%s, pid=%d", run_id, process.pid or -1)
 
 
 def post_run_task(run_id: str, run_request: RunRequestForm) -> None:
@@ -134,6 +138,7 @@ def post_run_task(run_id: str, run_request: RunRequestForm) -> None:
         download_wf_attachment(run_id, run_request)
         fork_run(run_id)
     except Exception as e:
+        LOGGER.exception("Background task failed for run %s", run_id)
         write_file(run_id, "state", State.SYSTEM_ERROR)
         write_file(run_id, "end_time", now_str())
         error_msg = "".join(traceback.TracebackException.from_exception(e).format())
@@ -170,6 +175,7 @@ def list_files(dir_: Path) -> Iterable[Path]:
 
 
 def cancel_run_task(run_id: str) -> None:
+    LOGGER.debug("Run cancelled: run_id=%s", run_id)
     state = read_state(run_id)
     if state == State.INITIALIZING:
         # The process is doing in fastapi's background task. This task has no stop feature.
@@ -194,6 +200,7 @@ KEEP_FILES = [
 
 
 def delete_run_task(run_id: str) -> None:
+    LOGGER.debug("Run deleted: run_id=%s", run_id)
     # 1. Cancel the run if it is running.
     cancel_run_task(run_id)
 
@@ -260,9 +267,10 @@ def remove_old_runs() -> None:
     if older_than_days is None:
         return
 
-    LOGGER.info("Removing old runs...")
-
     old_runs = list_old_runs_db(older_than_days)
+    if not old_runs:
+        return
+
     with ThreadPoolExecutor(max_workers=4) as executor:
         future_to_run_id = {executor.submit(delete_run_task, run.run_id): run.run_id for run in old_runs}
         for future in as_completed(future_to_run_id):
@@ -272,3 +280,5 @@ def remove_old_runs() -> None:
             except Exception as e:
                 msg = f"Failed to delete run {run_id}"
                 raise Exception(msg) from e
+
+    LOGGER.debug("Old runs removed: count=%d", len(old_runs))

@@ -14,6 +14,7 @@ import binascii
 import hashlib
 import hmac
 import json
+import logging
 import secrets
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -32,6 +33,8 @@ from sapporo.factory import create_run_summary
 from sapporo.run_io import glob_all_run_ids, read_file
 from sapporo.schemas import RunSummary, State
 from sapporo.utils import dt_to_time_str, time_str_to_dt
+
+LOGGER = logging.getLogger(__name__)
 
 DATABASE_NAME = "sapporo.db"
 
@@ -109,6 +112,7 @@ def init_db() -> None:
     if get_config().run_dir.joinpath(DATABASE_NAME).exists():
         SQLModel.metadata.drop_all(engine)
     SQLModel.metadata.create_all(engine)
+    count = 0
     with get_session() as session:
         for run_id in glob_all_run_ids():
             run_summary = create_run_summary(run_id)
@@ -122,7 +126,9 @@ def init_db() -> None:
                 tags=json.dumps(run_summary.tags),
             )
             session.add(run)
+            count += 1
         session.commit()
+    LOGGER.debug("DB initialized: %d runs indexed", count)
 
 
 def add_run_db(

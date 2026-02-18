@@ -176,6 +176,18 @@ class TestFixErrorHandler:
         client.get("/raise-http-404")
         mock_logger.exception.assert_called_once()
 
+    def test_generic_exception_logs_traceback(self, mocker: "MockerFixture") -> None:
+        client = _create_error_test_app(mocker)
+        mock_logger = mocker.patch("sapporo.app.LOGGER")
+        client.get("/raise-runtime-error")
+        mock_logger.exception.assert_called_once()
+
+    def test_generic_exception_logs_traceback_in_debug_mode(self, mocker: "MockerFixture") -> None:
+        client = _create_error_test_app(mocker, debug=True)
+        mock_logger = mocker.patch("sapporo.app.LOGGER")
+        client.get("/raise-runtime-error")
+        mock_logger.exception.assert_called_once()
+
 
 # === CustomCORSMiddleware ===
 
