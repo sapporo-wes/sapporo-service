@@ -231,6 +231,15 @@ def extract_username(payload: TokenPayload) -> str:
     return sanitize_username(username)
 
 
+_MASK_VISIBLE_PREFIX_LEN = 3
+
+
+def _mask_username(username: str) -> str:
+    if len(username) <= _MASK_VISIBLE_PREFIX_LEN:
+        return "***"
+    return username[:_MASK_VISIBLE_PREFIX_LEN] + "***"
+
+
 # === Sapporo Mode Functions ===
 
 
@@ -294,13 +303,13 @@ def spr_check_user(username: str, password: str) -> None:
         # that could reveal whether a username exists
         with contextlib.suppress(Exception):
             _password_hasher.verify("$argon2id$v=19$m=65536,t=3,p=4$dummy$dummy", password)
-        LOGGER.warning("Authentication failed for user: %s", username)
+        LOGGER.warning("Authentication failed for user: %s", _mask_username(username))
         raise_invalid_credentials()
 
     try:
         _password_hasher.verify(target_user.password_hash, password)
     except VerifyMismatchError:
-        LOGGER.warning("Authentication failed for user: %s", username)
+        LOGGER.warning("Authentication failed for user: %s", _mask_username(username))
         raise_invalid_credentials()
 
 

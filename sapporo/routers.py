@@ -531,7 +531,10 @@ async def get_run_outputs(
 ) -> FileResponse:
     username = token and extract_username(decode_token(token))
     validate_run_id(run_id, username)
-    file_path = resolve_content_path(run_id, "outputs_dir").joinpath(secure_filepath(path))
+    outputs_dir = resolve_content_path(run_id, "outputs_dir").resolve()
+    file_path = outputs_dir.joinpath(secure_filepath(path)).resolve()
+    if not file_path.is_relative_to(outputs_dir):
+        raise_bad_request(f"Invalid file path: {path!r}")
     if not file_path.exists():
         raise_not_found("File", path)
     return FileResponse(file_path)

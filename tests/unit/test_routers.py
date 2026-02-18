@@ -602,6 +602,25 @@ class TestGetRunOutputs:
         res = client.get(f"/runs/{run_id}/outputs/nonexistent.txt")
         assert res.status_code == 404
 
+    def test_symlink_outside_outputs_dir_returns_400(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        run_id = "aabbccdd-0000-0000-0000-000000001405"
+        rd = create_run_dir(tmp_path, run_id)
+
+        from sapporo.config import RUN_DIR_STRUCTURE
+
+        # Create a file outside the outputs directory
+        secret_file = tmp_path / "secret.txt"
+        secret_file.write_text("secret-data", encoding="utf-8")
+
+        # Create a symlink inside outputs that points outside
+        outputs_dir = rd / RUN_DIR_STRUCTURE["outputs_dir"]
+        symlink_path = outputs_dir / "evil_link.txt"
+        symlink_path.symlink_to(secret_file)
+
+        res = client.get(f"/runs/{run_id}/outputs/evil_link.txt")
+        assert res.status_code == 400
+
 
 # === GET /runs/{run_id}/ro-crate ===
 

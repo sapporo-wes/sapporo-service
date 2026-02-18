@@ -339,6 +339,40 @@ class TestListOldRunsDb:
         old_runs = list_old_runs_db(older_than_days=1)
         assert old_runs == []
 
+    def test_list_old_runs_db_zero_days_returns_all_past_runs(self) -> None:
+        old_runs = list_old_runs_db(older_than_days=0)
+        assert len(old_runs) == 4
+
+    def test_list_old_runs_db_boundary_cutoff(self) -> None:
+        """Run exactly at the cutoff boundary is included."""
+        from datetime import timedelta
+
+        cutoff_days = 5
+        cutoff_time = datetime.now(tz=timezone.utc) - timedelta(days=cutoff_days)
+        with get_session() as session:
+            session.add(
+                Run(
+                    run_id="boundary-exact",
+                    state=State.COMPLETE,
+                    start_time=cutoff_time - timedelta(seconds=1),
+                    tags="{}",
+                )
+            )
+            session.add(
+                Run(
+                    run_id="boundary-just-after",
+                    state=State.COMPLETE,
+                    start_time=cutoff_time + timedelta(seconds=1),
+                    tags="{}",
+                )
+            )
+            session.commit()
+
+        old_runs = list_old_runs_db(older_than_days=cutoff_days)
+        old_ids = {r.run_id for r in old_runs}
+        assert "boundary-exact" in old_ids
+        assert "boundary-just-after" not in old_ids
+
 
 # === db_runs_to_run_summaries ===
 
@@ -889,3 +923,29 @@ class TestSystemStateCountsFiltered:
         assert counts["COMPLETE"] == 1
         assert counts["QUEUED"] == 1
         assert counts.get("RUNNING", 0) == 0
+
+    def test_nonexistent_username_returns_all_zero(self) -> None:
+        counts = system_state_counts(username="nonexistent-user")
+        for state in State:
+            assert counts[state.value] == 0
+
+    def test_single_state_only(self, tmp_path: Path) -> None:
+        sys.argv = ["sapporo", "--run-dir", str(tmp_path)]
+        get_config.cache_clear()
+        init_db()
+
+        with get_session() as session:
+            session.add(
+                Run(
+                    run_id="only-running",
+                    state=State.RUNNING,
+                    start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                    tags="{}",
+                )
+            )
+            session.commit()
+
+        counts = system_state_counts()
+        assert counts["RUNNING"] == 1
+        assert counts["COMPLETE"] == 0
+        assert counts["QUEUED"] == 0

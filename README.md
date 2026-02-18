@@ -10,17 +10,17 @@
 
 The sapporo-service is a standard implementation of the [Global Alliance for Genomics and Health](https://www.ga4gh.org) (GA4GH) [Workflow Execution Service](https://github.com/ga4gh/workflow-execution-service-schemas) (WES) API specification. WES provides a standardized way to submit, monitor, and retrieve results from computational workflows across different platforms.
 
-The service builds on GA4GH WES 1.1.0 with additional capabilities defined in the [sapporo-wes-2.0.0 specification](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/sapporo-wes-spec-2.0.0.yml), including output file downloads, [RO-Crate](https://www.researchobject.org/ro-crate/) metadata generation, run deletion, and JWT authentication. Each workflow engine runs inside its own Docker container, so the service does not require any engine-specific installation.
+The service builds on GA4GH WES 1.1.0 with additional capabilities defined in the [sapporo-wes-2.1.0 specification](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/openapi/sapporo-wes-spec-2.1.0.yml), including output file downloads, [RO-Crate](https://www.researchobject.org/ro-crate/) metadata generation, run deletion, and JWT authentication. Each workflow engine runs inside its own Docker container, so the service does not require any engine-specific installation.
 
 ## Supported Workflow Engines
 
 - [cwltool](https://github.com/common-workflow-language/cwltool)
 - [nextflow](https://www.nextflow.io)
-- [Toil (experimental)](https://toil.ucsc-cgl.org)
+- [Toil](https://toil.ucsc-cgl.org)
 - [cromwell](https://github.com/broadinstitute/cromwell)
 - [snakemake](https://snakemake.readthedocs.io/en/stable/)
-- [ep3 (experimental)](https://github.com/tom-tan/ep3)
-- [StreamFlow (experimental)](https://github.com/alpha-unito/streamflow)
+- [ep3](https://github.com/tom-tan/ep3)
+- [StreamFlow](https://github.com/alpha-unito/streamflow)
 
 ## Quick Start
 

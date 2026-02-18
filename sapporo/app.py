@@ -200,9 +200,6 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
     try:
         yield
-    except Exception as e:
-        LOGGER.exception("Unexpected error occurred", exc_info=e)
-        # do not raise
     finally:
         scheduler.shutdown()
         LOGGER.info("DB snapshot scheduler stopped")

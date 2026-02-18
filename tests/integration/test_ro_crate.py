@@ -313,7 +313,7 @@ class TestRoCrateForFailedRun:
 
 class TestRoCrateForCanceledRun:
     def test_no_ro_crate_for_canceled(self, sapporo_client: httpx.Client) -> None:
-        """CANCELED run has no RO-Crate (content is null)."""
+        """CANCELED run has no RO-Crate (returns 404)."""
         run_id = submit_workflow(
             sapporo_client,
             wf_type="CWL",
@@ -331,8 +331,7 @@ class TestRoCrateForCanceledRun:
         assert state == "CANCELED"
 
         res = sapporo_client.get(f"/runs/{run_id}/ro-crate")
-        ro_crate = res.json()
-        assert ro_crate is None
+        assert res.status_code == 404
 
 
 class TestRoCrateEntities:
@@ -383,10 +382,16 @@ def _get_ro_crate_or_error(
     *,
     timeout: int = 60,
 ) -> dict[str, Any]:
-    """Get RO-Crate JSON, retrying until @graph or @error is present."""
+    """Get RO-Crate JSON, retrying until @graph or @error is present.
+
+    Tolerates 404 responses (file not yet written by run.sh).
+    """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         res = client.get(f"/runs/{run_id}/ro-crate")
+        if res.status_code == 404:
+            time.sleep(2)
+            continue
         res.raise_for_status()
         result: dict[str, Any] = res.json()
         if result and ("@graph" in result or "@error" in result):
@@ -440,8 +445,8 @@ class TestRoCrateMultiEngine:
 
 
 class TestRoCrateGenerationFailure:
-    def test_nonexistent_wf_url_produces_error_json(self, sapporo_client: httpx.Client) -> None:
-        """EXECUTOR_ERROR with missing wf file -> RO-Crate has @error."""
+    def test_nonexistent_wf_url_produces_failed_ro_crate(self, sapporo_client: httpx.Client) -> None:
+        """EXECUTOR_ERROR with missing wf file -> RO-Crate records FailedActionStatus."""
         run_id = submit_workflow(
             sapporo_client,
             wf_type="CWL",
@@ -456,8 +461,15 @@ class TestRoCrateGenerationFailure:
         assert state == "EXECUTOR_ERROR"
 
         ro_crate = _get_ro_crate_or_error(sapporo_client, run_id, timeout=60)
-        assert "@error" in ro_crate
-        assert isinstance(ro_crate["@error"], str)
+        assert "@graph" in ro_crate
+
+        # Find the CreateAction entity in the graph
+        actions = [e for e in ro_crate["@graph"] if "CreateAction" in (e.get("@type") if isinstance(e.get("@type"), list) else [e.get("@type", "")])]
+        assert len(actions) == 1
+        action = actions[0]
+        assert action["actionStatus"] == "http://schema.org/FailedActionStatus"
+        assert action["exitCode"] == 1
+        assert "error" in action
 
 
 class TestRoCrateTrimmingAndQc:

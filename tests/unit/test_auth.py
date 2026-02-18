@@ -17,6 +17,7 @@ from sapporo.auth import (
     SAPPORO_AUDIENCE,
     SAPPORO_SIGNATURE_ALGORITHM,
     _is_insecure_idp_allowed,
+    _mask_username,
     _validate_https_url,
     clear_external_auth_caches,
     external_decode_token,
@@ -67,6 +68,25 @@ def _setup_auth(mocker: "MockerFixture", tmp_path: Path, **overrides: object) ->
     # Clear after mock_get_config because importing sapporo.app (via mocker.patch)
     # triggers auth_depends_factory() which caches get_auth_config() at import time
     get_auth_config.cache_clear()
+
+
+# === _mask_username ===
+
+
+@pytest.mark.parametrize(
+    ("username", "expected"),
+    [
+        ("", "***"),
+        ("a", "***"),
+        ("ab", "***"),
+        ("abc", "***"),
+        ("abcd", "abc***"),
+        ("test-user", "tes***"),
+        ("long-username@example.com", "lon***"),
+    ],
+)
+def test_mask_username(username: str, expected: str) -> None:
+    assert _mask_username(username) == expected
 
 
 # === sanitize_username ===

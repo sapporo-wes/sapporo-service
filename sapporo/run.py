@@ -47,6 +47,8 @@ def prepare_run_dir(run_id: str, run_request: RunRequestForm, username: str | No
     run_dir = resolve_run_dir(run_id)
     run_dir.mkdir(parents=True, exist_ok=True)
     exe_dir = resolve_content_path(run_id, "exe_dir")
+    # 0o777: DinD workflow engine containers may run as non-root users
+    # that differ from the sapporo process user, so world-writable is required.
     exe_dir.mkdir(mode=0o777, parents=True, exist_ok=True)
     outputs_dir = resolve_content_path(run_id, "outputs_dir")
     outputs_dir.mkdir(mode=0o777, parents=True, exist_ok=True)

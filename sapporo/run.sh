@@ -137,7 +137,11 @@ function run_snakemake() {
     smk_parts+=(--configfile "${wf_params}" --snakefile "${wf_url_local}")
     local smk_run
     smk_run=$(printf '%q ' "${smk_parts[@]}")
-    local inner_cmd="${smk_run} && snakemake --configfile ${wf_params} --snakefile ${wf_url_local} --summary 2>/dev/null | tail -n +2 | cut -f 1 > ${exe_dir}/.snakemake_outputs"
+    local wf_params_q wf_url_q exe_dir_q
+    wf_params_q=$(printf '%q' "${wf_params}")
+    wf_url_q=$(printf '%q' "${wf_url_local}")
+    exe_dir_q=$(printf '%q' "${exe_dir}")
+    local inner_cmd="${smk_run} && snakemake --configfile ${wf_params_q} --snakefile ${wf_url_q} --summary 2>/dev/null | tail -n +2 | cut -f 1 > ${exe_dir_q}/.snakemake_outputs"
     cmd_arr+=("${inner_cmd}")
     _write_and_run cmd_arr
 

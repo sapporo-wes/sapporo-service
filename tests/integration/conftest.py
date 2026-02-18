@@ -305,7 +305,7 @@ def sapporo_auth_env() -> Generator[dict[str, Any]]:
 
 # === External auth (Keycloak) helpers ===
 
-KEYCLOAK_URL = "http://localhost:8080"
+KEYCLOAK_URL = os.environ.get("KEYCLOAK_URL", "http://localhost:8080")
 KEYCLOAK_REALM = "sapporo-dev"
 KEYCLOAK_REALM_URL = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}"
 
@@ -425,6 +425,7 @@ def sapporo_ext_public_env() -> Generator[dict[str, Any]]:
     auth_config = _build_external_auth_config(
         client_mode="public",
         client_id="sapporo-service-dev",
+        jwt_audience="sapporo-service-dev",
     )
 
     with tempfile.TemporaryDirectory(prefix="sapporo_ext_pub_") as tmp_dir:
@@ -456,6 +457,7 @@ def sapporo_ext_confidential_env() -> Generator[dict[str, Any]]:
         client_mode="confidential",
         client_id="sapporo-service-dev-confidential",
         client_secret="sapporo-dev-client-secret",
+        jwt_audience="sapporo-service-dev-confidential",
     )
 
     with tempfile.TemporaryDirectory(prefix="sapporo_ext_conf_") as tmp_dir:
