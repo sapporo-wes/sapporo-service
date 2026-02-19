@@ -10,6 +10,13 @@ from sapporo.run_io import read_file
 from sapporo.schemas import RunRequestForm
 
 _UUID_PATTERN = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
+_SHELL_DANGEROUS_RE = re.compile(r"[;|&$`(){}\!\n\r\x00]")
+
+
+def validate_wf_engine_param_token(value: str) -> None:
+    """Reject workflow engine parameter tokens containing shell-dangerous characters."""
+    if _SHELL_DANGEROUS_RE.search(value):
+        raise_bad_request(f"workflow_engine_parameters contains forbidden characters: {value!r}")
 
 
 def validate_run_request(

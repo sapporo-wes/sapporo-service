@@ -38,7 +38,8 @@ __all__ = [
     "write_file",
 ]
 from sapporo.schemas import RunRequestForm, State
-from sapporo.utils import now_str, secure_filepath, user_agent
+from sapporo.utils import now_str, secure_filepath, user_agent, validate_url_not_metadata_service
+from sapporo.validator import validate_wf_engine_param_token
 
 LOGGER = logging.getLogger(__name__)
 
@@ -47,11 +48,13 @@ def prepare_run_dir(run_id: str, run_request: RunRequestForm, username: str | No
     run_dir = resolve_run_dir(run_id)
     run_dir.mkdir(parents=True, exist_ok=True)
     exe_dir = resolve_content_path(run_id, "exe_dir")
-    # 0o777: DinD workflow engine containers may run as non-root users
-    # that differ from the sapporo process user, so world-writable is required.
-    exe_dir.mkdir(mode=0o777, parents=True, exist_ok=True)
+    # 0o775: DinD workflow engine containers may run as non-root users.
+    # Group-writable is sufficient when sapporo and engine share a group.
+    exe_dir.mkdir(parents=True, exist_ok=True)
+    exe_dir.chmod(0o775)
     outputs_dir = resolve_content_path(run_id, "outputs_dir")
-    outputs_dir.mkdir(mode=0o777, parents=True, exist_ok=True)
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+    outputs_dir.chmod(0o775)
 
     write_file(run_id, "state", State.INITIALIZING)
     write_file(run_id, "start_time", now_str())
@@ -79,8 +82,12 @@ def wf_engine_params_to_str(run_request: RunRequestForm) -> str:
             params.append(param.default_value or "")
     else:
         for key, value in wf_engine_params.items():
-            params.append(str(key))
-            params.append(str(value))
+            str_key = str(key)
+            str_value = str(value)
+            validate_wf_engine_param_token(str_key)
+            validate_wf_engine_param_token(str_value)
+            params.append(str_key)
+            params.append(str_value)
 
     return " ".join([param for param in params if param != ""])
 
@@ -102,6 +109,11 @@ def download_wf_attachment(run_id: str, run_request: RunRequestForm) -> None:
         url = obj.file_url
         parsed_url = parse.urlparse(url)
         if parsed_url.scheme in ["http", "https"]:
+            try:
+                validate_url_not_metadata_service(url)
+            except ValueError as e:
+                msg = f"Blocked download of workflow attachment {obj}: {e}"
+                raise Exception(msg) from e
             file_path = exe_dir.joinpath(secure_filepath(name)).resolve()
             file_path.parent.mkdir(parents=True, exist_ok=True)
             try:

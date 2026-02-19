@@ -9,9 +9,9 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from starlette.datastructures import Headers, MutableHeaders
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.types import Message, Receive, Scope, Send
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.responses import Response
 
 from sapporo.auth import get_auth_config
 from sapporo.config import PKG_DIR, add_openapi_info, get_config, logging_config
@@ -64,46 +64,15 @@ def fix_error_handler(app: FastAPI) -> None:
         )
 
 
-class CustomCORSMiddleware(CORSMiddleware):
-    """CORSMiddleware that returns CORS headers even if the Origin header is not present."""
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add security headers to all responses."""
 
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
-        method = scope["method"]
-        headers = Headers(scope=scope)
-
-        if method == "OPTIONS" and "access-control-request-method" in headers:
-            response = self.preflight_response(request_headers=headers)
-            await response(scope, receive, send)
-            return
-
-        await self.simple_response(scope, receive, send, request_headers=headers)
-
-    async def send(self, message: Message, send: Send, request_headers: Headers) -> None:
-        if message["type"] != "http.response.start":
-            await send(message)
-            return
-
-        message.setdefault("headers", [])
-        headers = MutableHeaders(scope=message)
-        headers.update(self.simple_headers)
-        origin = request_headers.get("Origin", "*")
-        has_cookie = "cookie" in request_headers
-
-        # If request includes any cookie headers, then we must respond
-        # with the specific origin instead of '*'.
-        if self.allow_all_origins and has_cookie:
-            self.allow_explicit_origin(headers, origin)
-
-        # If we only allow specific origins, then we have to mirror back
-        # the Origin header in the response.
-        elif not self.allow_all_origins and self.is_allowed_origin(origin=origin):
-            self.allow_explicit_origin(headers, origin)
-
-        await send(message)
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
 
 
 def init_app_state() -> None:
@@ -231,8 +200,9 @@ def create_app() -> FastAPI:
             "Consider restricting allow_origin to trusted domains in production."
         )
 
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(
-        CustomCORSMiddleware,
+        CORSMiddleware,
         allow_origins=[app_config.allow_origin],
         allow_methods=["*"],
         allow_headers=["*"],

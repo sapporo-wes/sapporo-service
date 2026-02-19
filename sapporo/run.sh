@@ -146,6 +146,10 @@ function run_snakemake() {
     _write_and_run cmd_arr
 
     while read -r file_path; do
+        if [[ -z "${file_path}" ]] || [[ "${file_path}" == *".."* ]] || [[ "${file_path}" == /* ]]; then
+            echo "Warning: Skipping suspicious output path: ${file_path}" >>"${stderr}"
+            continue
+        fi
         local dir_path
         dir_path=$(dirname "${file_path}")
         mkdir -p "${outputs_dir}/${dir_path}"

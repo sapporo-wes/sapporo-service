@@ -504,7 +504,7 @@ async def get_run_outputs_list(
             stream,
             media_type="application/zip",
             headers={
-                "Content-Disposition": f"attachment; filename={sanitized_name}.zip",
+                "Content-Disposition": f'attachment; filename="{sanitized_name}.zip"',
                 "Content-Length": str(content_length),
             },
         )
@@ -576,7 +576,7 @@ async def get_run_ro_crate(
             stream,
             media_type="application/zip",
             headers={
-                "Content-Disposition": f"attachment; filename=sapporo_{run_id}_ro_crate.zip",
+                "Content-Disposition": f'attachment; filename="sapporo_{run_id}_ro_crate.zip"',
                 "Content-Length": str(content_length),
             },
         )

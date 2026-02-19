@@ -1,10 +1,13 @@
 import importlib.metadata
+import ipaddress
 import json
 import re
+import socket
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unicodedata import normalize
+from urllib.parse import urlparse
 
 if TYPE_CHECKING:
     from sapporo.config import RunDirStructureKeys
@@ -136,3 +139,53 @@ def secure_filepath(filepath: str) -> Path:
     if not sanitized_parts:
         raise_bad_request(f"Invalid file path: {filepath!r}")
     return Path(*sanitized_parts)
+
+
+def _is_link_local(addr: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """Check if an IP address belongs to the link-local range (cloud metadata services)."""
+    return addr.is_link_local
+
+
+def validate_url_not_metadata_service(url: str) -> None:
+    """Validate that a URL does not point to a cloud metadata service.
+
+    Blocks link-local addresses (169.254.0.0/16, fe80::/10) which are used by
+    AWS, GCP, and Azure metadata services. Also checks DNS-resolved addresses
+    to prevent DNS rebinding attacks.
+
+    Private IPs (localhost, 10.x, 192.168.x) are intentionally allowed
+    for development environments where local file servers are common.
+    """
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        msg = f"URL scheme must be http or https, got: {parsed.scheme!r}"
+        raise ValueError(msg)
+
+    hostname = parsed.hostname
+    if hostname is None:
+        msg = f"URL has no hostname: {url!r}"
+        raise ValueError(msg)
+
+    # Check if hostname is an IP literal
+    try:
+        addr = ipaddress.ip_address(hostname)
+        if _is_link_local(addr):
+            msg = f"URL points to a link-local address (metadata service): {hostname}"
+            raise ValueError(msg)
+    except ValueError as e:
+        if "link-local" in str(e) or "metadata" in str(e):
+            raise
+        # Not an IP literal, will resolve via DNS below
+
+    # DNS resolution check (prevents DNS rebinding to metadata IPs)
+    try:
+        addrinfos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        return  # DNS resolution failure is not a security concern here
+
+    for _family, _type, _proto, _canonname, sockaddr in addrinfos:
+        ip_str = sockaddr[0]
+        addr = ipaddress.ip_address(ip_str)
+        if _is_link_local(addr):
+            msg = f"URL hostname {hostname!r} resolves to link-local address: {ip_str}"
+            raise ValueError(msg)

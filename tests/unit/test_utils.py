@@ -1,5 +1,7 @@
+import socket
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from fastapi import HTTPException
@@ -14,6 +16,7 @@ from sapporo.utils import (
     secure_filepath,
     tail_file,
     time_str_to_dt,
+    validate_url_not_metadata_service,
 )
 
 # === now_str ===
@@ -255,3 +258,64 @@ def test_read_run_dir_file_returns_none_for_dir_key(tmp_path: Path) -> None:
 
     result = read_run_dir_file(tmp_path, "exe_dir")
     assert result is None
+
+
+# === validate_url_not_metadata_service ===
+
+
+def test_validate_url_public_url_passes() -> None:
+    validate_url_not_metadata_service("https://example.com/file.txt")
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://localhost:8080/file.txt",
+        "http://127.0.0.1/file.txt",
+        "http://10.0.0.1/file.txt",
+        "http://192.168.1.1/file.txt",
+    ],
+)
+def test_validate_url_private_ips_are_allowed(url: str) -> None:
+    validate_url_not_metadata_service(url)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://169.254.169.254/latest/meta-data/",
+        "http://169.254.0.1/metadata",
+    ],
+)
+def test_validate_url_link_local_ip_is_blocked(url: str) -> None:
+    with pytest.raises(ValueError, match="link-local"):
+        validate_url_not_metadata_service(url)
+
+
+def test_validate_url_dns_rebinding_to_link_local_is_blocked() -> None:
+    fake_addrinfo = [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.169.254", 0)),
+    ]
+    with (
+        patch("sapporo.utils.socket.getaddrinfo", return_value=fake_addrinfo),
+        pytest.raises(ValueError, match="link-local"),
+    ):
+        validate_url_not_metadata_service("http://evil.example.com/steal")
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "file:///etc/passwd",
+        "ftp://example.com/file.txt",
+        "gopher://example.com/",
+    ],
+)
+def test_validate_url_non_http_scheme_is_blocked(url: str) -> None:
+    with pytest.raises(ValueError, match="http or https"):
+        validate_url_not_metadata_service(url)
+
+
+def test_validate_url_dns_resolution_failure_passes() -> None:
+    with patch("sapporo.utils.socket.getaddrinfo", side_effect=socket.gaierror("DNS failed")):
+        validate_url_not_metadata_service("http://nonexistent.example.com/file.txt")

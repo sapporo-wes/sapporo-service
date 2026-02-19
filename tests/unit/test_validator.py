@@ -1,8 +1,11 @@
+import contextlib
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 from fastapi import HTTPException
+from hypothesis import given
+from hypothesis import strategies as st
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
@@ -18,6 +21,7 @@ from sapporo.schemas import (
 from sapporo.validator import (
     validate_run_id,
     validate_run_request,
+    validate_wf_engine_param_token,
     validate_wf_engine_type_and_version,
     validate_wf_type_and_version,
 )
@@ -594,3 +598,57 @@ def test_validate_run_id_uses_first_two_chars_as_directory_prefix(mocker: "Mocke
     # Verify a different prefix does not exist
     wrong_dir = tmp_path / "ab" / run_id
     assert not wrong_dir.exists()
+
+
+# === validate_wf_engine_param_token ===
+
+
+@pytest.mark.parametrize(
+    "safe_value",
+    [
+        "--outdir",
+        "/tmp/out",
+        "--threads=4",
+        "-w=/work/dir",
+        "key:value",
+        "file.txt",
+        "~user",
+        "@tag",
+        "+extra",
+        "a,b,c",
+        "value with spaces",
+        "'single-quoted'",
+        '"double-quoted"',
+    ],
+)
+def test_validate_wf_engine_param_token_accepts_safe_values(safe_value: str) -> None:
+    validate_wf_engine_param_token(safe_value)  # Should not raise
+
+
+@pytest.mark.parametrize(
+    "dangerous_value",
+    [
+        "; rm -rf /",
+        "$(whoami)",
+        "`id`",
+        "foo | bar",
+        "a && b",
+        "val$HOME",
+        "cmd()",
+        "{a,b}",
+        "echo!",
+        "line1\nline2",
+        "line1\rline2",
+        "null\x00byte",
+    ],
+)
+def test_validate_wf_engine_param_token_rejects_dangerous_values(dangerous_value: str) -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        validate_wf_engine_param_token(dangerous_value)
+    assert exc_info.value.status_code == 400
+
+
+@given(st.text())
+def test_validate_wf_engine_param_token_always_accepts_or_rejects(value: str) -> None:
+    with contextlib.suppress(HTTPException):
+        validate_wf_engine_param_token(value)

@@ -47,8 +47,8 @@ def _create_error_test_app(mocker: "MockerFixture", debug: bool = False) -> Test
 
 
 def _create_cors_test_app(allow_origins: list[str] | None = None) -> TestClient:
-    """Create a minimal app with CustomCORSMiddleware for testing CORS behavior."""
-    from sapporo.app import CustomCORSMiddleware
+    """Create a minimal app with CORSMiddleware for testing CORS behavior."""
+    from fastapi.middleware.cors import CORSMiddleware
 
     app = FastAPI()
 
@@ -63,12 +63,31 @@ def _create_cors_test_app(allow_origins: list[str] | None = None) -> TestClient:
         await websocket.close()
 
     app.add_middleware(
-        CustomCORSMiddleware,
+        CORSMiddleware,
         allow_origins=allow_origins or ["*"],
         allow_methods=["*"],
         allow_headers=["*"],
     )
     return TestClient(app)
+
+
+def _create_security_headers_test_app() -> TestClient:
+    """Create a minimal app with SecurityHeadersMiddleware for testing."""
+    from sapporo.app import SecurityHeadersMiddleware
+
+    app = FastAPI()
+
+    @app.get("/hello")
+    async def _hello() -> dict[str, str]:
+        return {"msg": "hello"}
+
+    @app.get("/error")
+    async def _error() -> dict[str, str]:
+        msg = "test error"
+        raise StarletteHTTPException(status_code=500, detail=msg)
+
+    app.add_middleware(SecurityHeadersMiddleware)
+    return TestClient(app, raise_server_exceptions=False)
 
 
 def _make_auth_config(
@@ -189,15 +208,15 @@ class TestFixErrorHandler:
         mock_logger.exception.assert_called_once()
 
 
-# === CustomCORSMiddleware ===
+# === CORSMiddleware ===
 
 
-class TestCustomCORSMiddleware:
-    def test_without_origin_header_still_returns_cors_headers(self) -> None:
+class TestCORSMiddleware:
+    def test_without_origin_header_does_not_return_cors_headers(self) -> None:
         client = _create_cors_test_app()
         res = client.get("/hello")
         assert res.status_code == 200
-        assert "access-control-allow-origin" in res.headers
+        assert "access-control-allow-origin" not in res.headers
 
     def test_with_origin_header_returns_that_origin(self) -> None:
         client = _create_cors_test_app(allow_origins=["http://example.com"])
@@ -232,6 +251,27 @@ class TestCustomCORSMiddleware:
         with client.websocket_connect("/ws") as ws:
             data = ws.receive_text()
             assert data == "hello"
+
+
+# === SecurityHeadersMiddleware ===
+
+
+class TestSecurityHeaders:
+    def test_security_headers_present_on_success(self) -> None:
+        client = _create_security_headers_test_app()
+        res = client.get("/hello")
+        assert res.status_code == 200
+        assert res.headers["X-Content-Type-Options"] == "nosniff"
+        assert res.headers["X-Frame-Options"] == "DENY"
+        assert res.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+
+    def test_security_headers_present_on_error(self) -> None:
+        client = _create_security_headers_test_app()
+        res = client.get("/error")
+        assert res.status_code == 500
+        assert res.headers["X-Content-Type-Options"] == "nosniff"
+        assert res.headers["X-Frame-Options"] == "DENY"
+        assert res.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
 
 
 # === init_app_state ===
