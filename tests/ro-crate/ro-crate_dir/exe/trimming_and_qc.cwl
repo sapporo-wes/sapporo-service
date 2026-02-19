@@ -1,5 +1,4 @@
-#!/usr/bin/env cwl-runner
-cwlVersion: v1.0
+cwlVersion: v1.2
 class: Workflow
 inputs:
   fastq_1:
@@ -9,7 +8,6 @@ inputs:
   nthreads:
     type: int?
     default: 2
-
 steps:
   qc_1:
     run: ./fastqc.cwl
@@ -42,7 +40,6 @@ steps:
       - trimmed_fastq2U
       - stdout
       - stderr
-
 outputs:
   qc_result_1:
     type: File

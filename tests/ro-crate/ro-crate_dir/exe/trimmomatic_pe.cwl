@@ -1,9 +1,8 @@
-#!/usr/bin/env cwl-runner
-cwlVersion: v1.0
+cwlVersion: v1.2
 class: CommandLineTool
 requirements:
   DockerRequirement:
-    dockerPull: quay.io/biocontainers/trimmomatic:0.38--1
+    dockerPull: quay.io/biocontainers/trimmomatic:0.40--hdfd78af_0
 baseCommand: trimmomatic
 arguments:
   - position: 0
@@ -17,16 +16,15 @@ arguments:
   - position: 7
     valueFrom: $(inputs.fastq_1.nameroot).trimmed.2U.fq
   - position: 8
-    valueFrom: ILLUMINACLIP:/usr/local/share/trimmomatic/adapters/TruSeq2-PE.fa:2:40:15
+    valueFrom: "ILLUMINACLIP:/usr/local/share/trimmomatic/adapters/TruSeq2-PE.fa:2:40:15"
   - position: 9
-    valueFrom: LEADING:20
+    valueFrom: "LEADING:20"
   - position: 10
-    valueFrom: TRAILING:20
+    valueFrom: "TRAILING:20"
   - position: 11
-    valueFrom: SLIDINGWINDOW:4:15
+    valueFrom: "SLIDINGWINDOW:4:15"
   - position: 12
-    valueFrom: MINLEN:36
-
+    valueFrom: "MINLEN:36"
 inputs:
   nthreads:
     type: int?
@@ -42,7 +40,6 @@ inputs:
     type: File
     inputBinding:
       position: 3
-
 outputs:
   trimmed_fastq1P:
     type: File

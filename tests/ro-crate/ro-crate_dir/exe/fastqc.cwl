@@ -1,15 +1,13 @@
-#!/usr/bin/env cwl-runner
-cwlVersion: v1.0
+cwlVersion: v1.2
 class: CommandLineTool
 requirements:
   DockerRequirement:
-    dockerPull: quay.io/biocontainers/fastqc:0.11.9--0
+    dockerPull: quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0
 baseCommand: fastqc
 arguments:
   - position: 0
     prefix: -o
     valueFrom: .
-
 inputs:
   nthreads:
     type: int?
@@ -21,7 +19,6 @@ inputs:
     type: File
     inputBinding:
       position: 2
-
 outputs:
   qc_result:
     type: File

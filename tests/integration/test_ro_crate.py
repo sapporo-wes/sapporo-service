@@ -464,7 +464,11 @@ class TestRoCrateGenerationFailure:
         assert "@graph" in ro_crate
 
         # Find the CreateAction entity in the graph
-        actions = [e for e in ro_crate["@graph"] if "CreateAction" in (e.get("@type") if isinstance(e.get("@type"), list) else [e.get("@type", "")])]
+        actions = [
+            e
+            for e in ro_crate["@graph"]
+            if "CreateAction" in (e.get("@type") if isinstance(e.get("@type"), list) else [e.get("@type", "")])
+        ]
         assert len(actions) == 1
         action = actions[0]
         assert action["actionStatus"] == "http://schema.org/FailedActionStatus"
