@@ -1,6 +1,6 @@
 FROM python:3.12-slim-bookworm
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 ARG TARGETARCH
 ARG VERSION=dev
@@ -33,12 +33,19 @@ RUN DOCKER_ARCH=$(case "${TARGETARCH}" in \
     rm -rf /tmp/docker /tmp/docker.tgz
 
 WORKDIR /app
-COPY . .
+
+COPY pyproject.toml uv.lock README.md ./
 
 # Named volume inherits image permissions on first creation;
 # make writable so arbitrary UID (dev) can run uv commands.
 RUN uv sync --frozen --all-extras && \
     chmod -R a+rwX .venv
+
+COPY . .
+
+# Writable home for arbitrary UID (dev containers use user: UID:GID).
+ENV HOME=/home/app
+RUN mkdir -p /home/app && chmod 777 /home/app
 
 ENV PATH="/app/.venv/bin:${PATH}"
 

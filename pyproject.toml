@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sapporo"
-version = "2.1.0"
+version = "2.2.0"
 authors = [
     { name = "DDBJ (Bioinformatics and DDBJ Center)", email = "tazro.ohta@chiba-u.jp" },
 ]
@@ -79,7 +79,11 @@ markers = [
 ]
 
 [tool.mypy]
-files = ["./sapporo/**/*.py", "./tests/unit/**/*.py", "./tests/integration/**/*.py"]
+files = [
+    "./sapporo/**/*.py",
+    "./tests/unit/**/*.py",
+    "./tests/integration/**/*.py",
+]
 plugins = ["pydantic.mypy"]
 follow_imports = "silent"
 strict = true
