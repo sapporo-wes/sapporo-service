@@ -35,15 +35,17 @@ RUN DOCKER_ARCH=$(case "${TARGETARCH}" in \
 WORKDIR /app
 
 COPY pyproject.toml uv.lock README.md ./
-
-ENV SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION}
+RUN mkdir -p sapporo
 
 # Named volume inherits image permissions on first creation;
 # make writable so arbitrary UID (dev) can run uv commands.
-RUN uv sync --frozen --all-extras && \
+RUN uv sync --frozen --all-extras --no-install-project && \
     chmod -R a+rwX .venv
 
 COPY . .
+
+# Install the project with version injected from the build arg.
+RUN SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION} uv sync --frozen --all-extras
 
 # Writable home for arbitrary UID (dev containers use user: UID:GID).
 ENV HOME=/home/app
