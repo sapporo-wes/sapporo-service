@@ -18,7 +18,7 @@ from sapporo.config import PKG_DIR, add_openapi_info, get_config, logging_config
 from sapporo.database import init_db
 from sapporo.factory import create_executable_wfs, create_service_info
 from sapporo.routers import router
-from sapporo.run import remove_old_runs
+from sapporo.run import recover_orphaned_runs, remove_old_runs
 from sapporo.schemas import ErrorResponse
 from sapporo.utils import mask_sensitive
 
@@ -158,6 +158,7 @@ def init_app_state() -> None:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    recover_orphaned_runs()
     init_db()
 
     snapshot_interval = get_config().snapshot_interval

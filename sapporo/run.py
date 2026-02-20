@@ -44,6 +44,46 @@ from sapporo.validator import validate_wf_engine_param_token
 LOGGER = logging.getLogger(__name__)
 
 
+def recover_orphaned_runs() -> None:
+    """Recover runs orphaned by a previous process crash.
+
+    At startup, any run in a non-terminal state is an orphan because
+    all child processes from the previous sapporo instance are dead.
+    Marks them as SYSTEM_ERROR with appropriate logging.
+    """
+    run_ids = glob_all_run_ids()
+    terminal_states = {
+        State.COMPLETE,
+        State.EXECUTOR_ERROR,
+        State.SYSTEM_ERROR,
+        State.CANCELED,
+        State.DELETED,
+        State.UNKNOWN,
+    }
+
+    recovered = 0
+    for run_id in run_ids:
+        state = read_state(run_id)
+        if state in terminal_states:
+            continue
+        LOGGER.warning(
+            "Recovering orphaned run: run_id=%s, previous_state=%s",
+            run_id,
+            state.value,
+        )
+        write_file(run_id, "state", State.SYSTEM_ERROR)
+        write_file(run_id, "end_time", now_str())
+        append_system_logs(
+            run_id,
+            f"Recovered orphaned run (previous state: {state.value}). "
+            "The sapporo process was restarted while this run was active.",
+        )
+        recovered += 1
+
+    if recovered > 0:
+        LOGGER.info("Recovered %d orphaned run(s)", recovered)
+
+
 def prepare_run_dir(run_id: str, run_request: RunRequestForm, username: str | None) -> None:
     run_dir = resolve_run_dir(run_id)
     run_dir.mkdir(parents=True, exist_ok=True)

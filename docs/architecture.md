@@ -114,6 +114,38 @@ runs/
 | `system_logs.json` | System-level logs |
 | `workflow_engine_params.txt` | Engine-specific parameters |
 
+## Orphan Recovery
+
+When the sapporo process restarts (e.g., container recreation), any `run.sh` subprocesses from the previous instance are dead. Runs that were in a non-terminal state are now orphans — their `state.txt` still says `RUNNING` or `QUEUED`, but no process is driving them forward.
+
+At startup, **before** the SQLite index is built, `recover_orphaned_runs()` scans all run directories and transitions orphaned runs to `SYSTEM_ERROR`.
+
+### Target States
+
+Runs in the following non-terminal states are recovered:
+
+- `INITIALIZING`
+- `QUEUED`
+- `RUNNING`
+- `PAUSED`
+- `PREEMPTED`
+- `CANCELING`
+- `DELETING`
+
+Runs in terminal states (`COMPLETE`, `EXECUTOR_ERROR`, `SYSTEM_ERROR`, `CANCELED`, `DELETED`) and `UNKNOWN` are left unchanged.
+
+### Recovery Actions
+
+For each orphaned run, the recovery process:
+
+1. Sets `state.txt` to `SYSTEM_ERROR`
+2. Writes the current timestamp to `end_time.txt`
+3. Appends a descriptive message to `system_logs.json`
+
+### Ordering
+
+`recover_orphaned_runs()` runs before `init_db()` in the application lifespan, so the SQLite index reflects the corrected states from its first build.
+
 ## SQLite Index
 
 The SQLite database (`sapporo.db`) is an **index**, not a data store. It is rebuilt at a configurable interval (default: 30 minutes) by scanning the run directories and can be deleted at any time without data loss. It exists solely to make `GET /runs` (list all runs) fast. Individual run queries (`GET /runs/{run_id}`) always read from the filesystem.

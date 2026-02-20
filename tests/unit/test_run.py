@@ -1023,3 +1023,210 @@ def test_remove_old_runs_deletes_old_entries(mocker: "MockerFixture", tmp_path: 
     from sapporo.run import read_state
 
     assert read_state(mock_run.run_id) == State.DELETED
+
+
+# === recover_orphaned_runs ===
+
+NON_TERMINAL_STATES = [
+    State.INITIALIZING,
+    State.QUEUED,
+    State.RUNNING,
+    State.PAUSED,
+    State.PREEMPTED,
+    State.CANCELING,
+    State.DELETING,
+]
+
+TERMINAL_STATES = [
+    State.COMPLETE,
+    State.EXECUTOR_ERROR,
+    State.SYSTEM_ERROR,
+    State.CANCELED,
+    State.DELETED,
+]
+
+
+def test_recover_orphaned_runs_marks_running_as_system_error(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import read_state, recover_orphaned_runs
+
+    run_id = "aabbccdd-0000-0000-0000-000000000d00"
+    create_run_dir(tmp_path, run_id, state="RUNNING")
+
+    recover_orphaned_runs()
+    assert read_state(run_id) == State.SYSTEM_ERROR
+
+
+def test_recover_orphaned_runs_marks_queued_as_system_error(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import read_state, recover_orphaned_runs
+
+    run_id = "aabbccdd-0000-0000-0000-000000000d01"
+    create_run_dir(tmp_path, run_id, state="QUEUED")
+
+    recover_orphaned_runs()
+    assert read_state(run_id) == State.SYSTEM_ERROR
+
+
+def test_recover_orphaned_runs_marks_initializing_as_system_error(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import read_state, recover_orphaned_runs
+
+    run_id = "aabbccdd-0000-0000-0000-000000000d02"
+    create_run_dir(tmp_path, run_id, state="INITIALIZING")
+
+    recover_orphaned_runs()
+    assert read_state(run_id) == State.SYSTEM_ERROR
+
+
+def test_recover_orphaned_runs_marks_canceling_as_system_error(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import read_state, recover_orphaned_runs
+
+    run_id = "aabbccdd-0000-0000-0000-000000000d03"
+    create_run_dir(tmp_path, run_id, state="CANCELING")
+
+    recover_orphaned_runs()
+    assert read_state(run_id) == State.SYSTEM_ERROR
+
+
+def test_recover_orphaned_runs_marks_deleting_as_system_error(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import read_state, recover_orphaned_runs
+
+    run_id = "aabbccdd-0000-0000-0000-000000000d04"
+    create_run_dir(tmp_path, run_id, state="DELETING")
+
+    recover_orphaned_runs()
+    assert read_state(run_id) == State.SYSTEM_ERROR
+
+
+@pytest.mark.parametrize("state", TERMINAL_STATES, ids=lambda s: s.value)
+def test_recover_orphaned_runs_skips_terminal_states(mocker: "MockerFixture", tmp_path: Path, state: State) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import read_state, recover_orphaned_runs
+
+    run_id = "aabbccdd-0000-0000-0000-000000000d10"
+    create_run_dir(tmp_path, run_id, state=state.value)
+
+    recover_orphaned_runs()
+    assert read_state(run_id) == state
+
+
+def test_recover_orphaned_runs_skips_unknown(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import read_state, recover_orphaned_runs
+
+    run_id = "aabbccdd-0000-0000-0000-000000000d11"
+    create_run_dir(tmp_path, run_id, state="UNKNOWN")
+
+    recover_orphaned_runs()
+    assert read_state(run_id) == State.UNKNOWN
+
+
+def test_recover_orphaned_runs_writes_end_time(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import read_file, recover_orphaned_runs
+
+    run_id = "aabbccdd-0000-0000-0000-000000000d20"
+    create_run_dir(tmp_path, run_id, state="RUNNING")
+
+    recover_orphaned_runs()
+    end_time = read_file(run_id, "end_time")
+    assert end_time is not None
+    assert len(end_time) > 0
+
+
+def test_recover_orphaned_runs_appends_system_logs(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import read_file, recover_orphaned_runs
+
+    run_id = "aabbccdd-0000-0000-0000-000000000d21"
+    create_run_dir(tmp_path, run_id, state="RUNNING")
+
+    recover_orphaned_runs()
+    system_logs = read_file(run_id, "system_logs")
+    assert len(system_logs) == 1
+    assert "Recovered orphaned run" in system_logs[0]
+    assert "RUNNING" in system_logs[0]
+
+
+def test_recover_orphaned_runs_no_orphans_does_nothing(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import read_state, recover_orphaned_runs
+
+    run_id = "aabbccdd-0000-0000-0000-000000000d30"
+    create_run_dir(tmp_path, run_id, state="COMPLETE")
+
+    recover_orphaned_runs()
+    assert read_state(run_id) == State.COMPLETE
+
+
+def test_recover_orphaned_runs_mixed_states(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import read_state, recover_orphaned_runs
+
+    complete_id = "aabbccdd-0000-0000-0000-000000000d40"
+    running_id = "aabbccdd-0000-0000-0000-000000000d41"
+    queued_id = "bbccddee-0000-0000-0000-000000000d42"
+    create_run_dir(tmp_path, complete_id, state="COMPLETE")
+    create_run_dir(tmp_path, running_id, state="RUNNING")
+    create_run_dir(tmp_path, queued_id, state="QUEUED")
+
+    recover_orphaned_runs()
+
+    assert read_state(complete_id) == State.COMPLETE
+    assert read_state(running_id) == State.SYSTEM_ERROR
+    assert read_state(queued_id) == State.SYSTEM_ERROR
+
+
+@settings(max_examples=30)
+@given(
+    states=st.lists(
+        st.sampled_from(list(State)),
+        min_size=1,
+        max_size=8,
+    ),
+)
+def test_recover_orphaned_runs_pbt_only_non_terminal_recovered(states: list[State]) -> None:
+    """Property: after recovery, every run is in a terminal state or UNKNOWN."""
+    import tempfile
+
+    from sapporo.config import AppConfig
+
+    terminal_states = {
+        State.COMPLETE,
+        State.EXECUTOR_ERROR,
+        State.SYSTEM_ERROR,
+        State.CANCELED,
+        State.DELETED,
+        State.UNKNOWN,
+    }
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        config = AppConfig(run_dir=tmp_path)
+
+        # Directly patch get_config at import time
+        import sapporo.run_io
+
+        original_get_config = sapporo.run_io.get_config
+        sapporo.run_io.get_config = lambda: config  # type: ignore[assignment]
+
+        try:
+            run_ids = []
+            for i, state in enumerate(states):
+                run_id = f"aabbccdd-0000-0000-0000-{i:012d}"
+                create_run_dir(tmp_path, run_id, state=state.value)
+                run_ids.append(run_id)
+
+            from sapporo.run import recover_orphaned_runs
+
+            recover_orphaned_runs()
+
+            from sapporo.run import read_state
+
+            for run_id in run_ids:
+                assert read_state(run_id) in terminal_states
+        finally:
+            sapporo.run_io.get_config = original_get_config  # type: ignore[assignment]
