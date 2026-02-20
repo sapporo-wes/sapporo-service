@@ -36,6 +36,8 @@ WORKDIR /app
 
 COPY pyproject.toml uv.lock README.md ./
 
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION}
+
 # Named volume inherits image permissions on first creation;
 # make writable so arbitrary UID (dev) can run uv commands.
 RUN uv sync --frozen --all-extras && \

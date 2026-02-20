@@ -168,15 +168,14 @@ To bump the spec version:
 
 ### Version Management
 
-- The `version` field in `pyproject.toml` is the single source of truth
+- The git tag is the single source of truth for the package version (`hatch-vcs`)
 - At runtime, the version is obtained via `importlib.metadata.version("sapporo")`
-- Docker image version is injected by CI from the tag name with `--build-arg VERSION=...`
+- Docker image version is injected by CI from the tag name with `--build-arg VERSION=...` and `SETUPTOOLS_SCM_PRETEND_VERSION`
 
 ### Release Steps
 
-1. Update `version` in `pyproject.toml` on the `develop` branch and run `uv lock`
-2. Create a PR from `develop` to `main` and merge
-3. Create a version tag on the `main` branch:
+1. Create a PR to `main` and merge
+2. Create a version tag on the `main` branch and push:
 
    ```bash
    git checkout main && git pull
@@ -184,8 +183,7 @@ To bump the spec version:
    git push origin X.Y.Z
    ```
 
-4. The tag push triggers `release.yml` automatically:
-   - Version consistency check (tag == pyproject.toml version)
+3. The tag push triggers `release.yml` automatically:
    - Publish PyPI package (Trusted Publishing)
    - Build and push multi-architecture Docker image (ghcr.io)
    - Create GitHub Release (auto-generated release notes)

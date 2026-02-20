@@ -219,6 +219,7 @@ __marimo__/
 .streamlit/secrets.toml
 
 # Project specific
+sapporo/_version.py
 runs/
 keycloak-data/
 tests/htmlcov/

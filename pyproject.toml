@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "sapporo"
-version = "2.2.0"
+dynamic = ["version"]
 authors = [
     { name = "DDBJ (Bioinformatics and DDBJ Center)", email = "tazro.ohta@chiba-u.jp" },
 ]
@@ -66,6 +66,13 @@ tests = [
 [project.scripts]
 sapporo = "sapporo.app:main"
 sapporo-cli = "sapporo.cli:main"
+
+[tool.hatch.version]
+source = "vcs"
+fallback-version = "0.0.0"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "sapporo/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["sapporo"]
