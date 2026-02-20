@@ -1210,8 +1210,8 @@ def test_recover_orphaned_runs_pbt_only_non_terminal_recovered(states: list[Stat
         # Directly patch get_config at import time
         import sapporo.run_io
 
-        original_get_config = sapporo.run_io.get_config
-        sapporo.run_io.get_config = lambda: config  # type: ignore[assignment]
+        original_get_config = sapporo.run_io.get_config  # type: ignore[attr-defined]
+        sapporo.run_io.get_config = lambda: config  # type: ignore[attr-defined, assignment]
 
         try:
             run_ids = []
@@ -1229,4 +1229,4 @@ def test_recover_orphaned_runs_pbt_only_non_terminal_recovered(states: list[Stat
             for run_id in run_ids:
                 assert read_state(run_id) in terminal_states
         finally:
-            sapporo.run_io.get_config = original_get_config  # type: ignore[assignment]
+            sapporo.run_io.get_config = original_get_config  # type: ignore[attr-defined]
