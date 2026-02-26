@@ -27,7 +27,7 @@ classifiers = [
 ]
 dependencies = [
     "apscheduler>=3,<4",
-    "argon2-cffi>=21,<24",
+    "argon2-cffi>=21,<26",
     "cachetools>=5,<6",
     "fastapi>=0.100,<1",
     "httpx>=0.24,<1",
