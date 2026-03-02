@@ -27,8 +27,8 @@ classifiers = [
 ]
 dependencies = [
     "apscheduler>=3,<4",
-    "argon2-cffi>=21,<24",
-    "cachetools>=5,<6",
+    "argon2-cffi>=21,<26",
+    "cachetools>=5,<8",
     "fastapi>=0.100,<1",
     "httpx>=0.24,<1",
     "pydantic-settings>=2.7,<3",

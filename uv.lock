@@ -2277,8 +2277,8 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "apscheduler", specifier = ">=3,<4" },
-    { name = "argon2-cffi", specifier = ">=21,<24" },
-    { name = "cachetools", specifier = ">=5,<6" },
+    { name = "argon2-cffi", specifier = ">=21,<26" },
+    { name = "cachetools", specifier = ">=5,<8" },
     { name = "fastapi", specifier = ">=0.100,<1" },
     { name = "httpx", specifier = ">=0.24,<1" },
     { name = "hypothesis", marker = "extra == 'tests'" },
