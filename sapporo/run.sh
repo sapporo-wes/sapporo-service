@@ -67,15 +67,23 @@ function run_nextflow() {
     # those asset paths from the host, causing "mounts denied" errors.
     local nxf_home="${run_dir}/nxf_home"
     mkdir -p "${nxf_home}"
+    # Write a Nextflow config that propagates DOCKER_API_VERSION into child containers.
+    # This is required on Docker Desktop >= 4.x where the minimum supported API version
+    # is 1.44, but the Docker client bundled in nextflow/nextflow images reports 1.32.
+    local nf_config="${exe_dir}/sapporo.config"
+    cat > "${nf_config}" <<'NFCFG'
+docker.envWhitelist = 'DOCKER_API_VERSION'
+NFCFG
     local -a cmd_arr=(docker run --rm
         -v /var/run/docker.sock:/var/run/docker.sock
         -e DOCKER_HOST=unix:///var/run/docker.sock
+        -e DOCKER_API_VERSION=1.44
         -e "NXF_HOME=${nxf_home}"
         -e "NXF_ASSETS=${nxf_home}/assets"
         -v "${run_dir}:${run_dir}"
         "-w=${exe_dir}"
         "${container}"
-        nextflow run "${wf_url}")
+        nextflow run "${wf_url}" -c "${nf_config}")
     _append_engine_params cmd_arr
     cmd_arr+=(-params-file "${wf_params}" --outdir "${outputs_dir}" -work-dir "${exe_dir}")
     _write_and_run cmd_arr
