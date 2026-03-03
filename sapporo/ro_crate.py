@@ -44,6 +44,7 @@ BIOSCHEMAS_FORMAL_PARAMETER = "https://bioschemas.org/profiles/FormalParameter/1
 BIOSCHEMAS_COMPUTATIONAL_WORKFLOW = "https://bioschemas.org/profiles/ComputationalWorkflow/1.0-RELEASE"
 
 _STDERR_TAIL_LINES = 20
+_TATAKI_IMAGE = "ghcr.io/sapporo-wes/tataki:latest"
 _DOCKER_IMAGE_RE = re.compile(
     r"(?:^|\s)"
     r"((?:[\w.-]+(?::\d+)?/)?[\w.-]+(?:/[\w.-]+)*:[\w.+-]+)"
@@ -1028,6 +1029,73 @@ def add_readme_entity(crate: ROCrate, run_dir: Path, run_id: str) -> None:
     crate.add(file_ins)
 
 
+# === tataki EDAM enrichment ===
+
+
+def add_tataki_edam(crate: ROCrate, run_dir: Path) -> None:
+    """Enrich output File entities with EDAM format IDs from tataki.
+
+    Runs tataki via Docker against all files in the outputs directory and
+    replaces their ``encodingFormat`` with a proper EDAM ontology entity.
+    Silently skips if Docker is unavailable or tataki fails — enrichment
+    is always best-effort and never causes the run to fail.
+    """
+    if shutil.which("docker") is None:
+        return
+
+    outputs_dir = run_dir / RUN_DIR_STRUCTURE["outputs_dir"]
+    if not outputs_dir.exists():
+        return
+
+    # Collect absolute paths of all output files
+    abs_paths = {str(p): p for p in outputs_dir.glob("**/*") if p.is_file()}
+    if not abs_paths:
+        return
+
+    try:
+        result = subprocess.run(
+            [
+                "docker", "run", "--rm",
+                "-v", f"{run_dir}:{run_dir}",
+                _TATAKI_IMAGE,
+                "--json",
+            ] + list(abs_paths.keys()),
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        if result.returncode != 0:
+            LOGGER.warning("tataki exited with code %d: %s", result.returncode, result.stderr[:500])
+            return
+        detections: dict[str, Any] = json.loads(result.stdout)
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.warning("tataki EDAM enrichment skipped: %s", exc)
+        return
+
+    for abs_path_str, detection in detections.items():
+        abs_path = abs_paths.get(abs_path_str)
+        if abs_path is None:
+            continue
+        edam_id: str | None = detection.get("id")
+        edam_label: str | None = detection.get("label")
+        if not edam_id:
+            continue
+
+        # Look up the crate entity by its relative path (@id)
+        rel_path = abs_path.relative_to(run_dir)
+        entity = crate.get(str(rel_path))
+        if entity is None:
+            continue
+
+        edam_entity = ContextEntity(
+            crate,
+            edam_id,
+            properties={"@type": "Thing", "name": edam_label or edam_id},
+        )
+        crate.add(edam_entity)
+        entity["encodingFormat"] = edam_entity
+
+
 # === Entry points ===
 
 
@@ -1083,6 +1151,7 @@ def generate_ro_crate_metadata(run_dir: Path) -> dict[str, Any]:
         action.append_to("executedBy", sapporo_ins, compact=True)
 
     add_readme_entity(crate, run_dir, run_id)
+    add_tataki_edam(crate, run_dir)
 
     result: dict[str, Any] = crate.metadata.generate()
 
