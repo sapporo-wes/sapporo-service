@@ -4,7 +4,7 @@ import zipfile
 from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from hypothesis import given, settings
@@ -404,7 +404,18 @@ def test_write_wf_attachment_skips_empty_filename(mocker: "MockerFixture", tmp_p
 # === download_wf_attachment (httpx mock) ===
 
 
-def test_download_wf_attachment_fetches_http_url(mocker: "MockerFixture", tmp_path: Path) -> None:
+def _make_async_httpx_client(response: MagicMock) -> MagicMock:
+    """Create a MagicMock that works as an async context manager with async get()."""
+    mock_client = MagicMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.get = AsyncMock(return_value=response)
+
+    return mock_client
+
+
+@pytest.mark.asyncio
+async def test_download_wf_attachment_fetches_http_url(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
     from sapporo.run import download_wf_attachment, resolve_content_path
 
@@ -415,24 +426,21 @@ def test_download_wf_attachment_fetches_http_url(mocker: "MockerFixture", tmp_pa
     mock_response.content = b"downloaded content"
     mock_response.raise_for_status = MagicMock()
 
-    mock_client = MagicMock()
-    mock_client.__enter__ = MagicMock(return_value=mock_client)
-    mock_client.__exit__ = MagicMock(return_value=False)
-    mock_client.get.return_value = mock_response
-
-    mocker.patch("sapporo.run.httpx.Client", return_value=mock_client)
+    mock_client = _make_async_httpx_client(mock_response)
+    mocker.patch("sapporo.run.httpx.AsyncClient", return_value=mock_client)
 
     req = make_run_request_form(
         workflow_attachment_obj=[{"file_name": "helper.cwl", "file_url": "https://example.com/helper.cwl"}]
     )
-    download_wf_attachment(run_id, req)
+    await download_wf_attachment(run_id, req)
 
     written = resolve_content_path(run_id, "exe_dir") / "helper.cwl"
     assert written.exists()
     assert written.read_bytes() == b"downloaded content"
 
 
-def test_download_wf_attachment_skips_non_http_scheme(mocker: "MockerFixture", tmp_path: Path) -> None:
+@pytest.mark.asyncio
+async def test_download_wf_attachment_skips_non_http_scheme(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
     from sapporo.run import download_wf_attachment, resolve_content_path
 
@@ -442,13 +450,14 @@ def test_download_wf_attachment_skips_non_http_scheme(mocker: "MockerFixture", t
     req = make_run_request_form(
         workflow_attachment_obj=[{"file_name": "local.txt", "file_url": "ftp://example.com/local.txt"}]
     )
-    download_wf_attachment(run_id, req)
+    await download_wf_attachment(run_id, req)
 
     written = resolve_content_path(run_id, "exe_dir") / "local.txt"
     assert not written.exists()
 
 
-def test_download_wf_attachment_http_error_raises_exception(mocker: "MockerFixture", tmp_path: Path) -> None:
+@pytest.mark.asyncio
+async def test_download_wf_attachment_http_error_raises_exception(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
     import httpx
 
@@ -464,21 +473,21 @@ def test_download_wf_attachment_http_error_raises_exception(mocker: "MockerFixtu
         "404", request=MagicMock(), response=mock_response
     )
 
-    mock_client = MagicMock()
-    mock_client.__enter__ = MagicMock(return_value=mock_client)
-    mock_client.__exit__ = MagicMock(return_value=False)
-    mock_client.get.return_value = mock_response
-
-    mocker.patch("sapporo.run.httpx.Client", return_value=mock_client)
+    mock_client = _make_async_httpx_client(mock_response)
+    mocker.patch("sapporo.run.httpx.AsyncClient", return_value=mock_client)
 
     req = make_run_request_form(
         workflow_attachment_obj=[{"file_name": "missing.cwl", "file_url": "https://example.com/missing.cwl"}]
     )
     with pytest.raises(Exception, match="Failed to download"):
-        download_wf_attachment(run_id, req)
+        await download_wf_attachment(run_id, req)
 
 
-def test_download_wf_attachment_connection_error_raises_exception(mocker: "MockerFixture", tmp_path: Path) -> None:
+@pytest.mark.asyncio
+async def test_download_wf_attachment_connection_error_raises_exception(
+    mocker: "MockerFixture",
+    tmp_path: Path,
+) -> None:
     _setup_config(mocker, tmp_path)
     from sapporo.run import download_wf_attachment
 
@@ -486,17 +495,17 @@ def test_download_wf_attachment_connection_error_raises_exception(mocker: "Mocke
     create_run_dir(tmp_path, run_id)
 
     mock_client = MagicMock()
-    mock_client.__enter__ = MagicMock(return_value=mock_client)
-    mock_client.__exit__ = MagicMock(return_value=False)
-    mock_client.get.side_effect = ConnectionError("Connection refused")
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.get = AsyncMock(side_effect=ConnectionError("Connection refused"))
 
-    mocker.patch("sapporo.run.httpx.Client", return_value=mock_client)
+    mocker.patch("sapporo.run.httpx.AsyncClient", return_value=mock_client)
 
     req = make_run_request_form(
         workflow_attachment_obj=[{"file_name": "helper.cwl", "file_url": "https://example.com/helper.cwl"}]
     )
     with pytest.raises(Exception, match="Failed to download"):
-        download_wf_attachment(run_id, req)
+        await download_wf_attachment(run_id, req)
 
 
 # === fork_run (Popen mock) ===
@@ -568,34 +577,38 @@ def test_fork_run_does_not_write_pid_when_none(mocker: "MockerFixture", tmp_path
 # === post_run_task ===
 
 
-def test_post_run_task_success_calls_download_and_fork(mocker: "MockerFixture", tmp_path: Path) -> None:
+@pytest.mark.asyncio
+async def test_post_run_task_success_calls_download_and_fork(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
     from sapporo.run import post_run_task
 
     run_id = "aabbccdd-0000-0000-0000-000000000034"
     create_run_dir(tmp_path, run_id)
 
-    mock_download = mocker.patch("sapporo.run.download_wf_attachment")
+    mock_download = mocker.patch("sapporo.run.download_wf_attachment", new_callable=AsyncMock)
     mock_fork = mocker.patch("sapporo.run.fork_run")
 
     req = make_run_request_form()
-    post_run_task(run_id, req)
+    await post_run_task(run_id, req)
 
     mock_download.assert_called_once_with(run_id, req)
     mock_fork.assert_called_once_with(run_id)
 
 
-def test_post_run_task_exception_sets_system_error(mocker: "MockerFixture", tmp_path: Path) -> None:
+@pytest.mark.asyncio
+async def test_post_run_task_exception_sets_system_error(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
     from sapporo.run import post_run_task, read_file, read_state
 
     run_id = "aabbccdd-0000-0000-0000-000000000035"
     create_run_dir(tmp_path, run_id)
 
-    mocker.patch("sapporo.run.download_wf_attachment", side_effect=RuntimeError("download failed"))
+    mocker.patch(
+        "sapporo.run.download_wf_attachment", new_callable=AsyncMock, side_effect=RuntimeError("download failed")
+    )
 
     req = make_run_request_form()
-    post_run_task(run_id, req)
+    await post_run_task(run_id, req)
 
     assert read_state(run_id) == State.SYSTEM_ERROR
     system_logs = read_file(run_id, "system_logs")
@@ -1046,125 +1059,126 @@ TERMINAL_STATES = [
 ]
 
 
-def test_recover_orphaned_runs_marks_running_as_system_error(mocker: "MockerFixture", tmp_path: Path) -> None:
+def test_reconcile_runs_marks_running_no_pid_as_system_error(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
-    from sapporo.run import read_state, recover_orphaned_runs
+    from sapporo.run import read_state, reconcile_runs
 
     run_id = "aabbccdd-0000-0000-0000-000000000d00"
     create_run_dir(tmp_path, run_id, state="RUNNING")
 
-    recover_orphaned_runs()
+    reconcile_runs()
     assert read_state(run_id) == State.SYSTEM_ERROR
 
 
-def test_recover_orphaned_runs_marks_queued_as_system_error(mocker: "MockerFixture", tmp_path: Path) -> None:
+def test_reconcile_runs_marks_queued_no_pid_as_system_error(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
-    from sapporo.run import read_state, recover_orphaned_runs
+    from sapporo.run import read_state, reconcile_runs
 
     run_id = "aabbccdd-0000-0000-0000-000000000d01"
     create_run_dir(tmp_path, run_id, state="QUEUED")
 
-    recover_orphaned_runs()
+    reconcile_runs()
     assert read_state(run_id) == State.SYSTEM_ERROR
 
 
-def test_recover_orphaned_runs_marks_initializing_as_system_error(mocker: "MockerFixture", tmp_path: Path) -> None:
+def test_reconcile_runs_marks_initializing_no_pid_as_system_error(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
-    from sapporo.run import read_state, recover_orphaned_runs
+    from sapporo.run import read_state, reconcile_runs
 
     run_id = "aabbccdd-0000-0000-0000-000000000d02"
     create_run_dir(tmp_path, run_id, state="INITIALIZING")
 
-    recover_orphaned_runs()
+    reconcile_runs()
     assert read_state(run_id) == State.SYSTEM_ERROR
 
 
-def test_recover_orphaned_runs_marks_canceling_as_system_error(mocker: "MockerFixture", tmp_path: Path) -> None:
+def test_reconcile_runs_marks_canceling_no_pid_as_system_error(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
-    from sapporo.run import read_state, recover_orphaned_runs
+    from sapporo.run import read_state, reconcile_runs
 
     run_id = "aabbccdd-0000-0000-0000-000000000d03"
     create_run_dir(tmp_path, run_id, state="CANCELING")
 
-    recover_orphaned_runs()
+    reconcile_runs()
     assert read_state(run_id) == State.SYSTEM_ERROR
 
 
-def test_recover_orphaned_runs_marks_deleting_as_system_error(mocker: "MockerFixture", tmp_path: Path) -> None:
+def test_reconcile_runs_marks_deleting_no_pid_as_system_error(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
-    from sapporo.run import read_state, recover_orphaned_runs
+    from sapporo.run import read_state, reconcile_runs
 
     run_id = "aabbccdd-0000-0000-0000-000000000d04"
     create_run_dir(tmp_path, run_id, state="DELETING")
 
-    recover_orphaned_runs()
+    reconcile_runs()
     assert read_state(run_id) == State.SYSTEM_ERROR
 
 
 @pytest.mark.parametrize("state", TERMINAL_STATES, ids=lambda s: s.value)
-def test_recover_orphaned_runs_skips_terminal_states(mocker: "MockerFixture", tmp_path: Path, state: State) -> None:
+def test_reconcile_runs_skips_terminal_states(mocker: "MockerFixture", tmp_path: Path, state: State) -> None:
     _setup_config(mocker, tmp_path)
-    from sapporo.run import read_state, recover_orphaned_runs
+    from sapporo.run import read_state, reconcile_runs
 
     run_id = "aabbccdd-0000-0000-0000-000000000d10"
     create_run_dir(tmp_path, run_id, state=state.value)
 
-    recover_orphaned_runs()
+    reconcile_runs()
     assert read_state(run_id) == state
 
 
-def test_recover_orphaned_runs_skips_unknown(mocker: "MockerFixture", tmp_path: Path) -> None:
+def test_reconcile_runs_skips_unknown(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
-    from sapporo.run import read_state, recover_orphaned_runs
+    from sapporo.run import read_state, reconcile_runs
 
     run_id = "aabbccdd-0000-0000-0000-000000000d11"
     create_run_dir(tmp_path, run_id, state="UNKNOWN")
 
-    recover_orphaned_runs()
+    reconcile_runs()
     assert read_state(run_id) == State.UNKNOWN
 
 
-def test_recover_orphaned_runs_writes_end_time(mocker: "MockerFixture", tmp_path: Path) -> None:
+def test_reconcile_runs_writes_end_time(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
-    from sapporo.run import read_file, recover_orphaned_runs
+    from sapporo.run import read_file, reconcile_runs
 
     run_id = "aabbccdd-0000-0000-0000-000000000d20"
     create_run_dir(tmp_path, run_id, state="RUNNING")
 
-    recover_orphaned_runs()
+    reconcile_runs()
     end_time = read_file(run_id, "end_time")
     assert end_time is not None
     assert len(end_time) > 0
 
 
-def test_recover_orphaned_runs_appends_system_logs(mocker: "MockerFixture", tmp_path: Path) -> None:
+def test_reconcile_runs_appends_system_logs_with_reason(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
-    from sapporo.run import read_file, recover_orphaned_runs
+    from sapporo.run import read_file, reconcile_runs
 
     run_id = "aabbccdd-0000-0000-0000-000000000d21"
     create_run_dir(tmp_path, run_id, state="RUNNING")
 
-    recover_orphaned_runs()
+    reconcile_runs()
     system_logs = read_file(run_id, "system_logs")
     assert len(system_logs) == 1
-    assert "Recovered orphaned run" in system_logs[0]
+    assert "Reconciled run" in system_logs[0]
     assert "RUNNING" in system_logs[0]
+    assert "no pid file" in system_logs[0]
 
 
-def test_recover_orphaned_runs_no_orphans_does_nothing(mocker: "MockerFixture", tmp_path: Path) -> None:
+def test_reconcile_runs_no_orphans_does_nothing(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
-    from sapporo.run import read_state, recover_orphaned_runs
+    from sapporo.run import read_state, reconcile_runs
 
     run_id = "aabbccdd-0000-0000-0000-000000000d30"
     create_run_dir(tmp_path, run_id, state="COMPLETE")
 
-    recover_orphaned_runs()
+    reconcile_runs()
     assert read_state(run_id) == State.COMPLETE
 
 
-def test_recover_orphaned_runs_mixed_states(mocker: "MockerFixture", tmp_path: Path) -> None:
+def test_reconcile_runs_mixed_states(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
-    from sapporo.run import read_state, recover_orphaned_runs
+    from sapporo.run import read_state, reconcile_runs
 
     complete_id = "aabbccdd-0000-0000-0000-000000000d40"
     running_id = "aabbccdd-0000-0000-0000-000000000d41"
@@ -1173,11 +1187,52 @@ def test_recover_orphaned_runs_mixed_states(mocker: "MockerFixture", tmp_path: P
     create_run_dir(tmp_path, running_id, state="RUNNING")
     create_run_dir(tmp_path, queued_id, state="QUEUED")
 
-    recover_orphaned_runs()
+    reconcile_runs()
 
     assert read_state(complete_id) == State.COMPLETE
     assert read_state(running_id) == State.SYSTEM_ERROR
     assert read_state(queued_id) == State.SYSTEM_ERROR
+
+
+def test_reconcile_runs_pid_alive_skips(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import read_state, reconcile_runs, write_file
+
+    run_id = "aabbccdd-0000-0000-0000-000000000d50"
+    create_run_dir(tmp_path, run_id, state="RUNNING")
+    write_file(run_id, "pid", 99999)
+
+    mocker.patch("sapporo.run._process_alive", return_value=True)
+    reconcile_runs()
+    assert read_state(run_id) == State.RUNNING
+
+
+def test_reconcile_runs_pid_dead_marks_system_error(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import read_file, read_state, reconcile_runs, write_file
+
+    run_id = "aabbccdd-0000-0000-0000-000000000d51"
+    create_run_dir(tmp_path, run_id, state="RUNNING")
+    write_file(run_id, "pid", 99999)
+
+    mocker.patch("sapporo.run._process_alive", return_value=False)
+    reconcile_runs()
+    assert read_state(run_id) == State.SYSTEM_ERROR
+    system_logs = read_file(run_id, "system_logs")
+    assert "process vanished" in system_logs[0]
+
+
+def test_reconcile_runs_no_pid_marks_system_error_with_reason(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import read_file, read_state, reconcile_runs
+
+    run_id = "aabbccdd-0000-0000-0000-000000000d52"
+    create_run_dir(tmp_path, run_id, state="INITIALIZING")
+
+    reconcile_runs()
+    assert read_state(run_id) == State.SYSTEM_ERROR
+    system_logs = read_file(run_id, "system_logs")
+    assert "no pid file" in system_logs[0]
 
 
 @settings(max_examples=30)
@@ -1188,8 +1243,8 @@ def test_recover_orphaned_runs_mixed_states(mocker: "MockerFixture", tmp_path: P
         max_size=8,
     ),
 )
-def test_recover_orphaned_runs_pbt_only_non_terminal_recovered(states: list[State]) -> None:
-    """Property: after recovery, every run is in a terminal state or UNKNOWN."""
+def test_reconcile_runs_pbt_only_non_terminal_reconciled(states: list[State]) -> None:
+    """Property: after reconciliation, every run is in a terminal state or UNKNOWN."""
     import tempfile
 
     from sapporo.config import AppConfig
@@ -1220,9 +1275,9 @@ def test_recover_orphaned_runs_pbt_only_non_terminal_recovered(states: list[Stat
                 create_run_dir(tmp_path, run_id, state=state.value)
                 run_ids.append(run_id)
 
-            from sapporo.run import recover_orphaned_runs
+            from sapporo.run import reconcile_runs
 
-            recover_orphaned_runs()
+            reconcile_runs()
 
             from sapporo.run import read_state
 

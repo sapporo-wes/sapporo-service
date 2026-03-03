@@ -44,12 +44,27 @@ from sapporo.validator import validate_wf_engine_param_token
 LOGGER = logging.getLogger(__name__)
 
 
-def recover_orphaned_runs() -> None:
-    """Recover runs orphaned by a previous process crash.
+def _process_alive(pid: int) -> bool:
+    """Check whether a process with the given PID is alive."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True  # process exists but we cannot signal it
 
-    At startup, any run in a non-terminal state is an orphan because
-    all child processes from the previous sapporo instance are dead.
-    Marks them as SYSTEM_ERROR with appropriate logging.
+    return True
+
+
+def reconcile_runs() -> None:
+    """Reconcile runs whose declared state does not match reality.
+
+    For each run in a non-terminal state, reads the PID file and checks
+    whether the process is still alive:
+
+    - PID present + process alive -> skip (running normally)
+    - PID present + process dead  -> SYSTEM_ERROR (reason: "process vanished")
+    - PID absent                  -> SYSTEM_ERROR (reason: "no pid file")
     """
     run_ids = glob_all_run_ids()
     terminal_states = {
@@ -61,27 +76,33 @@ def recover_orphaned_runs() -> None:
         State.UNKNOWN,
     }
 
-    recovered = 0
+    reconciled = 0
     for run_id in run_ids:
         state = read_state(run_id)
         if state in terminal_states:
             continue
+
+        pid: int | None = read_file(run_id, "pid")
+        if pid is not None and _process_alive(pid):
+            continue
+
+        reason = "process vanished" if pid is not None else "no pid file"
         LOGGER.warning(
-            "Recovering orphaned run: run_id=%s, previous_state=%s",
+            "Reconciling run: run_id=%s, previous_state=%s, reason=%s",
             run_id,
             state.value,
+            reason,
         )
         write_file(run_id, "state", State.SYSTEM_ERROR)
         write_file(run_id, "end_time", now_str())
         append_system_logs(
             run_id,
-            f"Recovered orphaned run (previous state: {state.value}). "
-            "The sapporo process was restarted while this run was active.",
+            f"Reconciled run (previous state: {state.value}, reason: {reason}). The process was no longer running.",
         )
-        recovered += 1
+        reconciled += 1
 
-    if recovered > 0:
-        LOGGER.info("Recovered %d orphaned run(s)", recovered)
+    if reconciled > 0:
+        LOGGER.info("Reconciled %d run(s)", reconciled)
 
 
 def prepare_run_dir(run_id: str, run_request: RunRequestForm, username: str | None) -> None:
@@ -142,7 +163,7 @@ def write_wf_attachment(run_id: str, run_request: RunRequestForm) -> None:
                 shutil.copyfileobj(file.file, buffer)
 
 
-def download_wf_attachment(run_id: str, run_request: RunRequestForm) -> None:
+async def download_wf_attachment(run_id: str, run_request: RunRequestForm) -> None:
     exe_dir = resolve_content_path(run_id, "exe_dir")
     for obj in run_request.workflow_attachment_obj:
         name = obj.file_name
@@ -157,8 +178,8 @@ def download_wf_attachment(run_id: str, run_request: RunRequestForm) -> None:
             file_path = exe_dir.joinpath(secure_filepath(name)).resolve()
             file_path.parent.mkdir(parents=True, exist_ok=True)
             try:
-                with httpx.Client() as client:
-                    res = client.get(url, timeout=10, follow_redirects=True, headers={"User-Agent": user_agent()})
+                async with httpx.AsyncClient() as client:
+                    res = await client.get(url, timeout=10, follow_redirects=True, headers={"User-Agent": user_agent()})
                     res.raise_for_status()
                     with file_path.open(mode="wb") as f:
                         f.write(res.content)
@@ -190,10 +211,10 @@ def fork_run(run_id: str) -> None:
     LOGGER.debug("Run forked: run_id=%s, pid=%d", run_id, process.pid or -1)
 
 
-def post_run_task(run_id: str, run_request: RunRequestForm) -> None:
+async def post_run_task(run_id: str, run_request: RunRequestForm) -> None:
     """Run in the background after issuing a run_id in POST /runs."""
     try:
-        download_wf_attachment(run_id, run_request)
+        await download_wf_attachment(run_id, run_request)
         fork_run(run_id)
     except Exception as e:
         LOGGER.exception("Background task failed for run %s", run_id)

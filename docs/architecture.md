@@ -5,16 +5,38 @@
 The sapporo-service is a FastAPI application that accepts WES API requests, prepares a run directory for each workflow execution, and delegates the actual workflow engine invocation to a shell script (`run.sh`). Each workflow engine runs inside its own Docker container, spawned as a sibling container via the host's Docker socket. See [Installation - Volume Mounts](installation.md#volume-mounts-docker-in-docker) for details on the DinD volume mount requirements.
 
 ```text
-+--------+     +---------+     +--------+     +---------------------+
-| Client | --> | FastAPI | --> | run.py | --> | run.sh (subprocess) |
-+--------+     +---------+     +--------+     +---------------------+
-                                                   |
-                                              docker run
-                                                   |
-                                             +------------+
-                                             | Engine     |
-                                             | Container  |
-                                             +------------+
+         +-----------+
+         |  Client   |
+         +-----------+
+               |
+          HTTP request
+               |
+               v
+         +-----------+
+         |  FastAPI  |
+         +-----------+
+               |
+         Python call
+               |
+               v
+         +-----------+
+         |  run.py   |
+         +-----------+
+               |
+          subprocess
+               |
+               v
+         +-----------+
+         |  run.sh   |
+         +-----------+
+               |
+          docker run
+               |
+               v
+         +-----------+
+         |  Engine   |
+         | Container |
+         +-----------+
 ```
 
 The Python side (`run.py`) never calls a workflow engine directly. It prepares the run directory, writes all input files, then forks `run.sh` as a subprocess. All run data is persisted to the filesystem, with a SQLite index for fast listing.
@@ -114,41 +136,23 @@ runs/
 | `system_logs.json` | System-level logs |
 | `workflow_engine_params.txt` | Engine-specific parameters |
 
-## Orphan Recovery
+## Reconciliation
 
-When the sapporo process restarts (e.g., container recreation), any `run.sh` subprocesses from the previous instance are dead. Runs that were in a non-terminal state are now orphans — their `state.txt` still says `RUNNING` or `QUEUED`, but no process is driving them forward.
+Detects runs stuck in `RUNNING`/`QUEUED` after a process restart and marks them as `SYSTEM_ERROR`.
 
-At startup, **before** the SQLite index is built, `recover_orphaned_runs()` scans all run directories and transitions orphaned runs to `SYSTEM_ERROR`.
+`reconcile_runs()` runs at startup (before `init_db()`) and periodically in the background (at the snapshot interval, default: 30 minutes). For each run in a non-terminal state, it reads `run.pid` and checks process liveness via `os.kill(pid, 0)`:
 
-### Target States
+| PID file | Process alive | Action |
+|---|---|---|
+| Present | Yes | Skip (running normally) |
+| Present | No | Set `SYSTEM_ERROR` (reason: "process vanished") |
+| Absent | N/A | Set `SYSTEM_ERROR` (reason: "no pid file") |
 
-Runs in the following non-terminal states are recovered:
-
-- `INITIALIZING`
-- `QUEUED`
-- `RUNNING`
-- `PAUSED`
-- `PREEMPTED`
-- `CANCELING`
-- `DELETING`
-
-Runs in terminal states (`COMPLETE`, `EXECUTOR_ERROR`, `SYSTEM_ERROR`, `CANCELED`, `DELETED`) and `UNKNOWN` are left unchanged.
-
-### Recovery Actions
-
-For each orphaned run, the recovery process:
-
-1. Sets `state.txt` to `SYSTEM_ERROR`
-2. Writes the current timestamp to `end_time.txt`
-3. Appends a descriptive message to `system_logs.json`
-
-### Ordering
-
-`recover_orphaned_runs()` runs before `init_db()` in the application lifespan, so the SQLite index reflects the corrected states from its first build.
+Runs in terminal states (`COMPLETE`, `EXECUTOR_ERROR`, `SYSTEM_ERROR`, `CANCELED`, `DELETED`) and `UNKNOWN` are skipped. For each reconciled run, `state.txt` is set to `SYSTEM_ERROR`, the current timestamp is written to `end_time.txt`, and the reason is logged to `system_logs.json`.
 
 ## SQLite Index
 
-The SQLite database (`sapporo.db`) is an **index**, not a data store. It is rebuilt at a configurable interval (default: 30 minutes) by scanning the run directories and can be deleted at any time without data loss. It exists solely to make `GET /runs` (list all runs) fast. Individual run queries (`GET /runs/{run_id}`) always read from the filesystem.
+The SQLite database (`sapporo.db`) is an **index**, not a data store. It is rebuilt at a configurable interval (default: 30 minutes) by a background asyncio task that scans the run directories, and can be deleted at any time without data loss. It exists solely to make `GET /runs` (list all runs) fast. Individual run queries (`GET /runs/{run_id}`) always read from the filesystem.
 
 ## RO-Crate
 

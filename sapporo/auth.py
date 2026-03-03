@@ -4,7 +4,6 @@ import datetime
 import logging
 import os
 import re
-import time
 from functools import cache
 from threading import RLock
 from typing import Any, Literal
@@ -182,13 +181,24 @@ async def create_access_token(username: str, password: str) -> str:
     return await external_create_access_token(username, password)
 
 
-def decode_token(token: str) -> TokenPayload:
+async def decode_token(token: str) -> TokenPayload:
     auth_config = get_auth_config()
     if auth_config.idp_provider == "sapporo":
         payload = spr_decode_token(token)
         check_valid_username(payload.sub)
+
         return payload
-    return external_decode_token(token)
+
+    return await external_decode_token(token)
+
+
+async def resolve_username(token: str | None) -> str | None:
+    """Extract username from a token, or return None if no token."""
+    if token is None:
+        return None
+    payload = await decode_token(token)
+
+    return extract_username(payload)
 
 
 def sanitize_username(username: str) -> str:
@@ -365,38 +375,39 @@ def _validate_https_url(url: str, context: str) -> None:
         )
 
 
-def _fetch_once(url: str) -> httpx.Response:
+async def _fetch_once(url: str) -> httpx.Response:
     """Execute a single HTTP GET request with timeout."""
-    with httpx.Client(timeout=HTTPX_TIMEOUT) as client:
-        res = client.get(url, follow_redirects=True, headers={"User-Agent": user_agent()})
+    async with httpx.AsyncClient(timeout=HTTPX_TIMEOUT) as client:
+        res = await client.get(url, follow_redirects=True, headers={"User-Agent": user_agent()})
         res.raise_for_status()
+
         return res
 
 
-def _fetch_with_retry(url: str, context: str) -> httpx.Response:
+async def _fetch_with_retry(url: str, context: str) -> httpx.Response:
     """Fetch a URL with retry and exponential backoff."""
     last_exc: Exception | None = None
     for attempt in range(_MAX_RETRIES):
         try:
-            return _fetch_once(url)
+            return await _fetch_once(url)
         except httpx.HTTPError as exc:  # noqa: PERF203
             last_exc = exc
             LOGGER.warning("Attempt %d/%d to fetch %s failed: %s", attempt + 1, _MAX_RETRIES, context, exc)
             if attempt < _MAX_RETRIES - 1:
-                time.sleep(_RETRY_BASE_DELAY * (2**attempt))
+                await asyncio.sleep(_RETRY_BASE_DELAY * (2**attempt))
     msg = f"Failed to fetch {context} after {_MAX_RETRIES} retries: {last_exc}"
     raise HTTPException(status_code=500, detail=msg)
 
 
-def _fetch_endpoint_metadata_sync() -> ExternalEndpointMetadata:
-    """Fetch endpoint metadata synchronously."""
+async def _fetch_endpoint_metadata_impl() -> ExternalEndpointMetadata:
+    """Fetch endpoint metadata from the IdP."""
     auth_config = get_auth_config()
     idp_url = auth_config.external_config.idp_url
     _validate_https_url(idp_url, "External IdP URL")
 
     well_known_url = f"{idp_url}/.well-known/openid-configuration"
     try:
-        res = _fetch_with_retry(well_known_url, "IdP metadata")
+        res = await _fetch_with_retry(well_known_url, "IdP metadata")
         metadata = ExternalEndpointMetadata.model_validate(res.json())
 
         _validate_https_url(metadata.token_endpoint, "Token endpoint")
@@ -407,21 +418,22 @@ def _fetch_endpoint_metadata_sync() -> ExternalEndpointMetadata:
     else:
         with _cache_lock:
             _metadata_cache["metadata"] = metadata
+
         return metadata
 
 
-def fetch_endpoint_metadata() -> ExternalEndpointMetadata:
+async def fetch_endpoint_metadata() -> ExternalEndpointMetadata:
     with _cache_lock:
         cached: ExternalEndpointMetadata | None = _metadata_cache.get("metadata")
         if cached is not None:
             return cached
 
-    return _fetch_endpoint_metadata_sync()
+    return await _fetch_endpoint_metadata_impl()
 
 
 async def external_create_access_token(username: str, password: str) -> str:
     auth_config = get_auth_config()
-    metadata = await asyncio.to_thread(fetch_endpoint_metadata)
+    metadata = await fetch_endpoint_metadata()
     token_url = metadata.token_endpoint
     data: dict[str, str | None] = {
         "grant_type": "password",
@@ -444,7 +456,7 @@ async def external_create_access_token(username: str, password: str) -> str:
         raise_invalid_credentials()
 
 
-def external_decode_token(token: str) -> TokenPayload:
+async def external_decode_token(token: str) -> TokenPayload:
     try:
         unverified_header = jwt.get_unverified_header(token)
     except jwt.exceptions.DecodeError:
@@ -458,13 +470,13 @@ def external_decode_token(token: str) -> TokenPayload:
     if alg not in ALLOWED_ALGORITHMS:
         raise_invalid_token()
 
-    metadata = fetch_endpoint_metadata()
-    jwks = fetch_jwks()
+    metadata = await fetch_endpoint_metadata()
+    jwks = await fetch_jwks()
 
     jwk_key = next((k.key for k in jwks.keys if k.key_id == kid), None)
     if jwk_key is None:
         # Key rotation: re-fetch JWKS and try again
-        jwks = fetch_jwks(force_refresh=True)
+        jwks = await fetch_jwks(force_refresh=True)
         jwk_key = next((k.key for k in jwks.keys if k.key_id == kid), None)
         if jwk_key is None:
             raise_invalid_token()
@@ -486,25 +498,27 @@ def external_decode_token(token: str) -> TokenPayload:
         raise_invalid_token()
 
 
-def _fetch_jwks_sync(force_refresh: bool = False) -> PyJWKSet:
-    """Fetch JWKS synchronously."""
-    jwks_uri = fetch_endpoint_metadata().jwks_uri
+async def _fetch_jwks_impl(force_refresh: bool = False) -> PyJWKSet:
+    """Fetch JWKS from the IdP."""
+    metadata = await fetch_endpoint_metadata()
+    jwks_uri = metadata.jwks_uri
     try:
-        res = _fetch_with_retry(jwks_uri, "JWKS")
+        res = await _fetch_with_retry(jwks_uri, "JWKS")
         jwk_set = PyJWKSet.from_dict(res.json())
     except (ValueError, KeyError):
         raise_internal_error("Failed to fetch JWKS from the IdP")
     else:
         with _cache_lock:
             _jwks_cache["jwks"] = jwk_set
+
         return jwk_set
 
 
-def fetch_jwks(force_refresh: bool = False) -> PyJWKSet:
+async def fetch_jwks(force_refresh: bool = False) -> PyJWKSet:
     if not force_refresh:
         with _cache_lock:
             cached: PyJWKSet | None = _jwks_cache.get("jwks")
             if cached is not None:
                 return cached
 
-    return _fetch_jwks_sync(force_refresh)
+    return await _fetch_jwks_impl(force_refresh)

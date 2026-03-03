@@ -362,9 +362,10 @@ def _setup_external_auth(mocker: "MockerFixture", tmp_path: Path, **overrides: o
 def _mock_fetch_once(metadata_json: Any, jwks_json: Any) -> Any:
     """Return a side_effect function that routes metadata and JWKS URLs."""
 
-    def side_effect(url: str) -> MockHttpxResponse:
+    async def side_effect(url: str) -> MockHttpxResponse:
         if ".well-known/openid-configuration" in url:
             return MockHttpxResponse(metadata_json)
+
         return MockHttpxResponse(jwks_json)
 
     return side_effect
@@ -373,7 +374,8 @@ def _mock_fetch_once(metadata_json: Any, jwks_json: Any) -> Any:
 # === fetch_endpoint_metadata cache ===
 
 
-def test_fetch_endpoint_metadata_returns_cached_on_second_call(
+@pytest.mark.asyncio
+async def test_fetch_endpoint_metadata_returns_cached_on_second_call(
     mocker: "MockerFixture", tmp_path: Path, rsa_keypair: tuple[Any, Any]
 ) -> None:
     _setup_external_auth(mocker, tmp_path)
@@ -381,12 +383,13 @@ def test_fetch_endpoint_metadata_returns_cached_on_second_call(
     jwks = build_jwks_dict(pub)
 
     with patch("sapporo.auth._fetch_once", side_effect=_mock_fetch_once(_MOCK_IDP_METADATA, jwks)):
-        first = fetch_endpoint_metadata()
-        second = fetch_endpoint_metadata()
+        first = await fetch_endpoint_metadata()
+        second = await fetch_endpoint_metadata()
         assert first.issuer == second.issuer
 
 
-def test_fetch_endpoint_metadata_cache_cleared_refetches(
+@pytest.mark.asyncio
+async def test_fetch_endpoint_metadata_cache_cleared_refetches(
     mocker: "MockerFixture", tmp_path: Path, rsa_keypair: tuple[Any, Any]
 ) -> None:
     _setup_external_auth(mocker, tmp_path)
@@ -394,25 +397,27 @@ def test_fetch_endpoint_metadata_cache_cleared_refetches(
     jwks = build_jwks_dict(pub)
     call_count = 0
 
-    def counting_side_effect(url: str) -> MockHttpxResponse:
+    async def counting_side_effect(url: str) -> MockHttpxResponse:
         nonlocal call_count
         if ".well-known/openid-configuration" in url:
             call_count += 1
             return MockHttpxResponse(_MOCK_IDP_METADATA)
+
         return MockHttpxResponse(jwks)
 
     with patch("sapporo.auth._fetch_once", side_effect=counting_side_effect):
-        fetch_endpoint_metadata()
+        await fetch_endpoint_metadata()
         assert call_count == 1
         clear_external_auth_caches()
-        fetch_endpoint_metadata()
+        await fetch_endpoint_metadata()
         assert call_count == 2
 
 
 # === fetch_jwks cache ===
 
 
-def test_fetch_jwks_returns_cached_on_second_call(
+@pytest.mark.asyncio
+async def test_fetch_jwks_returns_cached_on_second_call(
     mocker: "MockerFixture", tmp_path: Path, rsa_keypair: tuple[Any, Any]
 ) -> None:
     _setup_external_auth(mocker, tmp_path)
@@ -420,12 +425,13 @@ def test_fetch_jwks_returns_cached_on_second_call(
     jwks = build_jwks_dict(pub)
 
     with patch("sapporo.auth._fetch_once", side_effect=_mock_fetch_once(_MOCK_IDP_METADATA, jwks)):
-        first = fetch_jwks()
-        second = fetch_jwks()
+        first = await fetch_jwks()
+        second = await fetch_jwks()
         assert len(first.keys) == len(second.keys)
 
 
-def test_fetch_jwks_force_refresh_bypasses_cache(
+@pytest.mark.asyncio
+async def test_fetch_jwks_force_refresh_bypasses_cache(
     mocker: "MockerFixture", tmp_path: Path, rsa_keypair: tuple[Any, Any]
 ) -> None:
     _setup_external_auth(mocker, tmp_path)
@@ -433,21 +439,23 @@ def test_fetch_jwks_force_refresh_bypasses_cache(
     jwks = build_jwks_dict(pub)
     jwks_call_count = 0
 
-    def counting_side_effect(url: str) -> MockHttpxResponse:
+    async def counting_side_effect(url: str) -> MockHttpxResponse:
         nonlocal jwks_call_count
         if ".well-known/openid-configuration" in url:
             return MockHttpxResponse(_MOCK_IDP_METADATA)
         jwks_call_count += 1
+
         return MockHttpxResponse(jwks)
 
     with patch("sapporo.auth._fetch_once", side_effect=counting_side_effect):
-        fetch_jwks()
+        await fetch_jwks()
         assert jwks_call_count == 1
-        fetch_jwks(force_refresh=True)
+        await fetch_jwks(force_refresh=True)
         assert jwks_call_count == 2
 
 
-def test_clear_external_auth_caches_clears_both(
+@pytest.mark.asyncio
+async def test_clear_external_auth_caches_clears_both(
     mocker: "MockerFixture", tmp_path: Path, rsa_keypair: tuple[Any, Any]
 ) -> None:
     _setup_external_auth(mocker, tmp_path)
@@ -456,22 +464,23 @@ def test_clear_external_auth_caches_clears_both(
     metadata_count = 0
     jwks_count = 0
 
-    def counting_side_effect(url: str) -> MockHttpxResponse:
+    async def counting_side_effect(url: str) -> MockHttpxResponse:
         nonlocal metadata_count, jwks_count
         if ".well-known/openid-configuration" in url:
             metadata_count += 1
             return MockHttpxResponse(_MOCK_IDP_METADATA)
         jwks_count += 1
+
         return MockHttpxResponse(jwks)
 
     with patch("sapporo.auth._fetch_once", side_effect=counting_side_effect):
-        fetch_endpoint_metadata()
-        fetch_jwks()
+        await fetch_endpoint_metadata()
+        await fetch_jwks()
         assert metadata_count == 1
         assert jwks_count == 1
         clear_external_auth_caches()
-        fetch_endpoint_metadata()
-        fetch_jwks()
+        await fetch_endpoint_metadata()
+        await fetch_jwks()
         assert metadata_count == 2
         assert jwks_count == 2
 
@@ -479,40 +488,44 @@ def test_clear_external_auth_caches_clears_both(
 # === Retry logic ===
 
 
-def test_fetch_endpoint_metadata_retries_on_transient_error(mocker: "MockerFixture", tmp_path: Path) -> None:
+@pytest.mark.asyncio
+async def test_fetch_endpoint_metadata_retries_on_transient_error(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_external_auth(mocker, tmp_path)
     attempt = 0
 
-    def flaky_side_effect(url: str) -> MockHttpxResponse:
+    async def flaky_side_effect(url: str) -> MockHttpxResponse:
         nonlocal attempt
         attempt += 1
         if attempt == 1:
             msg = "Connection refused"
             raise httpx.ConnectError(msg)
+
         return MockHttpxResponse(_MOCK_IDP_METADATA)
 
-    with patch("sapporo.auth._fetch_once", side_effect=flaky_side_effect), patch("sapporo.auth.time.sleep"):
-        result = fetch_endpoint_metadata()
+    with patch("sapporo.auth._fetch_once", side_effect=flaky_side_effect), patch("sapporo.auth.asyncio.sleep"):
+        result = await fetch_endpoint_metadata()
         assert result.issuer == _MOCK_IDP_ISSUER
 
 
-def test_fetch_endpoint_metadata_raises_after_max_retries(mocker: "MockerFixture", tmp_path: Path) -> None:
+@pytest.mark.asyncio
+async def test_fetch_endpoint_metadata_raises_after_max_retries(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_external_auth(mocker, tmp_path)
 
-    def always_fail(url: str) -> MockHttpxResponse:
+    async def always_fail(url: str) -> MockHttpxResponse:
         msg = "Connection refused"
         raise httpx.ConnectError(msg)
 
     with (
         patch("sapporo.auth._fetch_once", side_effect=always_fail),
-        patch("sapporo.auth.time.sleep"),
+        patch("sapporo.auth.asyncio.sleep"),
         pytest.raises(HTTPException) as exc_info,
     ):
-        fetch_endpoint_metadata()
+        await fetch_endpoint_metadata()
     assert exc_info.value.status_code == 500
 
 
-def test_fetch_jwks_retries_on_transient_error(
+@pytest.mark.asyncio
+async def test_fetch_jwks_retries_on_transient_error(
     mocker: "MockerFixture", tmp_path: Path, rsa_keypair: tuple[Any, Any]
 ) -> None:
     _setup_external_auth(mocker, tmp_path)
@@ -520,7 +533,7 @@ def test_fetch_jwks_retries_on_transient_error(
     jwks = build_jwks_dict(pub)
     attempt = 0
 
-    def flaky_side_effect(url: str) -> MockHttpxResponse:
+    async def flaky_side_effect(url: str) -> MockHttpxResponse:
         nonlocal attempt
         if ".well-known/openid-configuration" in url:
             return MockHttpxResponse(_MOCK_IDP_METADATA)
@@ -528,18 +541,20 @@ def test_fetch_jwks_retries_on_transient_error(
         if attempt == 1:
             msg = "Connection refused"
             raise httpx.ConnectError(msg)
+
         return MockHttpxResponse(jwks)
 
-    with patch("sapporo.auth._fetch_once", side_effect=flaky_side_effect), patch("sapporo.auth.time.sleep"):
-        result = fetch_jwks()
+    with patch("sapporo.auth._fetch_once", side_effect=flaky_side_effect), patch("sapporo.auth.asyncio.sleep"):
+        result = await fetch_jwks()
         assert len(result.keys) == 1
 
 
-def test_fetch_jwks_raises_after_max_retries(mocker: "MockerFixture", tmp_path: Path) -> None:
+@pytest.mark.asyncio
+async def test_fetch_jwks_raises_after_max_retries(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_external_auth(mocker, tmp_path)
     call_count = 0
 
-    def route_side_effect(url: str) -> MockHttpxResponse:
+    async def route_side_effect(url: str) -> MockHttpxResponse:
         nonlocal call_count
         if ".well-known/openid-configuration" in url:
             return MockHttpxResponse(_MOCK_IDP_METADATA)
@@ -547,21 +562,22 @@ def test_fetch_jwks_raises_after_max_retries(mocker: "MockerFixture", tmp_path: 
         msg = "Connection refused"
         raise httpx.ConnectError(msg)
 
-    with patch("sapporo.auth._fetch_once", side_effect=route_side_effect), patch("sapporo.auth.time.sleep"):
+    with patch("sapporo.auth._fetch_once", side_effect=route_side_effect), patch("sapporo.auth.asyncio.sleep"):
         # First populate metadata cache
-        fetch_endpoint_metadata()
+        await fetch_endpoint_metadata()
         clear_external_auth_caches()
         # Fetch metadata again so it's cached, then try JWKS
-        fetch_endpoint_metadata()
+        await fetch_endpoint_metadata()
         with pytest.raises(HTTPException) as exc_info:
-            fetch_jwks()
+            await fetch_jwks()
         assert exc_info.value.status_code == 500
 
 
 # === Key rotation ===
 
 
-def test_external_decode_token_key_rotation_success(
+@pytest.mark.asyncio
+async def test_external_decode_token_key_rotation_success(
     mocker: "MockerFixture", tmp_path: Path, rsa_keypair: tuple[Any, Any], rsa_keypair_2: tuple[Any, Any]
 ) -> None:
     _setup_external_auth(mocker, tmp_path)
@@ -575,21 +591,23 @@ def test_external_decode_token_key_rotation_success(
 
     refresh_count = 0
 
-    def routing_side_effect(url: str) -> MockHttpxResponse:
+    async def routing_side_effect(url: str) -> MockHttpxResponse:
         nonlocal refresh_count
         if ".well-known/openid-configuration" in url:
             return MockHttpxResponse(_MOCK_IDP_METADATA)
         refresh_count += 1
         if refresh_count == 1:
             return MockHttpxResponse(old_jwks)
+
         return MockHttpxResponse(new_jwks)
 
-    with patch("sapporo.auth._fetch_once", side_effect=routing_side_effect), patch("sapporo.auth.time.sleep"):
-        payload = external_decode_token(token)
+    with patch("sapporo.auth._fetch_once", side_effect=routing_side_effect), patch("sapporo.auth.asyncio.sleep"):
+        payload = await external_decode_token(token)
         assert payload.sub == "test-user"
 
 
-def test_external_decode_token_key_rotation_failure(
+@pytest.mark.asyncio
+async def test_external_decode_token_key_rotation_failure(
     mocker: "MockerFixture", tmp_path: Path, rsa_keypair: tuple[Any, Any], rsa_keypair_2: tuple[Any, Any]
 ) -> None:
     _setup_external_auth(mocker, tmp_path)
@@ -602,17 +620,18 @@ def test_external_decode_token_key_rotation_failure(
 
     with (
         patch("sapporo.auth._fetch_once", side_effect=_mock_fetch_once(_MOCK_IDP_METADATA, jwks)),
-        patch("sapporo.auth.time.sleep"),
+        patch("sapporo.auth.asyncio.sleep"),
         pytest.raises(HTTPException) as exc_info,
     ):
-        external_decode_token(token)
+        await external_decode_token(token)
     assert exc_info.value.status_code == 401
 
 
 # === Algorithm restriction ===
 
 
-def test_external_decode_token_with_hs256_raises_401(
+@pytest.mark.asyncio
+async def test_external_decode_token_with_hs256_raises_401(
     mocker: "MockerFixture", tmp_path: Path, rsa_keypair: tuple[Any, Any]
 ) -> None:
     _setup_external_auth(mocker, tmp_path)
@@ -634,14 +653,15 @@ def test_external_decode_token_with_hs256_raises_401(
 
     with (
         patch("sapporo.auth._fetch_once", side_effect=_mock_fetch_once(_MOCK_IDP_METADATA, jwks)),
-        patch("sapporo.auth.time.sleep"),
+        patch("sapporo.auth.asyncio.sleep"),
         pytest.raises(HTTPException) as exc_info,
     ):
-        external_decode_token(hs_token)
+        await external_decode_token(hs_token)
     assert exc_info.value.status_code == 401
 
 
-def test_external_decode_token_with_rs256_succeeds(
+@pytest.mark.asyncio
+async def test_external_decode_token_with_rs256_succeeds(
     mocker: "MockerFixture", tmp_path: Path, rsa_keypair: tuple[Any, Any]
 ) -> None:
     _setup_external_auth(mocker, tmp_path)
@@ -651,13 +671,14 @@ def test_external_decode_token_with_rs256_succeeds(
 
     with (
         patch("sapporo.auth._fetch_once", side_effect=_mock_fetch_once(_MOCK_IDP_METADATA, jwks)),
-        patch("sapporo.auth.time.sleep"),
+        patch("sapporo.auth.asyncio.sleep"),
     ):
-        payload = external_decode_token(token)
+        payload = await external_decode_token(token)
         assert payload.sub == "test-user"
 
 
-def test_external_decode_token_without_kid_raises_401(
+@pytest.mark.asyncio
+async def test_external_decode_token_without_kid_raises_401(
     mocker: "MockerFixture", tmp_path: Path, rsa_keypair: tuple[Any, Any]
 ) -> None:
     _setup_external_auth(mocker, tmp_path)
@@ -678,29 +699,32 @@ def test_external_decode_token_without_kid_raises_401(
 
     with (
         patch("sapporo.auth._fetch_once", side_effect=_mock_fetch_once(_MOCK_IDP_METADATA, jwks)),
-        patch("sapporo.auth.time.sleep"),
+        patch("sapporo.auth.asyncio.sleep"),
         pytest.raises(HTTPException) as exc_info,
     ):
-        external_decode_token(no_kid_token)
+        await external_decode_token(no_kid_token)
     assert exc_info.value.status_code == 401
 
 
-def test_external_decode_token_malformed_raises_401() -> None:
+@pytest.mark.asyncio
+async def test_external_decode_token_malformed_raises_401() -> None:
     with pytest.raises(HTTPException) as exc_info:
-        external_decode_token("not.a.valid.jwt.at.all")
+        await external_decode_token("not.a.valid.jwt.at.all")
     assert exc_info.value.status_code == 401
 
 
-def test_external_decode_token_empty_raises_401() -> None:
+@pytest.mark.asyncio
+async def test_external_decode_token_empty_raises_401() -> None:
     with pytest.raises(HTTPException) as exc_info:
-        external_decode_token("")
+        await external_decode_token("")
     assert exc_info.value.status_code == 401
 
 
 # === Issuer verification ===
 
 
-def test_external_decode_token_wrong_issuer_raises_401(
+@pytest.mark.asyncio
+async def test_external_decode_token_wrong_issuer_raises_401(
     mocker: "MockerFixture", tmp_path: Path, rsa_keypair: tuple[Any, Any]
 ) -> None:
     _setup_external_auth(mocker, tmp_path)
@@ -710,14 +734,15 @@ def test_external_decode_token_wrong_issuer_raises_401(
 
     with (
         patch("sapporo.auth._fetch_once", side_effect=_mock_fetch_once(_MOCK_IDP_METADATA, jwks)),
-        patch("sapporo.auth.time.sleep"),
+        patch("sapporo.auth.asyncio.sleep"),
         pytest.raises(HTTPException) as exc_info,
     ):
-        external_decode_token(token)
+        await external_decode_token(token)
     assert exc_info.value.status_code == 401
 
 
-def test_external_decode_token_correct_issuer_succeeds(
+@pytest.mark.asyncio
+async def test_external_decode_token_correct_issuer_succeeds(
     mocker: "MockerFixture", tmp_path: Path, rsa_keypair: tuple[Any, Any]
 ) -> None:
     _setup_external_auth(mocker, tmp_path)
@@ -727,20 +752,21 @@ def test_external_decode_token_correct_issuer_succeeds(
 
     with (
         patch("sapporo.auth._fetch_once", side_effect=_mock_fetch_once(_MOCK_IDP_METADATA, jwks)),
-        patch("sapporo.auth.time.sleep"),
+        patch("sapporo.auth.asyncio.sleep"),
     ):
-        payload = external_decode_token(token)
+        payload = await external_decode_token(token)
         assert payload.iss == _MOCK_IDP_ISSUER
 
 
 # === Timeout ===
 
 
-def test_fetch_endpoint_metadata_uses_timeout(mocker: "MockerFixture", tmp_path: Path) -> None:
+@pytest.mark.asyncio
+async def test_fetch_endpoint_metadata_uses_timeout(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_external_auth(mocker, tmp_path)
 
     with patch("sapporo.auth._fetch_once", side_effect=_mock_fetch_once(_MOCK_IDP_METADATA, {})):
-        fetch_endpoint_metadata()
+        await fetch_endpoint_metadata()
 
     # Verify timeout is set in HTTPX_TIMEOUT constant
     from sapporo.auth import HTTPX_TIMEOUT
@@ -748,13 +774,14 @@ def test_fetch_endpoint_metadata_uses_timeout(mocker: "MockerFixture", tmp_path:
     assert HTTPX_TIMEOUT == 10.0
 
 
-def test_fetch_jwks_uses_timeout(mocker: "MockerFixture", tmp_path: Path, rsa_keypair: tuple[Any, Any]) -> None:
+@pytest.mark.asyncio
+async def test_fetch_jwks_uses_timeout(mocker: "MockerFixture", tmp_path: Path, rsa_keypair: tuple[Any, Any]) -> None:
     _setup_external_auth(mocker, tmp_path)
     _, pub = rsa_keypair
     jwks = build_jwks_dict(pub)
 
     with patch("sapporo.auth._fetch_once", side_effect=_mock_fetch_once(_MOCK_IDP_METADATA, jwks)):
-        fetch_jwks()
+        await fetch_jwks()
 
     from sapporo.auth import HTTPX_TIMEOUT
 
@@ -764,7 +791,8 @@ def test_fetch_jwks_uses_timeout(mocker: "MockerFixture", tmp_path: Path, rsa_ke
 # === Edge cases ===
 
 
-def test_external_decode_token_expired_raises_401(
+@pytest.mark.asyncio
+async def test_external_decode_token_expired_raises_401(
     mocker: "MockerFixture", tmp_path: Path, rsa_keypair: tuple[Any, Any]
 ) -> None:
     _setup_external_auth(mocker, tmp_path)
@@ -774,14 +802,15 @@ def test_external_decode_token_expired_raises_401(
 
     with (
         patch("sapporo.auth._fetch_once", side_effect=_mock_fetch_once(_MOCK_IDP_METADATA, jwks)),
-        patch("sapporo.auth.time.sleep"),
+        patch("sapporo.auth.asyncio.sleep"),
         pytest.raises(HTTPException) as exc_info,
     ):
-        external_decode_token(token)
+        await external_decode_token(token)
     assert exc_info.value.status_code == 401
 
 
-def test_external_decode_token_wrong_audience_raises_401(
+@pytest.mark.asyncio
+async def test_external_decode_token_wrong_audience_raises_401(
     mocker: "MockerFixture", tmp_path: Path, rsa_keypair: tuple[Any, Any]
 ) -> None:
     _setup_external_auth(mocker, tmp_path)
@@ -791,14 +820,15 @@ def test_external_decode_token_wrong_audience_raises_401(
 
     with (
         patch("sapporo.auth._fetch_once", side_effect=_mock_fetch_once(_MOCK_IDP_METADATA, jwks)),
-        patch("sapporo.auth.time.sleep"),
+        patch("sapporo.auth.asyncio.sleep"),
         pytest.raises(HTTPException) as exc_info,
     ):
-        external_decode_token(token)
+        await external_decode_token(token)
     assert exc_info.value.status_code == 401
 
 
-def test_external_decode_token_invalid_signature_raises_401(
+@pytest.mark.asyncio
+async def test_external_decode_token_invalid_signature_raises_401(
     mocker: "MockerFixture", tmp_path: Path, rsa_keypair: tuple[Any, Any], rsa_keypair_2: tuple[Any, Any]
 ) -> None:
     _setup_external_auth(mocker, tmp_path)
@@ -811,8 +841,8 @@ def test_external_decode_token_invalid_signature_raises_401(
 
     with (
         patch("sapporo.auth._fetch_once", side_effect=_mock_fetch_once(_MOCK_IDP_METADATA, jwks)),
-        patch("sapporo.auth.time.sleep"),
+        patch("sapporo.auth.asyncio.sleep"),
         pytest.raises(HTTPException) as exc_info,
     ):
-        external_decode_token(token)
+        await external_decode_token(token)
     assert exc_info.value.status_code == 401

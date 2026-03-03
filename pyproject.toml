@@ -26,7 +26,6 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "apscheduler>=3,<4",
     "argon2-cffi>=21,<26",
     "cachetools>=5,<8",
     "fastapi>=0.100,<1",
@@ -53,6 +52,7 @@ tests = [
     "hypothesis",
     "mutmut",
     "mypy",
+    "pytest-asyncio",
     "pytest-mock",
     "pytest-randomly",
     "pytest",
@@ -79,6 +79,7 @@ packages = ["sapporo"]
 
 [tool.pytest.ini_options]
 addopts = "-v --tb=short --strict-markers"
+asyncio_mode = "strict"
 testpaths = ["tests/unit"]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",

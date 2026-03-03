@@ -1,10 +1,10 @@
+import asyncio
 import logging
 import logging.config
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 import uvicorn
-from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,7 +18,7 @@ from sapporo.config import PKG_DIR, add_openapi_info, get_config, logging_config
 from sapporo.database import init_db
 from sapporo.factory import create_executable_wfs, create_service_info
 from sapporo.routers import router
-from sapporo.run import recover_orphaned_runs, remove_old_runs
+from sapporo.run import reconcile_runs, remove_old_runs
 from sapporo.schemas import ErrorResponse
 from sapporo.utils import mask_sensitive
 
@@ -158,21 +158,34 @@ def init_app_state() -> None:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
-    recover_orphaned_runs()
+    reconcile_runs()
     init_db()
 
     snapshot_interval = get_config().snapshot_interval
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(init_db, "interval", minutes=snapshot_interval)
-    scheduler.add_job(remove_old_runs, "interval", minutes=snapshot_interval)
-    scheduler.start()
-    LOGGER.info("DB snapshot scheduler started")
+    tasks: set[asyncio.Task[None]] = set()
+
+    async def _reconciliation_loop() -> None:
+        while True:
+            await asyncio.sleep(snapshot_interval * 60)
+            await asyncio.to_thread(reconcile_runs)
+
+    async def _db_sync_loop() -> None:
+        while True:
+            await asyncio.sleep(snapshot_interval * 60)
+            await asyncio.to_thread(init_db)
+            await asyncio.to_thread(remove_old_runs)
+
+    tasks.add(asyncio.create_task(_reconciliation_loop()))
+    tasks.add(asyncio.create_task(_db_sync_loop()))
+    LOGGER.info("Background loops started (interval=%d min)", snapshot_interval)
 
     try:
         yield
     finally:
-        scheduler.shutdown()
-        LOGGER.info("DB snapshot scheduler stopped")
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        LOGGER.info("Background loops stopped")
 
 
 def create_app() -> FastAPI:

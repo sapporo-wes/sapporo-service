@@ -13,6 +13,7 @@ from sapporo.auth import (
     decode_token,
     extract_username,
     is_create_token_endpoint_enabled,
+    resolve_username,
 )
 from sapporo.config import GA4GH_WES_SPEC, SAPPORO_WES_SPEC_VERSION
 from sapporo.database import add_run_db, count_runs_db, db_runs_to_run_summaries, list_runs_db, system_state_counts
@@ -79,8 +80,9 @@ async def get_service_info(
     token: str | None = auth_depends_factory(),
 ) -> ServiceInfo:
     service_info = create_service_info()
-    username = token and extract_username(decode_token(token))
+    username = await resolve_username(token)
     service_info.system_state_counts = system_state_counts(username)
+
     return service_info
 
 
@@ -130,7 +132,7 @@ async def list_runs(
     ),
     token: str | None = auth_depends_factory(),
 ) -> RunListResponse:
-    username = token and extract_username(decode_token(token))
+    username = await resolve_username(token)
     (db_runs, next_page_token) = list_runs_db(page_size, page_token, sort_order, state, run_ids, username, tags)
     if latest:  # noqa: SIM108
         runs = [create_run_summary(run.run_id) for run in db_runs]
@@ -238,7 +240,7 @@ async def run_workflow(
     background_tasks: BackgroundTasks,
     token: str | None = auth_depends_factory(),
 ) -> RunId:
-    username = token and extract_username(decode_token(token))
+    username = await resolve_username(token)
     run_id = str(uuid4())
 
     content_type = request.headers.get("content-type", "")
@@ -301,8 +303,9 @@ async def get_run_log(
     run_id: str,
     token: str | None = auth_depends_factory(),
 ) -> RunLog:
-    username = token and extract_username(decode_token(token))
+    username = await resolve_username(token)
     validate_run_id(run_id, username)
+
     return create_run_log(run_id)
 
 
@@ -322,8 +325,9 @@ async def get_run_status(
     run_id: str,
     token: str | None = auth_depends_factory(),
 ) -> RunStatus:
-    username = token and extract_username(decode_token(token))
+    username = await resolve_username(token)
     validate_run_id(run_id, username)
+
     return create_run_status(run_id)
 
 
@@ -381,9 +385,10 @@ async def cancel_run(
     background_tasks: BackgroundTasks,
     token: str | None = auth_depends_factory(),
 ) -> RunId:
-    username = token and extract_username(decode_token(token))
+    username = await resolve_username(token)
     validate_run_id(run_id, username)
     background_tasks.add_task(cancel_run_task, run_id)
+
     return RunId(run_id=run_id)
 
 
@@ -407,10 +412,11 @@ async def delete_runs(
     background_tasks: BackgroundTasks = BackgroundTasks(),
     token: str | None = auth_depends_factory(),
 ) -> BulkDeleteResponse:
-    username = token and extract_username(decode_token(token))
+    username = await resolve_username(token)
     for rid in run_ids:
         validate_run_id(rid, username)
     background_tasks.add_task(bulk_delete_run_tasks, list(run_ids))
+
     return BulkDeleteResponse(run_ids=run_ids)
 
 
@@ -432,9 +438,10 @@ async def delete_run(
     background_tasks: BackgroundTasks,
     token: str | None = auth_depends_factory(),
 ) -> RunId:
-    username = token and extract_username(decode_token(token))
+    username = await resolve_username(token)
     validate_run_id(run_id, username)
     background_tasks.add_task(delete_run_task, run_id)
+
     return RunId(run_id=run_id)
 
 
@@ -495,7 +502,7 @@ async def get_run_outputs_list(
     ),
     token: str | None = auth_depends_factory(),
 ) -> OutputsListResponse | StreamingResponse:
-    username = token and extract_username(decode_token(token))
+    username = await resolve_username(token)
     validate_run_id(run_id, username)
     if download:
         sanitized_name = str(secure_filepath(name)) if name else f"sapporo_{run_id}_outputs"
@@ -529,7 +536,7 @@ async def get_run_outputs(
     path: str,
     token: str | None = auth_depends_factory(),
 ) -> FileResponse:
-    username = token and extract_username(decode_token(token))
+    username = await resolve_username(token)
     validate_run_id(run_id, username)
     outputs_dir = resolve_content_path(run_id, "outputs_dir").resolve()
     file_path = outputs_dir.joinpath(secure_filepath(path)).resolve()
@@ -568,7 +575,7 @@ async def get_run_ro_crate(
     ),
     token: str | None = auth_depends_factory(),
 ) -> JSONResponse | StreamingResponse:
-    username = token and extract_username(decode_token(token))
+    username = await resolve_username(token)
     validate_run_id(run_id, username)
     if download:
         stream, content_length = ro_crate_zip_stream(run_id)
@@ -689,5 +696,6 @@ async def get_me(
     """
     if token is None:
         raise_bad_request("Authentication is not enabled.")
-    payload = decode_token(token)
+    payload = await decode_token(token)
+
     return MeResponse(username=extract_username(payload))
