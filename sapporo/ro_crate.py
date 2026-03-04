@@ -1047,43 +1047,47 @@ def add_tataki_edam(crate: ROCrate, run_dir: Path) -> None:
     if not outputs_dir.exists():
         return
 
-    # Collect absolute paths of all output files
-    abs_paths = {str(p): p for p in outputs_dir.glob("**/*") if p.is_file()}
-    if not abs_paths:
+    rel_paths = [p.relative_to(outputs_dir) for p in outputs_dir.glob("**/*") if p.is_file()]
+    if not rel_paths:
         return
 
+    cmd = [
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        f"{outputs_dir}:/work",
+        "-w",
+        "/work",
+        _TATAKI_IMAGE,
+        "-f",
+        "json",
+        "--quiet",
+        *[f"/work/{rel}" for rel in rel_paths],
+    ]
     try:
-        result = subprocess.run(
-            [
-                "docker", "run", "--rm",
-                "-v", f"{run_dir}:{run_dir}",
-                _TATAKI_IMAGE,
-                "--json",
-            ] + list(abs_paths.keys()),
-            capture_output=True,
-            text=True,
-            timeout=300,
-        )
-        if result.returncode != 0:
-            LOGGER.warning("tataki exited with code %d: %s", result.returncode, result.stderr[:500])
-            return
-        detections: dict[str, Any] = json.loads(result.stdout)
-    except Exception as exc:  # noqa: BLE001
-        LOGGER.warning("tataki EDAM enrichment skipped: %s", exc)
+        proc = subprocess.run(cmd, capture_output=True, check=False, timeout=300)
+    except subprocess.TimeoutExpired:
+        LOGGER.warning("tataki Docker command timed out after 300s")
+        return
+    if proc.returncode != 0:
+        LOGGER.warning("tataki Docker command failed (rc=%d): %s", proc.returncode, proc.stderr.decode()[:500])
+        return
+    try:
+        detections: dict[str, Any] = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        LOGGER.warning("Failed to parse tataki JSON output")
         return
 
-    for abs_path_str, detection in detections.items():
-        abs_path = abs_paths.get(abs_path_str)
-        if abs_path is None:
-            continue
+    for container_path, detection in detections.items():
         edam_id: str | None = detection.get("id")
         edam_label: str | None = detection.get("label")
         if not edam_id:
             continue
 
-        # Look up the crate entity by its relative path (@id)
-        rel_path = abs_path.relative_to(run_dir)
-        entity = crate.get(str(rel_path))
+        rel_from_work = container_path.removeprefix("/work/")
+        entity_rel = str(Path(RUN_DIR_STRUCTURE["outputs_dir"]) / rel_from_work)
+        entity = crate.get(entity_rel)
         if entity is None:
             continue
 

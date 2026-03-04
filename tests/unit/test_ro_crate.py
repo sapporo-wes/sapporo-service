@@ -23,6 +23,7 @@ from sapporo.ro_crate import (
     add_file_stats,
     add_multiqc_stats,
     add_samtools_stats,
+    add_tataki_edam,
     add_vcftools_stats,
     add_workflow_entity,
     compute_sha256,
@@ -1714,6 +1715,167 @@ $VAR1 = {
         assert stats_entity is not None
         generated_by = stats_entity.get("generatedBy")
         assert generated_by is not None
+
+
+class TestAddTatakiEdam:
+    _TATAKI_JSON = json.dumps(
+        {
+            "/work/result.tsv": {
+                "id": "http://edamontology.org/format_3475",
+                "label": "TSV",
+                "decompressed": {"id": None, "label": None},
+            },
+        }
+    ).encode()
+
+    def _make_run_dir_with_outputs(self, tmp_path: Path, output_files: dict[str, str]) -> Path:
+        """Create a run directory with output files and generate an RO-Crate."""
+        return create_run_dir(
+            tmp_path,
+            RUN_ID,
+            exit_code="0",
+            end_time="2024-01-01T00:10:00",
+            wf_params="{}",
+            output_files=output_files,
+            outputs_json=[],
+        )
+
+    def test_skips_when_docker_not_available(self, tmp_path: Path) -> None:
+        """Should return immediately when docker binary is not found."""
+        rd = self._make_run_dir_with_outputs(tmp_path, {"result.tsv": "a\tb\n"})
+        crate = create_base_crate()
+        with patch("sapporo.ro_crate.shutil.which", return_value=None):
+            add_tataki_edam(crate, rd)
+        # No EDAM entities added
+        edam_entities = [e for e in crate.get_entities() if "edamontology.org" in str(e.id)]
+        assert edam_entities == []
+
+    def test_skips_when_outputs_dir_missing(self, tmp_path: Path) -> None:
+        """Should return immediately when outputs directory does not exist."""
+        rd = create_run_dir(tmp_path, RUN_ID, exit_code="0", end_time="2024-01-01T00:10:00", wf_params="{}")
+        crate = create_base_crate()
+        add_tataki_edam(crate, rd)
+        edam_entities = [e for e in crate.get_entities() if "edamontology.org" in str(e.id)]
+        assert edam_entities == []
+
+    def test_skips_when_no_output_files(self, tmp_path: Path) -> None:
+        """Should return immediately when outputs directory is empty."""
+        rd = create_run_dir(tmp_path, RUN_ID, exit_code="0", end_time="2024-01-01T00:10:00", wf_params="{}")
+        from sapporo.config import RUN_DIR_STRUCTURE
+
+        rd.joinpath(RUN_DIR_STRUCTURE["outputs_dir"]).mkdir(parents=True, exist_ok=True)
+        crate = create_base_crate()
+        add_tataki_edam(crate, rd)
+        edam_entities = [e for e in crate.get_entities() if "edamontology.org" in str(e.id)]
+        assert edam_entities == []
+
+    def test_skips_on_docker_failure(self, tmp_path: Path, mocker: "MockerFixture") -> None:
+        """Should log warning and return when Docker command fails."""
+        from subprocess import CompletedProcess
+
+        rd = self._make_run_dir_with_outputs(tmp_path, {"result.tsv": "a\tb\n"})
+        crate = create_base_crate()
+        mocker.patch("sapporo.ro_crate.shutil.which", return_value="/usr/bin/docker")
+        mocker.patch(
+            "sapporo.ro_crate.subprocess.run",
+            return_value=CompletedProcess(args=[], returncode=1, stdout=b"", stderr=b"image not found"),
+        )
+        add_tataki_edam(crate, rd)
+        edam_entities = [e for e in crate.get_entities() if "edamontology.org" in str(e.id)]
+        assert edam_entities == []
+
+    def test_skips_on_timeout(self, tmp_path: Path, mocker: "MockerFixture") -> None:
+        """Should log warning and return when Docker command times out."""
+        import subprocess as sp
+
+        rd = self._make_run_dir_with_outputs(tmp_path, {"result.tsv": "a\tb\n"})
+        crate = create_base_crate()
+        mocker.patch("sapporo.ro_crate.shutil.which", return_value="/usr/bin/docker")
+        mocker.patch("sapporo.ro_crate.subprocess.run", side_effect=sp.TimeoutExpired(cmd="docker", timeout=300))
+        add_tataki_edam(crate, rd)
+        edam_entities = [e for e in crate.get_entities() if "edamontology.org" in str(e.id)]
+        assert edam_entities == []
+
+    def test_skips_on_invalid_json(self, tmp_path: Path, mocker: "MockerFixture") -> None:
+        """Should log warning and return when tataki output is not valid JSON."""
+        from subprocess import CompletedProcess
+
+        rd = self._make_run_dir_with_outputs(tmp_path, {"result.tsv": "a\tb\n"})
+        crate = create_base_crate()
+        mocker.patch("sapporo.ro_crate.shutil.which", return_value="/usr/bin/docker")
+        mocker.patch(
+            "sapporo.ro_crate.subprocess.run",
+            return_value=CompletedProcess(args=[], returncode=0, stdout=b"not json", stderr=b""),
+        )
+        add_tataki_edam(crate, rd)
+        edam_entities = [e for e in crate.get_entities() if "edamontology.org" in str(e.id)]
+        assert edam_entities == []
+
+    def test_enriches_encoding_format(self, tmp_path: Path, mocker: "MockerFixture") -> None:
+        """Should replace encodingFormat with EDAM entity from tataki."""
+        from subprocess import CompletedProcess
+
+        from sapporo.config import RUN_DIR_STRUCTURE
+
+        rd = self._make_run_dir_with_outputs(tmp_path, {"result.tsv": "col1\tcol2\nval1\tval2\n"})
+        mocker.patch("sapporo.ro_crate.shutil.which", return_value="/usr/bin/docker")
+        mocker.patch(
+            "sapporo.ro_crate.subprocess.run",
+            return_value=CompletedProcess(args=[], returncode=0, stdout=self._TATAKI_JSON, stderr=b""),
+        )
+
+        jsonld = generate_ro_crate_metadata(rd)
+        graph = jsonld["@graph"]
+
+        # Find the output file entity
+        outputs_prefix = RUN_DIR_STRUCTURE["outputs_dir"]
+        file_entity = next((e for e in graph if e.get("@id", "").startswith(outputs_prefix) and "result.tsv" in e.get("@id", "")), None)
+        assert file_entity is not None
+
+        # encodingFormat should be the EDAM entity reference
+        enc = file_entity["encodingFormat"]
+        assert enc == {"@id": "http://edamontology.org/format_3475"}
+
+        # EDAM entity should exist in the graph
+        edam_entity = next((e for e in graph if e.get("@id") == "http://edamontology.org/format_3475"), None)
+        assert edam_entity is not None
+        assert edam_entity["@type"] == "Thing"
+        assert edam_entity["name"] == "TSV"
+
+    def test_skips_undetected_files(self, tmp_path: Path, mocker: "MockerFixture") -> None:
+        """Should not modify encodingFormat when tataki returns null id."""
+        from subprocess import CompletedProcess
+
+        from sapporo.config import RUN_DIR_STRUCTURE
+
+        tataki_null = json.dumps(
+            {
+                "/work/unknown.bin": {
+                    "id": None,
+                    "label": None,
+                    "decompressed": {"id": None, "label": None},
+                },
+            }
+        ).encode()
+
+        rd = self._make_run_dir_with_outputs(tmp_path, {"unknown.bin": "\x00\x01\x02"})
+        mocker.patch("sapporo.ro_crate.shutil.which", return_value="/usr/bin/docker")
+        mocker.patch(
+            "sapporo.ro_crate.subprocess.run",
+            return_value=CompletedProcess(args=[], returncode=0, stdout=tataki_null, stderr=b""),
+        )
+
+        jsonld = generate_ro_crate_metadata(rd)
+        graph = jsonld["@graph"]
+
+        # File entity should exist with original encodingFormat (not replaced)
+        outputs_prefix = RUN_DIR_STRUCTURE["outputs_dir"]
+        file_entity = next((e for e in graph if e.get("@id", "").startswith(outputs_prefix) and "unknown.bin" in e.get("@id", "")), None)
+        assert file_entity is not None
+
+        # No EDAM entity from tataki should be in the graph
+        tataki_edam = [e for e in graph if e.get("@id", "").startswith("http://edamontology.org/format_") and e.get("name") is None]
+        assert tataki_edam == []
 
 
 class TestAddFileStats:
