@@ -44,6 +44,7 @@ BIOSCHEMAS_FORMAL_PARAMETER = "https://bioschemas.org/profiles/FormalParameter/1
 BIOSCHEMAS_COMPUTATIONAL_WORKFLOW = "https://bioschemas.org/profiles/ComputationalWorkflow/1.0-RELEASE"
 
 _STDERR_TAIL_LINES = 20
+_TATAKI_IMAGE = "ghcr.io/sapporo-wes/tataki:latest"
 _DOCKER_IMAGE_RE = re.compile(
     r"(?:^|\s)"
     r"((?:[\w.-]+(?::\d+)?/)?[\w.-]+(?:/[\w.-]+)*:[\w.+-]+)"
@@ -1028,6 +1029,77 @@ def add_readme_entity(crate: ROCrate, run_dir: Path, run_id: str) -> None:
     crate.add(file_ins)
 
 
+# === tataki EDAM enrichment ===
+
+
+def add_tataki_edam(crate: ROCrate, run_dir: Path) -> None:
+    """Enrich output File entities with EDAM format IDs from tataki.
+
+    Runs tataki via Docker against all files in the outputs directory and
+    replaces their ``encodingFormat`` with a proper EDAM ontology entity.
+    Silently skips if Docker is unavailable or tataki fails — enrichment
+    is always best-effort and never causes the run to fail.
+    """
+    if shutil.which("docker") is None:
+        return
+
+    outputs_dir = run_dir / RUN_DIR_STRUCTURE["outputs_dir"]
+    if not outputs_dir.exists():
+        return
+
+    rel_paths = [p.relative_to(outputs_dir) for p in outputs_dir.glob("**/*") if p.is_file()]
+    if not rel_paths:
+        return
+
+    cmd = [
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        f"{outputs_dir}:/work",
+        "-w",
+        "/work",
+        _TATAKI_IMAGE,
+        "-f",
+        "json",
+        "--quiet",
+        *[f"/work/{rel}" for rel in rel_paths],
+    ]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, check=False, timeout=300)
+    except subprocess.TimeoutExpired:
+        LOGGER.warning("tataki Docker command timed out after 300s")
+        return
+    if proc.returncode != 0:
+        LOGGER.warning("tataki Docker command failed (rc=%d): %s", proc.returncode, proc.stderr.decode()[:500])
+        return
+    try:
+        detections: dict[str, Any] = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        LOGGER.warning("Failed to parse tataki JSON output")
+        return
+
+    for container_path, detection in detections.items():
+        edam_id: str | None = detection.get("id")
+        edam_label: str | None = detection.get("label")
+        if not edam_id:
+            continue
+
+        rel_from_work = container_path.removeprefix("/work/")
+        entity_rel = str(Path(RUN_DIR_STRUCTURE["outputs_dir"]) / rel_from_work)
+        entity = crate.get(entity_rel)
+        if entity is None:
+            continue
+
+        edam_entity = ContextEntity(
+            crate,
+            edam_id,
+            properties={"@type": "Thing", "name": edam_label or edam_id},
+        )
+        crate.add(edam_entity)
+        entity["encodingFormat"] = edam_entity
+
+
 # === Entry points ===
 
 
@@ -1083,6 +1155,7 @@ def generate_ro_crate_metadata(run_dir: Path) -> dict[str, Any]:
         action.append_to("executedBy", sapporo_ins, compact=True)
 
     add_readme_entity(crate, run_dir, run_id)
+    add_tataki_edam(crate, run_dir)
 
     result: dict[str, Any] = crate.metadata.generate()
 
