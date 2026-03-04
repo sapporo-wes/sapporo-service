@@ -1728,7 +1728,7 @@ class TestAddTatakiEdam:
         }
     ).encode()
 
-    def _make_run_dir_with_outputs(self, tmp_path: Path, output_files: dict[str, str]) -> Path:
+    def _make_run_dir_with_outputs(self, tmp_path: Path, output_files: dict[str, str | bytes]) -> Path:
         """Create a run directory with output files and generate an RO-Crate."""
         return create_run_dir(
             tmp_path,
@@ -1829,7 +1829,9 @@ class TestAddTatakiEdam:
 
         # Find the output file entity
         outputs_prefix = RUN_DIR_STRUCTURE["outputs_dir"]
-        file_entity = next((e for e in graph if e.get("@id", "").startswith(outputs_prefix) and "result.tsv" in e.get("@id", "")), None)
+        file_entity = next(
+            (e for e in graph if e.get("@id", "").startswith(outputs_prefix) and "result.tsv" in e.get("@id", "")), None
+        )
         assert file_entity is not None
 
         # encodingFormat should be the EDAM entity reference
@@ -1870,11 +1872,16 @@ class TestAddTatakiEdam:
 
         # File entity should exist with original encodingFormat (not replaced)
         outputs_prefix = RUN_DIR_STRUCTURE["outputs_dir"]
-        file_entity = next((e for e in graph if e.get("@id", "").startswith(outputs_prefix) and "unknown.bin" in e.get("@id", "")), None)
+        file_entity = next(
+            (e for e in graph if e.get("@id", "").startswith(outputs_prefix) and "unknown.bin" in e.get("@id", "")),
+            None,
+        )
         assert file_entity is not None
 
         # No EDAM entity from tataki should be in the graph
-        tataki_edam = [e for e in graph if e.get("@id", "").startswith("http://edamontology.org/format_") and e.get("name") is None]
+        tataki_edam = [
+            e for e in graph if e.get("@id", "").startswith("http://edamontology.org/format_") and e.get("name") is None
+        ]
         assert tataki_edam == []
 
 
