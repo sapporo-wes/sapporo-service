@@ -45,6 +45,7 @@ sapporo-service accepts arbitrary workflow engines and workflow languages via th
 | Non-numeric `exit_code` | `FailedActionStatus` set; `exitCode` property omitted |
 | Output file disappeared after listing | File skipped; remaining outputs processed normally |
 | Missing `run_request.json` | `TypeError` raised with a descriptive message (generation cannot proceed) |
+| tataki Docker unavailable or fails | Warning logged; `encodingFormat` left unchanged |
 
 ## Entity Graph
 
@@ -174,6 +175,14 @@ For output files with VCF format (`.vcf`, `.vcf.gz`), `vcf-stats` is run in a Do
 
 Output files are automatically annotated with [EDAM ontology](http://edamontology.org/) format identifiers based on file extension. EDAM entities use `@type: "Thing"` as they represent ontology terms rather than web resources. The mapping is defined in `sapporo/ro_crate.py` (`EDAM_MAPPING` dict). Common non-bioinformatics formats (JSON, CSV, TSV, HTML, YAML, Markdown, ZIP, gzip, plain text) are also mapped to their IANA media types.
 
+### tataki Content-Based Format Detection
+
+[tataki](https://github.com/sapporo-wes/tataki) is run in a Docker container (`ghcr.io/sapporo-wes/tataki:latest`) against all output files after the extension-based EDAM detection. tataki detects file formats by inspecting file content (magic bytes, structure analysis) rather than relying on file extensions, covering both bioinformatics formats (BAM, VCF, FASTQ, ...) and common formats (TSV, CSV, JSON, HTML, PDF, PNG, SVG).
+
+When tataki identifies a file's format, the file's `encodingFormat` is replaced with the EDAM ontology entity returned by tataki. Files that tataki cannot identify retain their original `encodingFormat` (extension-based EDAM + MIME type).
+
+This enrichment enables [tonkaz](https://github.com/sapporo-wes/tonkaz) Level 1-3 file-content comparison on typical workflow outputs. If Docker is not available or tataki fails, the enrichment is silently skipped.
+
 ## API Endpoint
 
 ### `GET /runs/{run_id}/ro-crate`
@@ -207,7 +216,8 @@ The generation flow:
 4. Build the `CreateAction` with inputs, outputs, logs, and metadata.
 5. Run MultiQC in Docker and attach statistics (skipped if Docker is unavailable).
 6. Run samtools/vcftools in Docker on applicable output files (skipped if Docker is unavailable).
-7. Write `ro-crate-metadata.json` and `README.md` to the run directory.
+7. Run tataki in Docker to enrich output files with EDAM format IDs (skipped if Docker is unavailable).
+8. Write `ro-crate-metadata.json` and `README.md` to the run directory.
 
 ## Validation
 
