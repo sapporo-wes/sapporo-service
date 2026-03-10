@@ -1,0 +1,22 @@
+# sapporo-service
+
+> GA4GH WES implementation for running bioinformatics workflows (CWL, WDL, Nextflow, Snakemake) via REST API. Each workflow engine runs in its own Docker container.
+
+## Agent use
+
+- [Agent Skill](docs/agent-skill.md): Full LLM-friendly reference — submit, poll, retrieve outputs, handle errors
+- [Quick Reference](docs/agent-quick-ref.md): Minimal cheat sheet for tight context budgets
+
+## Documentation
+
+- [Getting Started](docs/getting-started.md): Start the service, submit a workflow, retrieve results
+- [Configuration](docs/configuration.md): CLI options, environment variables, executable workflows
+- [Authentication](docs/authentication.md): JWT authentication
+- [WES Compatibility](docs/wes-compatibility.md): Differences from GA4GH WES 1.1.0
+- [Architecture](docs/architecture.md): run.sh abstraction, run directory layout, RO-Crate
+- [RO-Crate](docs/ro-crate.md): Provenance metadata format
+
+## API
+
+- [OpenAPI spec (YAML)](openapi/sapporo-wes-spec-2.1.0.yml)
+- Interactive docs available at `http://localhost:1122/docs` when the service is running
