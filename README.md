@@ -42,6 +42,7 @@ Full documentation is available at **<https://sapporo-wes.github.io/sapporo-serv
 - [Architecture](docs/architecture.md) - run.sh abstraction, run directory, SQLite, RO-Crate, code structure
 - [RO-Crate](docs/ro-crate.md) - RO-Crate metadata generation specification
 - [Development](docs/development.md) - Development environment, testing, release process
+- [Agent Skill](docs/agent-skill.md) - LLM/agent reference: submit workflows, poll status, retrieve outputs via `curl`
 
 ## License
 
