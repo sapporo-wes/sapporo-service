@@ -35,7 +35,6 @@ See the [Getting Started](docs/getting-started.md) guide for a complete walkthro
 
 Full documentation is available at **<https://sapporo-wes.github.io/sapporo-service/>**.
 
-- [Agent Skill](docs/agent-skill.md) - LLM/agent reference: submit workflows, poll status, retrieve outputs via `curl`
 - [Getting Started](docs/getting-started.md) - First-time tutorial: start the service, submit a workflow, retrieve results
 - [Installation](docs/installation.md) - Install with pip or Docker, volume mount configuration
 - [Configuration](docs/configuration.md) - CLI options, environment variables, executable workflows
@@ -43,6 +42,7 @@ Full documentation is available at **<https://sapporo-wes.github.io/sapporo-serv
 - [Architecture](docs/architecture.md) - run.sh abstraction, run directory, SQLite, RO-Crate, code structure
 - [RO-Crate](docs/ro-crate.md) - RO-Crate metadata generation specification
 - [Development](docs/development.md) - Development environment, testing, release process
+- [Agent Skill](docs/agent-skill.md) - LLM/agent reference: submit workflows, poll status, retrieve outputs via `curl`
 
 ## License
 
