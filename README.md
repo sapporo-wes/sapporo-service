@@ -38,11 +38,13 @@ Full documentation is available at **<https://sapporo-wes.github.io/sapporo-serv
 - [Getting Started](docs/getting-started.md) - First-time tutorial: start the service, submit a workflow, retrieve results
 - [Installation](docs/installation.md) - Install with pip or Docker, volume mount configuration
 - [Configuration](docs/configuration.md) - CLI options, environment variables, executable workflows
+- [WES Compatibility](docs/wes-compatibility.md) - GA4GH WES 1.1.0 and sapporo-wes 2.x compatibility matrix
 - [Authentication](docs/authentication.md) - JWT authentication, sapporo/external mode
 - [Architecture](docs/architecture.md) - run.sh abstraction, run directory, SQLite, RO-Crate, code structure
 - [RO-Crate](docs/ro-crate.md) - RO-Crate metadata generation specification
 - [Development](docs/development.md) - Development environment, testing, release process
 - [Agent Skill](docs/agent-skill.md) - LLM/agent reference: submit workflows, poll status, retrieve outputs via `curl`
+- [Agent Quick Reference](docs/agent-quick-ref.md) - Essential 4 commands in ~40 lines
 
 ## License
 

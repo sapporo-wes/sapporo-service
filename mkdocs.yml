@@ -44,6 +44,8 @@ nav:
   - Architecture: architecture.md
   - RO-Crate: ro-crate.md
   - Development: development.md
+  - Agent Skill: agent-skill.md
+  - Agent Quick Reference: agent-quick-ref.md
 
 extra:
   social:
