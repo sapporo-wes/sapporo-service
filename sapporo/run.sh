@@ -143,8 +143,13 @@ function run_snakemake() {
     fi
 
     local container="snakemake/snakemake:v9.16.3"
+    local -a extra_docker_args=()
+    if [[ -n "${SAPPORO_EXTRA_DOCKER_ARGS:-}" ]]; then
+        read -ra extra_docker_args <<< "${SAPPORO_EXTRA_DOCKER_ARGS}"
+    fi
     local -a cmd_arr=(docker run --rm
         -v "${run_dir}:${run_dir}"
+        "${extra_docker_args[@]+"${extra_docker_args[@]}"}"
         "-w=${exe_dir}"
         "${container}"
         bash -c)
