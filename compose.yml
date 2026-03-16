@@ -12,13 +12,12 @@ services:
       - SAPPORO_PORT=1122
       - SAPPORO_DEBUG=False
       - SAPPORO_RUN_DIR=${PWD}/runs
-      # Extra volume mounts passed to inner workflow containers (space-separated docker run flags).
-      # On EC2, set this to mount the data directory, e.g.:
-      #   SAPPORO_EXTRA_DOCKER_ARGS=-v /data:/data
-      - SAPPORO_EXTRA_DOCKER_ARGS=-v /Users/inutano/work/wes-test/wes-interop-demo:/Users/inutano/work/wes-test/wes-interop-demo
+      # Optional: pass extra docker run flags to inner workflow containers.
+      # Use this to mount data directories that workflows need to read.
+      # Example: SAPPORO_EXTRA_DOCKER_ARGS=-v /data:/data
+      # - SAPPORO_EXTRA_DOCKER_ARGS=
     volumes:
       - ${PWD}/runs:${PWD}/runs:rw
-      - ${PWD}/sapporo/run.sh:/app/sapporo/run.sh:ro
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - 127.0.0.1:1122:1122
