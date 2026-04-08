@@ -50,6 +50,7 @@ function run_cwltool() {
         -e DOCKER_API_VERSION=1.44
         -v /tmp:/tmp
         -v "${run_dir}:${run_dir}"
+        "${extra_docker_args[@]+"${extra_docker_args[@]}"}"
         "-w=${exe_dir}"
         "${container}"
         --outdir "${outputs_dir}")
@@ -81,6 +82,7 @@ NFCFG
         -e "NXF_HOME=${nxf_home}"
         -e "NXF_ASSETS=${nxf_home}/assets"
         -v "${run_dir}:${run_dir}"
+        "${extra_docker_args[@]+"${extra_docker_args[@]}"}"
         "-w=${exe_dir}"
         "${container}"
         nextflow run "${wf_url}" -c "${nf_config}")
@@ -96,6 +98,7 @@ function run_toil() {
         -e DOCKER_HOST=unix:///var/run/docker.sock
         -e DOCKER_API_VERSION=1.44
         -v "${run_dir}:${run_dir}"
+        "${extra_docker_args[@]+"${extra_docker_args[@]}"}"
         "-w=${exe_dir}"
         -e "TOIL_WORKDIR=${exe_dir}"
         "${container}"
@@ -112,6 +115,7 @@ function run_cromwell() {
         -e DOCKER_HOST=unix:///var/run/docker.sock
         -v /tmp:/tmp
         -v "${run_dir}:${run_dir}"
+        "${extra_docker_args[@]+"${extra_docker_args[@]}"}"
         "-w=${exe_dir}"
         "${container}"
         run)
@@ -145,6 +149,7 @@ function run_snakemake() {
     local container="snakemake/snakemake:v9.16.3"
     local -a cmd_arr=(docker run --rm
         -v "${run_dir}:${run_dir}"
+        "${extra_docker_args[@]+"${extra_docker_args[@]}"}"
         "-w=${exe_dir}"
         "${container}"
         bash -c)
@@ -183,6 +188,7 @@ function run_ep3() {
         -e DOCKER_API_VERSION=1.44
         -v /tmp:/tmp
         -v "${run_dir}:${run_dir}"
+        "${extra_docker_args[@]+"${extra_docker_args[@]}"}"
         "-w=${exe_dir}"
         "${container}"
         ep3-runner --verbose --outdir "${outputs_dir}")
@@ -205,6 +211,7 @@ function run_streamflow() {
         -v "${docker_stage}:/usr/bin/docker:ro"
         -v /tmp:/tmp
         -v "${run_dir}:${run_dir}"
+        "${extra_docker_args[@]+"${extra_docker_args[@]}"}"
         "-w=${exe_dir}"
         "${container}"
         cwl-runner --outdir "${outputs_dir}")
@@ -259,7 +266,11 @@ wf_engine=$(jq -r ".workflow_engine" "${run_request}")
 wf_url=$(jq -r ".workflow_url" "${run_request}")
 wf_engine_params=$(head -n 1 "${wf_engine_params_file}")
 
-# Docker command settings are now defined per-engine in each run_* function
+# Parse SAPPORO_EXTRA_DOCKER_ARGS once for all engines
+extra_docker_args=()
+if [[ -n "${SAPPORO_EXTRA_DOCKER_ARGS:-}" ]]; then
+    read -ra extra_docker_args <<< "${SAPPORO_EXTRA_DOCKER_ARGS}"
+fi
 
 function generate_outputs_list() {
     sapporo-cli dump-outputs "${run_dir}" || { executor_error $?; }
