@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from sapporo.config import RunDirStructureKeys
 
 import magic
-from fastapi import UploadFile
+from fastapi import HTTPException, UploadFile
 from pydantic import BaseModel, TypeAdapter
 from rocrate.model.computationalworkflow import ComputationalWorkflow
 from rocrate.model.computerlanguage import LANG_MAP, ComputerLanguage
@@ -29,7 +29,15 @@ from rocrate.utils import get_norm_value
 
 from sapporo.config import RUN_DIR_STRUCTURE
 from sapporo.schemas import FileObject, RunRequestForm
-from sapporo.utils import read_run_dir_file, tail_file
+from sapporo.utils import (
+    inside_run_dir,
+    open_run_file_for_write,
+    read_run_dir_file,
+    resolve_within_run,
+    secure_filepath,
+    tail_file,
+    walk_within_run,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -358,11 +366,11 @@ def add_workflow_entity(crate: ROCrate, run_dir: Path, run_request: RunRequestFo
     if wf_url_parts.scheme in ["http", "https"]:
         wf_ins = ComputationalWorkflow(crate, wf_url)
     else:
-        try:
-            wf_file_path = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], wf_url).resolve(strict=True)
-            wf_ins = ComputationalWorkflow(crate, wf_file_path, wf_file_path.relative_to(run_dir))
-        except FileNotFoundError:
+        wf_file_path = resolve_within_run(run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], wf_url), run_dir)
+        if wf_file_path is None:
             wf_ins = ComputationalWorkflow(crate, wf_url)
+        else:
+            wf_ins = ComputationalWorkflow(crate, wf_file_path, wf_file_path.relative_to(run_dir))
 
     crate.add(wf_ins)
     crate.mainEntity = wf_ins
@@ -492,18 +500,16 @@ def add_input_parameters(
     run_request: RunRequestForm,
 ) -> None:
     """Add input parameters (from workflow_params.json) as FormalParameter + PropertyValue."""
-    wf_params_path = run_dir.joinpath(RUN_DIR_STRUCTURE["wf_params"])
-    if not wf_params_path.exists():
+    raw_content = read_run_dir_file(run_dir, "wf_params", raw=True)
+    if raw_content is None:
         return
 
     try:
-        with wf_params_path.open("r", encoding="utf-8") as f:
-            params = json.load(f)
-    except (json.JSONDecodeError, OSError):
+        params = json.loads(raw_content)
+    except json.JSONDecodeError:
         params = None
 
     if not isinstance(params, dict):
-        raw_content = read_run_dir_file(run_dir, "wf_params", raw=True) or ""
         fp = _make_formal_parameter(crate, "#param-input-params", "workflow_params", "Text")
         wf.append_to("input", fp, compact=True)
         pv = ContextEntity(
@@ -568,7 +574,9 @@ def add_input_file_entities(
     main_wf_id = crate.mainEntity["@id"]
 
     for attached_file in run_request.workflow_attachment:
-        source = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], str(attached_file.filename))
+        source = _attachment_source(run_dir, str(attached_file.filename))
+        if source is None:
+            continue
         dest = source.relative_to(run_dir)
         if str(dest) == str(main_wf_id):
             continue
@@ -584,7 +592,9 @@ def add_input_file_entities(
         action.append_to("object", file_ins, compact=True)
 
     for attached_item in run_request.workflow_attachment_obj:
-        source = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], attached_item.file_name)
+        source = _attachment_source(run_dir, attached_item.file_name)
+        if source is None:
+            continue
         dest = source.relative_to(run_dir)
         if str(dest) == str(main_wf_id):
             continue
@@ -600,6 +610,23 @@ def add_input_file_entities(
         action.append_to("object", file_ins, compact=True)
 
 
+def _attachment_source(run_dir: Path, file_name: str) -> Path | None:
+    """Where write_wf_attachment() and download_wf_attachment() stored the attachment under exe/.
+
+    The attachment is left out when its name has no usable path component, or when the file was
+    replaced by a symlink to a target outside the run directory.
+    """
+    try:
+        source = run_dir.joinpath(RUN_DIR_STRUCTURE["exe_dir"], secure_filepath(file_name))
+    except HTTPException:
+        LOGGER.warning("Leaving attachment %r out of the crate: its name has no usable path component", file_name)
+        return None
+    if source.exists() and not inside_run_dir(source, run_dir):
+        LOGGER.warning("Leaving attachment %r out of the crate: it points outside the run directory", file_name)
+        return None
+    return source
+
+
 outputs_adapter = TypeAdapter(list[FileObject])
 
 
@@ -613,15 +640,12 @@ def add_output_file_entities(
     outputs = outputs_adapter.validate_python(read_run_dir_file(run_dir, "outputs") or [])
     outputs_dir_path = run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"])
 
-    for source in sorted(outputs_dir_path.glob("**/*")):
-        if source.is_dir():
-            continue
-
-        try:
-            file_apath = source.resolve(strict=True)
-            # A symlink whose target lies outside the run directory is not part of the crate
-            file_apath.relative_to(run_dir)
-        except (OSError, RuntimeError, ValueError):
+    sources = sorted(
+        current / name for current, _, files in walk_within_run(outputs_dir_path, run_dir) for name in files
+    )
+    for source in sources:
+        file_apath = resolve_within_run(source, run_dir)
+        if file_apath is None:
             continue
         # The entity keeps its path under outputs/, which is also what outputs.json and tataki use
         file_rpath = source.relative_to(run_dir)
@@ -657,7 +681,8 @@ def add_log_file_entities(crate: ROCrate, action: ContextEntity, run_dir: Path) 
     ]
     for key, name in log_files:
         source = run_dir.joinpath(RUN_DIR_STRUCTURE[key])
-        if source.exists() is False:
+        # A control file that the workflow replaced by a symlink would expose its target, so it is left out
+        if source.is_symlink() or not source.is_file():
             continue
         dest = source.relative_to(run_dir)
         file_ins = File(crate, source, dest, properties={"name": name})
@@ -837,7 +862,8 @@ def add_multiqc_stats(crate: ROCrate, run_dir: Path, create_action_ins: ContextE
         shutil.move(str(multiqc_data_dir / "multiqc_general_stats.json"), str(multiqc_stats))
         shutil.rmtree(str(multiqc_data_dir))
 
-    if not multiqc_stats.exists():
+    # A file that the workflow replaced by a symlink would expose its target, so it is left out
+    if multiqc_stats.is_symlink() or not multiqc_stats.is_file():
         return
 
     file_ins = File(
@@ -1052,7 +1078,11 @@ def add_tataki_edam(crate: ROCrate, run_dir: Path) -> None:
     if not outputs_dir.exists():
         return
 
-    rel_paths = [p.relative_to(outputs_dir) for p in outputs_dir.glob("**/*") if p.is_file()]
+    rel_paths = sorted(
+        (current / name).relative_to(outputs_dir)
+        for current, _, files in walk_within_run(outputs_dir, run_dir)
+        for name in files
+    )
     if not rel_paths:
         return
 
@@ -1183,12 +1213,9 @@ def generate_ro_crate(inputted_run_dir: str) -> None:
 
     runtime_info = read_run_dir_file(run_dir, "runtime_info")
     run_id = runtime_info["run_id"] if isinstance(runtime_info, dict) and "run_id" in runtime_info else run_dir.name
-    readme_path = run_dir / "README.md"
-    readme_path.write_text(
-        f"# Sapporo WES run {run_id}\n\nRO-Crate for workflow run `{run_id}` executed by Sapporo WES.\n",
-        encoding="utf-8",
-    )
+    with open_run_file_for_write(run_dir / "README.md") as f:
+        f.write(f"# Sapporo WES run {run_id}\n\nRO-Crate for workflow run `{run_id}` executed by Sapporo WES.\n")
 
     jsonld = generate_ro_crate_metadata(run_dir)
-    with run_dir.joinpath("ro-crate-metadata.json").open(mode="w", encoding="utf-8") as f:
+    with open_run_file_for_write(run_dir.joinpath("ro-crate-metadata.json")) as f:
         json.dump(jsonld, f, indent=2, sort_keys=True)

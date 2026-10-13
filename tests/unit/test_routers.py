@@ -424,6 +424,24 @@ class TestRunWorkflow:
 
 
 class TestGetRunLog:
+    def test_symlinked_log_is_returned_as_null(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        from sapporo.config import RUN_DIR_STRUCTURE
+
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        run_id = "aabbccdd-0000-0000-0000-000000000703"
+        rd = create_run_dir(tmp_path, run_id, stdout_content="real", stderr_content="err")
+        secret = tmp_path / "secret.txt"
+        secret.write_text("secret", encoding="utf-8")
+        stdout = rd / RUN_DIR_STRUCTURE["stdout"]
+        stdout.unlink()
+        stdout.symlink_to(secret)
+
+        res = client.get(f"/runs/{run_id}")
+
+        assert res.status_code == 200
+        assert res.json()["run_log"]["stdout"] is None
+        assert res.json()["run_log"]["stderr"] == "err"
+
     def test_existing_run_returns_200(self, mocker: "MockerFixture", tmp_path: Path) -> None:
         client = _client_with_mock_run_tasks(mocker, tmp_path)
         run_id = "aabbccdd-0000-0000-0000-000000000701"

@@ -770,7 +770,7 @@ def test_list_files_returns_all_files_recursively(tmp_path: Path) -> None:
     subdir.mkdir()
     (subdir / "b.txt").write_text("b", encoding="utf-8")
 
-    result = list(list_files(tmp_path))
+    result = list(list_files(tmp_path, tmp_path))
     names = {f.name for f in result}
     assert names == {"a.txt", "b.txt"}
 
@@ -778,7 +778,7 @@ def test_list_files_returns_all_files_recursively(tmp_path: Path) -> None:
 def test_list_files_empty_dir_returns_empty(tmp_path: Path) -> None:
     from sapporo.run import list_files
 
-    result = list(list_files(tmp_path))
+    result = list(list_files(tmp_path, tmp_path))
     assert result == []
 
 
@@ -1648,6 +1648,72 @@ def test_fork_run_passes_cancel_grace_seconds_to_run_sh(mocker: "MockerFixture",
 
 
 # === cancel / delete while attachments are downloading (INITIALIZING) ===
+
+
+def _publish_symlinked_dirs(tmp_path: Path, run_id: str) -> None:
+    """Add outputs/published -> exe/work (inside the run) and outputs/leak -> tmp_path/secret (outside)."""
+    from sapporo.run import resolve_content_path
+
+    outputs_dir = resolve_content_path(run_id, "outputs_dir")
+    work = resolve_content_path(run_id, "exe_dir") / "work"
+    work.mkdir()
+    (work / "a.txt").write_text("a", encoding="utf-8")
+    (outputs_dir / "published").symlink_to(work)
+    secret_dir = tmp_path / "secret"
+    secret_dir.mkdir()
+    (secret_dir / "s.txt").write_text("s", encoding="utf-8")
+    (outputs_dir / "leak").symlink_to(secret_dir)
+
+
+def test_dump_outputs_list_follows_symlinked_directory_only_inside_run_dir(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import dump_outputs_list, read_file, resolve_run_dir
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f23"
+    create_run_dir(tmp_path, run_id, output_files={"result.txt": "hello"})
+    _publish_symlinked_dirs(tmp_path, run_id)
+
+    dump_outputs_list(resolve_run_dir(run_id))
+
+    names = {o["file_name"] for o in read_file(run_id, "outputs")}
+    assert names == {"result.txt", "published/a.txt"}
+
+
+def test_outputs_zip_stream_follows_symlinked_directory_only_inside_run_dir(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import outputs_zip_stream
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f24"
+    create_run_dir(tmp_path, run_id, output_files={"result.txt": "hello"})
+    _publish_symlinked_dirs(tmp_path, run_id)
+
+    stream, content_length = outputs_zip_stream(run_id)
+    data = b"".join(stream)
+
+    assert content_length == len(data)
+    with zipfile.ZipFile(BytesIO(data)) as zf:
+        names = {name.split("/", 1)[1] for name in zf.namelist()}
+    assert names == {"result.txt", "published/a.txt"}
+
+
+def test_dump_outputs_list_rejects_symlinked_runtime_info(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import dump_outputs_list, resolve_content_path, resolve_run_dir
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f25"
+    create_run_dir(tmp_path, run_id)
+    other = tmp_path / "other.json"
+    other.write_text(json.dumps({"run_id": run_id, "base_url": "http://evil"}), encoding="utf-8")
+    runtime_info = resolve_content_path(run_id, "runtime_info")
+    runtime_info.unlink()
+    runtime_info.symlink_to(other)
+
+    with pytest.raises(TypeError):
+        dump_outputs_list(resolve_run_dir(run_id))
 
 
 def test_fork_run_canceling_does_not_start_run_sh(mocker: "MockerFixture", tmp_path: Path) -> None:

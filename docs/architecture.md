@@ -138,7 +138,7 @@ runs/
 |---|---|
 | `run_request.json` | Original run request (workflow URL, engine, parameters) |
 | `username.txt` | Owner of the run. Written when authentication is enabled |
-| `state.txt` | Current run state (e.g., `RUNNING`, `COMPLETE`). Read as `UNKNOWN` when the file is missing or does not contain a valid state |
+| `state.txt` | Current run state (e.g., `RUNNING`, `COMPLETE`). Read as `UNKNOWN` when the file is missing, is not a regular file, or does not contain a valid state |
 | `exe/` | Execution directory (working directory for the workflow engine) |
 | `exe/workflow_params.json` | Workflow parameters |
 | `outputs/` | Output files produced by the workflow |
@@ -153,6 +153,18 @@ runs/
 | `workflow_engine_params.txt` | Engine-specific parameters |
 | `ro-crate-metadata.json` / `README.md` | RO-Crate metadata and its README, written after the run ends (see [RO-Crate](ro-crate.md)) |
 | `multiqc_general_stats.json` | MultiQC statistics, written during RO-Crate generation when MultiQC finds supported tool outputs |
+
+sapporo reads each file in this table only when it is a regular file. See [Trust Boundary](#trust-boundary).
+
+### Trust Boundary
+
+The bundled `run.sh` mounts the whole run directory into the engine container with read-write access. Everything that the workflow starts can therefore read and write every file in the run directory, including the control files that sapporo reads.
+
+The `run.sh` that the administrator deploys decides what the engine container can reach. The bundled `run_<engine>()` functions for cwltool, nextflow, toil, cromwell, ep3 and streamflow also pass the Docker socket to the engine container, so a workflow on one of these engines has the same access to the host as the sapporo service itself. The snakemake function does not pass the socket, so for snakemake the run directory mount is the only path from the workflow back to the service.
+
+sapporo reads a control file only when it is a regular file. The files in the table above are opened with `O_NOFOLLOW`, and a symlink, a FIFO or a directory in their place is logged and treated as missing. A symlinked `state.txt` is reported as `UNKNOWN`, and a symlinked `stdout.log` is returned as `null` in `GET /runs/{run_id}` and left out of the RO-Crate. When sapporo or the bundled `run.sh` writes a control file, it replaces a symlink by a regular file instead of writing through it. Files under `outputs/` and `exe/` follow a different rule: a symlink is accepted when its target lies inside the run directory (see [Output File Download](configuration.md#output-file-download)).
+
+The workflow can still write `state.txt` and the other control files, and sapporo believes their content. This affects only the run that the workflow belongs to.
 
 ## Reconciliation
 

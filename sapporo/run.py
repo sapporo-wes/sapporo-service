@@ -41,7 +41,16 @@ __all__ = [
     "write_file",
 ]
 from sapporo.schemas import RunRequestForm, State
-from sapporo.utils import now_str, secure_filepath, user_agent, validate_url_not_metadata_service
+from sapporo.utils import (
+    inside_run_dir,
+    now_str,
+    open_run_file_for_write,
+    read_run_dir_file,
+    secure_filepath,
+    user_agent,
+    validate_url_not_metadata_service,
+    walk_within_run,
+)
 from sapporo.validator import validate_wf_engine_param_token
 
 LOGGER = logging.getLogger(__name__)
@@ -379,26 +388,29 @@ def append_system_logs(run_id: str, log: str) -> None:
 # Called from run.sh
 def dump_outputs_list(run_dir: str | Path) -> None:
     run_dir = Path(run_dir).resolve()
-    with run_dir.joinpath(RUN_DIR_STRUCTURE["runtime_info"]).open(mode="r", encoding="utf-8") as f:
-        runtime_info = json.load(f)
+    runtime_info = read_run_dir_file(run_dir, "runtime_info")
+    if not isinstance(runtime_info, dict):
+        msg = f"runtime_info.json is missing or is not a JSON object in {run_dir}"
+        raise TypeError(msg)
     run_id = runtime_info.get("run_id", run_dir.name)
     base_url = runtime_info["base_url"]
     outputs_dir = run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"])
-    output_files = sorted(list_files(outputs_dir))
+    output_files = sorted(list_files(outputs_dir, run_dir))
     outputs = []
     for file in output_files:
         file_name = str(file.relative_to(outputs_dir))
         # The URL must round-trip names with spaces, "+" and other reserved characters
         file_url = f"{base_url}/runs/{run_id}/outputs/{parse.quote(file_name)}"
         outputs.append({"file_name": file_name, "file_url": file_url})
-    with run_dir.joinpath(RUN_DIR_STRUCTURE["outputs"]).open(mode="w", encoding="utf-8") as f:
+    with open_run_file_for_write(run_dir.joinpath(RUN_DIR_STRUCTURE["outputs"])) as f:
         json.dump(outputs, f, indent=2)
 
 
-def list_files(dir_: Path) -> Iterable[Path]:
-    for root, _, files in os.walk(dir_):
-        for file in files:
-            yield Path(root).joinpath(file)
+def list_files(dir_: Path, run_dir: Path) -> Iterable[Path]:
+    """Files under dir_, following symlinks only inside the run directory."""
+    for current, _, files in walk_within_run(dir_, run_dir):
+        for name in files:
+            yield current / name
 
 
 def cancel_run_task(run_id: str) -> None:
@@ -491,16 +503,6 @@ def _sync_run_db(run_id: str) -> None:
         LOGGER.warning("Could not update the run index after deleting run %s: %s", run_id, e)
 
 
-def _inside_run_dir(path: Path, run_dir: Path) -> bool:
-    """Whether the file that path refers to (symlinks followed) lies inside the run directory."""
-    try:
-        real_path = path.resolve(strict=True)
-    except (OSError, RuntimeError):
-        return False
-
-    return real_path.is_relative_to(run_dir)
-
-
 def resolve_output_file(run_id: str, path: str) -> Path:
     """Map a requested output path to the file to serve.
 
@@ -514,7 +516,7 @@ def resolve_output_file(run_id: str, path: str) -> Path:
     file_path = resolve_content_path(run_id, "outputs_dir").joinpath(*parts)
     if not file_path.exists() and not file_path.is_symlink():
         raise_not_found("File", path)
-    if not _inside_run_dir(file_path, resolve_run_dir(run_id)):
+    if not inside_run_dir(file_path, resolve_run_dir(run_id)):
         raise_bad_request(f"Invalid file path: {path!r}")
     if not file_path.is_file():
         raise_not_found("File", path)
@@ -525,17 +527,12 @@ def resolve_output_file(run_id: str, path: str) -> Path:
 def _zip_stream_within_run(root: Path, arcname: str, run_dir: Path) -> tuple[Iterable[bytes], int]:
     """Zip a directory tree, leaving out files whose target lies outside the run directory."""
     zs = ZipStream(sized=True)
-    for current, dirs, files in os.walk(root):
-        current_path = Path(current)
+    for current_path, dirs, files in walk_within_run(root, run_dir):
         current_arcname = Path(arcname) / current_path.relative_to(root)
         if not dirs and not files:
             zs.add_path(current_path, arcname=str(current_arcname), recurse=False)
         for name in files:
-            file_path = current_path / name
-            if not _inside_run_dir(file_path, run_dir):
-                LOGGER.warning("Leaving %s out of the archive: it points outside the run directory", file_path)
-                continue
-            zs.add_path(file_path, arcname=str(current_arcname / name))
+            zs.add_path(current_path / name, arcname=str(current_arcname / name))
 
     return iter(zs), len(zs)
 

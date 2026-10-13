@@ -1,3 +1,5 @@
+import logging
+import os
 import socket
 from datetime import UTC, datetime
 from pathlib import Path
@@ -12,11 +14,14 @@ from sapporo.utils import (
     dt_to_time_str,
     mask_sensitive,
     now_str,
+    open_run_file,
+    open_run_file_for_write,
     sapporo_version,
     secure_filepath,
     tail_file,
     time_str_to_dt,
     validate_url_not_metadata_service,
+    walk_within_run,
 )
 
 # === now_str ===
@@ -319,3 +324,121 @@ def test_validate_url_non_http_scheme_is_blocked(url: str) -> None:
 def test_validate_url_dns_resolution_failure_passes() -> None:
     with patch("sapporo.utils.socket.getaddrinfo", side_effect=socket.gaierror("DNS failed")):
         validate_url_not_metadata_service("http://nonexistent.example.com/file.txt")
+
+
+# === open_run_file / open_run_file_for_write ===
+
+
+def test_open_run_file_reads_regular_file(tmp_path: Path) -> None:
+    path = tmp_path / "state.txt"
+    path.write_text("RUNNING", encoding="utf-8")
+
+    f = open_run_file(path)
+
+    assert f is not None
+    with f:
+        assert f.read() == "RUNNING"
+
+
+def test_open_run_file_with_missing_file_returns_none(tmp_path: Path) -> None:
+    assert open_run_file(tmp_path / "missing.txt") is None
+
+
+def test_open_run_file_with_symlink_returns_none_and_warns(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    secret = tmp_path / "secret.txt"
+    secret.write_text("secret", encoding="utf-8")
+    link = tmp_path / "stdout.log"
+    link.symlink_to(secret)
+
+    with caplog.at_level(logging.WARNING, logger="sapporo.utils"):
+        assert open_run_file(link) is None
+
+    assert "stdout.log" in caplog.text
+
+
+def test_open_run_file_with_directory_returns_none(tmp_path: Path) -> None:
+    assert open_run_file(tmp_path) is None
+
+
+def test_open_run_file_with_fifo_returns_none_without_blocking(tmp_path: Path) -> None:
+    fifo = tmp_path / "stderr.log"
+    os.mkfifo(fifo)
+
+    assert open_run_file(fifo) is None
+
+
+def test_open_run_file_for_write_replaces_symlink_and_keeps_target(tmp_path: Path) -> None:
+    target = tmp_path / "target.txt"
+    target.write_text("original", encoding="utf-8")
+    link = tmp_path / "state.txt"
+    link.symlink_to(target)
+
+    with open_run_file_for_write(link) as f:
+        f.write("COMPLETE")
+
+    assert not link.is_symlink()
+    assert link.read_text(encoding="utf-8") == "COMPLETE"
+    assert target.read_text(encoding="utf-8") == "original"
+
+
+def test_open_run_file_for_write_creates_and_truncates_regular_file(tmp_path: Path) -> None:
+    path = tmp_path / "state.txt"
+
+    with open_run_file_for_write(path) as f:
+        f.write("QUEUED")
+    with open_run_file_for_write(path) as f:
+        f.write("RUNNING")
+
+    assert path.read_text(encoding="utf-8") == "RUNNING"
+
+
+# === walk_within_run ===
+
+
+def _walked_files(root: Path, run_dir: Path) -> set[str]:
+    return {
+        str((current / name).relative_to(root))
+        for current, _, files in walk_within_run(root, run_dir)
+        for name in files
+    }
+
+
+def test_walk_within_run_follows_symlinked_directory_inside_run_dir(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    outputs = run_dir / "outputs"
+    work = run_dir / "exe" / "work"
+    work.mkdir(parents=True)
+    outputs.mkdir()
+    (work / "a.txt").write_text("a", encoding="utf-8")
+    (outputs / "published").symlink_to(work)
+
+    assert _walked_files(outputs, run_dir) == {"published/a.txt"}
+
+
+def test_walk_within_run_leaves_out_symlinked_directory_and_file_outside_run_dir(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    outputs = run_dir / "outputs"
+    outputs.mkdir(parents=True)
+    (outputs / "ok.txt").write_text("ok", encoding="utf-8")
+    secret_dir = tmp_path / "secret"
+    secret_dir.mkdir()
+    (secret_dir / "s.txt").write_text("s", encoding="utf-8")
+    (outputs / "leak_dir").symlink_to(secret_dir)
+    (outputs / "leak.txt").symlink_to(secret_dir / "s.txt")
+
+    assert _walked_files(outputs, run_dir) == {"ok.txt"}
+
+
+def test_walk_within_run_visits_a_symlink_loop_once(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    outputs = run_dir / "outputs"
+    sub = outputs / "sub"
+    sub.mkdir(parents=True)
+    (sub / "b.txt").write_text("b", encoding="utf-8")
+    (sub / "loop").symlink_to(outputs)
+
+    assert _walked_files(outputs, run_dir) == {"sub/b.txt"}
+
+
+def test_walk_within_run_with_missing_root_yields_nothing(tmp_path: Path) -> None:
+    assert list(walk_within_run(tmp_path / "missing", tmp_path)) == []

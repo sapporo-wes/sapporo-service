@@ -14,7 +14,7 @@ from pydantic import ValidationError
 
 from sapporo.config import RUN_DIR_STRUCTURE, RunDirStructureKeys, get_config
 from sapporo.schemas import RunRequest, State
-from sapporo.utils import sapporo_version
+from sapporo.utils import open_run_file, open_run_file_for_write, sapporo_version
 
 LOGGER = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ def resolve_content_path(run_id: str, key: RunDirStructureKeys) -> Path:
 def write_file(run_id: str, key: RunDirStructureKeys, content: Any) -> None:
     file = resolve_content_path(run_id, key)
     file.parent.mkdir(parents=True, exist_ok=True)
-    with file.open(mode="w", encoding="utf-8") as f:
+    with open_run_file_for_write(file) as f:
         if file.suffix == ".json":
             if key == "wf_params" and isinstance(content, str):
                 pass
@@ -51,12 +51,12 @@ def read_file(run_id: str, key: RunDirStructureKeys) -> Any:
 
     if "dir" in key:
         return None
-    file_path = resolve_content_path(run_id, key)
-    if file_path.exists() is False:
+    # Engine logs are not guaranteed to be UTF-8; unreadable bytes are replaced instead of failing the request
+    f = open_run_file(resolve_content_path(run_id, key), errors="replace")
+    if f is None:
         return None
 
-    # Engine logs are not guaranteed to be UTF-8; unreadable bytes are replaced instead of failing the request
-    with file_path.open(mode="r", encoding="utf-8", errors="replace") as f:
+    with f:
         content = f.read().strip()
         # Special handling for specific keys
         if key == "run_request":
@@ -96,12 +96,13 @@ def _parse_int(content: str) -> int | None:
 
 
 def read_state(run_id: str) -> State:
-    """Read state.txt. A missing file or a value that is not a State is reported as UNKNOWN."""
-    try:
-        with resolve_content_path(run_id, "state").open(mode="r", encoding="utf-8") as f:
-            return State(f.read().strip())
-    except FileNotFoundError:
+    """Read state.txt. A missing file, a file that is not a regular file, or a value that is not a State is reported as UNKNOWN."""
+    f = open_run_file(resolve_content_path(run_id, "state"))
+    if f is None:
         return State.UNKNOWN
+    try:
+        with f:
+            return State(f.read().strip())
     except ValueError as e:
         LOGGER.warning("Treating state.txt that cannot be parsed as UNKNOWN: run_id=%s, error=%s", run_id, e)
         return State.UNKNOWN

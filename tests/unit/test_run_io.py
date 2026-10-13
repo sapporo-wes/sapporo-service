@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -351,3 +352,52 @@ class TestReadFileToleratesEngineOutput:
         create_run_dir(tmp_path, rid, cmd="docker run --name it's wf.cwl")
 
         assert read_file(rid, "cmd") == ["docker", "run", "--name", "it's", "wf.cwl"]
+
+
+class TestControlFileReplacedBySymlink:
+    def test_read_file_ignores_symlinked_log(
+        self, mocker: "MockerFixture", tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        mock_get_config(mocker, AppConfig(run_dir=tmp_path))
+        rid = "aabbccdd-0000-0000-0000-000000000090"
+        rd = create_run_dir(tmp_path, rid, stdout_content="real")
+        secret = tmp_path / "secret.txt"
+        secret.write_text("secret", encoding="utf-8")
+        log = rd / RUN_DIR_STRUCTURE["stdout"]
+        log.unlink()
+        log.symlink_to(secret)
+
+        with caplog.at_level(logging.WARNING, logger="sapporo.utils"):
+            assert read_file(rid, "stdout") is None
+
+        assert "stdout.log" in caplog.text
+
+    def test_read_state_reports_symlink_as_unknown(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        mock_get_config(mocker, AppConfig(run_dir=tmp_path))
+        rid = "aabbccdd-0000-0000-0000-000000000091"
+        rd = create_run_dir(tmp_path, rid, state="RUNNING")
+        other = tmp_path / "other.txt"
+        other.write_text("COMPLETE", encoding="utf-8")
+        state = rd / RUN_DIR_STRUCTURE["state"]
+        state.unlink()
+        state.symlink_to(other)
+
+        assert read_state(rid) == State.UNKNOWN
+
+    def test_write_file_replaces_symlinked_state_and_keeps_target(
+        self, mocker: "MockerFixture", tmp_path: Path
+    ) -> None:
+        mock_get_config(mocker, AppConfig(run_dir=tmp_path))
+        rid = "aabbccdd-0000-0000-0000-000000000092"
+        rd = create_run_dir(tmp_path, rid, state="RUNNING")
+        target = tmp_path / "target.txt"
+        target.write_text("original", encoding="utf-8")
+        state = rd / RUN_DIR_STRUCTURE["state"]
+        state.unlink()
+        state.symlink_to(target)
+
+        write_file(rid, "state", State.CANCELING)
+
+        assert not state.is_symlink()
+        assert read_state(rid) == State.CANCELING
+        assert target.read_text(encoding="utf-8") == "original"

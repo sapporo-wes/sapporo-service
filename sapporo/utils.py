@@ -1,16 +1,23 @@
+import errno
 import importlib.metadata
 import ipaddress
 import json
+import logging
+import os
 import re
 import socket
+import stat
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import IO, TYPE_CHECKING, Any
 from unicodedata import normalize
 from urllib.parse import urlparse
 
 if TYPE_CHECKING:
     from sapporo.config import RunDirStructureKeys
+
+LOGGER = logging.getLogger(__name__)
 
 
 def inside_docker() -> bool:
@@ -38,17 +45,114 @@ def user_agent() -> str:
     return f"sapporo/{sapporo_version()}"
 
 
+def open_run_file(path: Path, *, binary: bool = False, errors: str | None = None) -> IO[Any] | None:
+    """Open a file of a run directory for reading.
+
+    Return None when the file does not exist or is not a regular file. The engine container can
+    write anywhere in the run directory, so a control file may have been replaced by a symlink to a
+    file that only the server can read, or by a FIFO that blocks the reader. O_NOFOLLOW refuses a
+    symlink when the file is opened and fstat refuses everything else, so there is no window
+    between a check and the open.
+    """
+    flags = os.O_RDONLY | os.O_NONBLOCK | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+    try:
+        fd = os.open(path, flags)
+    except FileNotFoundError:
+        return None
+    except OSError as e:
+        if e.errno in (errno.ELOOP, errno.ENXIO):
+            LOGGER.warning("Ignoring %s: it is a symlink or a socket, not a regular file", path)
+            return None
+        raise
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            LOGGER.warning("Ignoring %s: it is not a regular file", path)
+            os.close(fd)
+            return None
+    except OSError:
+        os.close(fd)
+        raise
+    if binary:
+        return os.fdopen(fd, "rb")
+    return os.fdopen(fd, "r", encoding="utf-8", errors=errors)
+
+
+def open_run_file_for_write(path: Path) -> IO[str]:
+    """Open a file of a run directory for writing, replacing a symlink instead of following it.
+
+    The engine container can replace a control file by a symlink to any file the server can write,
+    and a plain open would then overwrite that file.
+    """
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+    try:
+        fd = os.open(path, flags, 0o666)
+    except OSError as e:
+        if e.errno != errno.ELOOP:
+            raise
+        LOGGER.warning("Replacing the symlink %s by a regular file", path)
+        path.unlink()
+        fd = os.open(path, flags, 0o666)
+    return os.fdopen(fd, "w", encoding="utf-8")
+
+
+def resolve_within_run(path: Path, run_dir: Path) -> Path | None:
+    """Return the real path of path (symlinks followed) when it exists and lies inside the run directory, else None."""
+    try:
+        real_path = path.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    return real_path if real_path.is_relative_to(run_dir) else None
+
+
+def inside_run_dir(path: Path, run_dir: Path) -> bool:
+    """Whether the file that path refers to (symlinks followed) lies inside the run directory."""
+    return resolve_within_run(path, run_dir) is not None
+
+
+def walk_within_run(root: Path, run_dir: Path) -> Iterator[tuple[Path, list[str], list[str]]]:
+    """Walk a directory tree like os.walk, following only symlinks whose target lies inside the run directory.
+
+    A directory is entered once, so a symlink loop ends the descent instead of repeating it. A file
+    whose target lies outside the run directory is left out. Names are sorted, so the result does
+    not depend on the order in which the filesystem lists them.
+    """
+    real_root = resolve_within_run(root, run_dir)
+    if real_root is None:
+        return
+    visited = {real_root}
+    for current, dirs, files in os.walk(root, followlinks=True):
+        current_path = Path(current)
+        kept_dirs: list[str] = []
+        for name in sorted(dirs):
+            real_child = resolve_within_run(current_path / name, run_dir)
+            if real_child is None:
+                LOGGER.warning("Leaving %s out: it points outside the run directory", current_path / name)
+                continue
+            if real_child in visited:
+                continue
+            visited.add(real_child)
+            kept_dirs.append(name)
+        dirs[:] = kept_dirs
+        kept_files: list[str] = []
+        for name in sorted(files):
+            if inside_run_dir(current_path / name, run_dir):
+                kept_files.append(name)
+            else:
+                LOGGER.warning("Leaving %s out: it points outside the run directory", current_path / name)
+        yield current_path, kept_dirs, kept_files
+
+
 def read_run_dir_file(run_dir: Path, key: "RunDirStructureKeys", one_line: bool = False, raw: bool = False) -> Any:
     """Read a file from a run directory by its RUN_DIR_STRUCTURE key."""
     from sapporo.config import RUN_DIR_STRUCTURE
 
     if "dir" in key:
         return None
-    file_path = run_dir / RUN_DIR_STRUCTURE[key]
-    if not file_path.is_file():
+    f = open_run_file(run_dir / RUN_DIR_STRUCTURE[key])
+    if f is None:
         return None
 
-    with file_path.open(mode="r", encoding="utf-8") as f:
+    with f:
         if one_line:
             return f.readline().strip()
         if raw:
@@ -65,8 +169,11 @@ def tail_file(path: Path, n_lines: int = 20) -> str:
 
     Uses a seek-from-end strategy to avoid reading the entire file into memory.
     """
+    f = open_run_file(path, binary=True)
+    if f is None:
+        return ""
     try:
-        with path.open("rb") as f:
+        with f:
             f.seek(0, 2)
             file_size = f.tell()
             if file_size == 0:
