@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -Eeuo pipefail
+# Job control gives run_wf its own process group, so that cancel can stop the engine and
+# everything it started with one signal to the group.
+set -m
 
 # Main function to run the workflow
 function run_wf() {
@@ -17,6 +20,8 @@ function run_wf() {
     fi
 
     upload
+    # A signal handler in the parent process may have taken over the outcome while the engine ran
+    _owns_outcome || exit 0
     date -u +"%Y-%m-%dT%H:%M:%S" >"${end_time}"
     echo 0 >"${exit_code}"
     echo "COMPLETE" >"${state}"
@@ -221,11 +226,15 @@ function run_streamflow() {
 }
 
 function cancel() {
-    # Edit this function for environment-specific cancellation procedures
-    if [[ "${wf_engine}" == "cwltool" ]]; then
-        cancel_cwltool
+    # Edit this function for environment-specific cancellation procedures.
+    # stop_run_wf sends SIGTERM to the process group of run_wf (the engine and everything it
+    # started on this host) and SIGKILL after the grace period. Work that lives elsewhere, such as
+    # a Slurm job or containers that the engine itself started, needs a cancel_<engine>() function.
+    local hook="cancel_${wf_engine}"
+    if [[ "$(type -t "${hook}")" == "function" ]]; then
+        "${hook}"
     fi
-    cancel_by_request
+    stop_run_wf
 }
 
 function cancel_cwltool() {
@@ -266,6 +275,9 @@ wf_engine=$(jq -r ".workflow_engine" "${run_request}")
 wf_url=$(jq -r ".workflow_url" "${run_request}")
 wf_engine_params=$(head -n 1 "${wf_engine_params_file}")
 
+# Seconds between SIGTERM and SIGKILL when a run is canceled or run.sh is shut down
+cancel_grace_seconds="${SAPPORO_CANCEL_GRACE_SECONDS:-30}"
+
 # Parse SAPPORO_EXTRA_DOCKER_ARGS once for all engines
 extra_docker_args=()
 if [[ -n "${SAPPORO_EXTRA_DOCKER_ARGS:-}" ]]; then
@@ -282,19 +294,55 @@ function generate_ro_crate() {
     # If you want to upload ro-crate-metadata.json, write the process here.
 }
 
-function desc_error() {
-    local original_exit_code=1
-    echo "${original_exit_code}" >"${exit_code}"
+function _current_state() {
+    cat "${state}" 2>/dev/null || true
+}
+
+function _owns_outcome() {
+    # True while run_wf still owns the outcome of the run. Once a signal handler in the parent
+    # process has written CANCELING or SYSTEM_ERROR, run_wf must not write a terminal state over it.
+    local current
+    current=$(_current_state)
+    [[ "${current}" == "QUEUED" || "${current}" == "RUNNING" ]]
+}
+
+function _write_outcome() {
+    local code=$1
+    local new_state=$2
+    echo "${code}" >"${exit_code}"
     date -u +"%Y-%m-%dT%H:%M:%S" >"${end_time}"
-    echo "SYSTEM_ERROR" >"${state}"
+    echo "${new_state}" >"${state}"
+}
+
+function stop_run_wf() {
+    # Stop run_wf and everything it started: SIGTERM to its process group, SIGKILL to whatever is
+    # still alive after the grace period. Attached `docker run`, `podman run` and `srun` forward
+    # SIGTERM to what they run.
+    if [[ -z "${bg_pid:-}" ]]; then
+        return
+    fi
+    kill -TERM -- "-${bg_pid}" 2>/dev/null || true
+    wait "${bg_pid}" 2>/dev/null || true
+    local remaining_ticks=$((cancel_grace_seconds * 5))
+    while kill -0 -- "-${bg_pid}" 2>/dev/null && ((remaining_ticks > 0)); do
+        sleep 0.2
+        remaining_ticks=$((remaining_ticks - 1))
+    done
+    kill -KILL -- "-${bg_pid}" 2>/dev/null || true
+}
+
+function desc_error() {
+    # ERR trap: an unexpected failure in run.sh itself. set -E applies it inside run_wf as well.
+    local original_exit_code=1
+    _owns_outcome || exit "${original_exit_code}"
+    _write_outcome "${original_exit_code}" "SYSTEM_ERROR"
     exit "${original_exit_code}"
 }
 
 function executor_error() {
     local original_exit_code=${1:-1}
-    echo "${original_exit_code}" >"${exit_code}"
-    date -u +"%Y-%m-%dT%H:%M:%S" >"${end_time}"
-    echo "EXECUTOR_ERROR" >"${state}"
+    _owns_outcome || exit "${original_exit_code}"
+    _write_outcome "${original_exit_code}" "EXECUTOR_ERROR"
     generate_ro_crate
     exit "${original_exit_code}"
 }
@@ -309,26 +357,31 @@ function kill_by_system() {
     "SIGTERM") original_exit_code=143 ;;
     *) original_exit_code=1 ;;
     esac
-    echo "${original_exit_code}" >"${exit_code}"
-    date -u +"%Y-%m-%dT%H:%M:%S" >"${end_time}"
-    echo "SYSTEM_ERROR" >"${state}"
+    if _owns_outcome; then
+        echo "SYSTEM_ERROR" >"${state}"
+        cancel
+        _write_outcome "${original_exit_code}" "SYSTEM_ERROR"
+    fi
     exit "${original_exit_code}"
 }
 
 function cancel_by_request() {
-    # Requested POST /runs/${run_id}/cancel
+    # USR1 trap: POST /runs/${run_id}/cancel writes CANCELING to state.txt and then sends SIGUSR1
     local original_exit_code=138
-    echo "${original_exit_code}" >"${exit_code}"
-    date -u +"%Y-%m-%dT%H:%M:%S" >"${end_time}"
-    echo "CANCELED" >"${state}"
+    if ! _owns_outcome && [[ "$(_current_state)" != "CANCELING" ]]; then
+        exit "${original_exit_code}"
+    fi
+    echo "CANCELING" >"${state}"
+    cancel
+    _write_outcome "${original_exit_code}" "CANCELED"
     exit "${original_exit_code}"
 }
 
 function check_canceling() {
-    local state_content
-    state_content=$(cat "${state}")
-    if [[ "${state_content}" == "CANCELING" ]]; then
-        cancel
+    # The run was canceled before run.sh started, so there is nothing to stop
+    if [[ "$(_current_state)" == "CANCELING" ]]; then
+        _write_outcome 138 "CANCELED"
+        exit 138
     fi
 }
 
@@ -337,9 +390,9 @@ trap 'kill_by_system SIGHUP' HUP
 trap 'kill_by_system SIGINT' INT
 trap 'kill_by_system SIGQUIT' QUIT
 trap 'kill_by_system SIGTERM' TERM
-trap 'cancel' USR1 # Handle cancellation request
+trap 'cancel_by_request' USR1
 
-# Run as a background process to handle cancellation requests
-run_wf &
+# Run the workflow as a background job so that this process stays free to handle signals
+run_wf </dev/null &
 bg_pid=$!
-wait $bg_pid || true
+wait "${bg_pid}" || true

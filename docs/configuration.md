@@ -59,6 +59,7 @@ All CLI options can be set via environment variables with the `SAPPORO_` prefix:
 | `--run-remove-older-than-days` | `SAPPORO_RUN_REMOVE_OLDER_THAN_DAYS` | None |
 | `--snapshot-interval` | `SAPPORO_SNAPSHOT_INTERVAL` | `30` |
 | - | `SAPPORO_EXTRA_DOCKER_ARGS` | (unset) |
+| - | `SAPPORO_CANCEL_GRACE_SECONDS` | `30` |
 
 `SAPPORO_EXTRA_DOCKER_ARGS` is used by `run.sh` to pass additional `docker run` flags to inner workflow engine containers. Use this to mount host directories that workflows need to read. Multiple flags can be space-separated. Applied to all engines.
 
@@ -69,6 +70,8 @@ SAPPORO_EXTRA_DOCKER_ARGS="-v /data:/data"
 # Example: mount multiple directories
 SAPPORO_EXTRA_DOCKER_ARGS="-v /data:/data -v /ref:/ref"
 ```
+
+`SAPPORO_CANCEL_GRACE_SECONDS` is used by `run.sh`. When a run is canceled or `run.sh` is shut down, the engine receives `SIGTERM` and has this many seconds to exit before it receives `SIGKILL`. See [Architecture - Cancellation](architecture.md#cancellation).
 
 Priority: CLI arguments > Environment variables > Default values.
 

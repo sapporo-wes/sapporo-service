@@ -47,7 +47,7 @@ The [`run.sh`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/
 
 Each engine function constructs a `docker run` command that:
 
-1. Mounts the Docker socket (`-v /var/run/docker.sock:...`)
+1. Mounts the Docker socket (`-v /var/run/docker.sock:...`) so that the engine can start one container per workflow step (all engines except snakemake, which runs its steps inside its own container)
 2. Mounts the run directory (`-v ${run_dir}:${run_dir}`)
 3. Sets the working directory to the execution directory (`-w=${exe_dir}`)
 4. Runs the engine-specific command with the workflow URL and parameters
@@ -60,14 +60,22 @@ Override the default `run.sh` location using `--run-sh` or `SAPPORO_RUN_SH`. See
 
 ### Cancellation
 
-`run.sh` runs the workflow function as a background process and waits for it. Cancellation is handled via Unix signals: the Python side sends `SIGUSR1` to the `run.sh` process, which triggers the `cancel()` function. This allows engine-specific cleanup before writing the `CANCELED` state.
+`run.sh` runs the workflow function as a background job in its own process group (`set -m`) and waits for it, so that the parent process stays free to handle signals. `POST /runs/{run_id}/cancel` writes `CANCELING` to `state.txt` and sends `SIGUSR1` to the `run.sh` process. The signal handler then:
+
+1. Calls `cancel()`, which first runs the engine-specific hook `cancel_<engine>()` if that function is defined, and then `stop_run_wf()`
+2. `stop_run_wf()` sends `SIGTERM` to the process group of the background job, waits up to `SAPPORO_CANCEL_GRACE_SECONDS` (default 30), and then sends `SIGKILL` to the group
+3. Writes exit code `138` and the `CANCELED` state
+
+The process group contains the engine process and everything it started on this host. An attached `docker run`, `podman run` or `srun` forwards `SIGTERM` to what it runs, so the engine inside a container or a Slurm step receives the signal as well. Work that lives elsewhere, such as a Slurm job submitted with `sbatch` or containers that the engine itself started through the Docker socket, is not reached by the signal. Put that cleanup into `cancel_<engine>()`.
+
+Once the parent process has written `CANCELING` or `SYSTEM_ERROR`, the background job does not write a terminal state anymore. A workflow that ends after the cancel therefore cannot turn the run back into `COMPLETE` or `EXECUTOR_ERROR`. If `state.txt` already says `CANCELING` when `run.sh` starts, it writes `CANCELED` without starting the engine.
 
 ### Error Handling
 
-`run.sh` uses `trap` to handle errors and signals:
+`run.sh` uses `trap` to handle errors and signals. `set -E` makes the `ERR` trap apply inside functions and inside the background job as well.
 
-- `ERR` -> `SYSTEM_ERROR` (unexpected failure)
-- `SIGHUP/SIGINT/SIGQUIT/SIGTERM` -> `SYSTEM_ERROR` (killed by system)
+- `ERR` -> `SYSTEM_ERROR` (unexpected failure in `run.sh` itself, such as a failed `mkdir` or `cp`)
+- `SIGHUP/SIGINT/SIGQUIT/SIGTERM` -> `SYSTEM_ERROR` (killed by system; the engine is stopped in the same way as on cancel)
 - Unknown signals -> `SYSTEM_ERROR` with exit code 1 (catch-all)
 - `USR1` -> `CANCELED` (user-requested cancellation)
 - Non-zero exit from a `run_<engine>()` function -> `EXECUTOR_ERROR`
@@ -79,9 +87,9 @@ RO-Crate metadata is generated on the `COMPLETE` and `EXECUTOR_ERROR` paths. For
 To add a new workflow engine, define a `run_<engine>()` function in `run.sh` that constructs the appropriate `docker run` command. The function must:
 
 1. Build a `docker run` command that mounts the Docker socket and run directory
-2. Write the command to `${cmd}` for logging
-3. Execute the command, redirecting stdout/stderr to `${stdout}` and `${stderr}`
-4. Call `executor_error $?` on non-zero exit
+2. Pass the command array to `_write_and_run()`, which writes the command to `${cmd}`, runs it with stdout/stderr redirected to `${stdout}` and `${stderr}`, and calls `executor_error $?` on non-zero exit
+
+If cancel needs more than a signal to the engine process (for example `scancel` for a Slurm job, or `docker kill` for containers the engine started), define `cancel_<engine>()`. `cancel()` calls it before stopping the process group.
 
 For a complete example, see the [StreamFlow addition PR](https://github.com/sapporo-wes/sapporo-service/pull/29).
 
