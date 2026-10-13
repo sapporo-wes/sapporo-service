@@ -278,7 +278,7 @@ def spr_create_access_token(username: str, password: str) -> str:
         LOGGER.warning("expires_delta_hours (%d) exceeds maximum (%d), capping", expires_delta, MAX_JWT_EXPIRES_HOURS)
         expires_delta = MAX_JWT_EXPIRES_HOURS
 
-    iat = datetime.datetime.now(datetime.timezone.utc)
+    iat = datetime.datetime.now(datetime.UTC)
     exp = iat + datetime.timedelta(hours=expires_delta)
 
     payload = TokenPayload(
@@ -390,7 +390,7 @@ async def _fetch_with_retry(url: str, context: str) -> httpx.Response:
     for attempt in range(_MAX_RETRIES):
         try:
             return await _fetch_once(url)
-        except httpx.HTTPError as exc:  # noqa: PERF203
+        except httpx.HTTPError as exc:
             last_exc = exc
             LOGGER.warning("Attempt %d/%d to fetch %s failed: %s", attempt + 1, _MAX_RETRIES, context, exc)
             if attempt < _MAX_RETRIES - 1:

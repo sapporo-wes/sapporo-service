@@ -19,7 +19,7 @@ import re
 import secrets
 from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from functools import cache
 from typing import Any, Literal
 
@@ -388,7 +388,7 @@ def list_old_runs_db(
     older_than_days: int,
 ) -> list[Run]:
     with get_session() as session:
-        cutoff_date = datetime.now(tz=timezone.utc) - timedelta(days=older_than_days)
+        cutoff_date = datetime.now(tz=UTC) - timedelta(days=older_than_days)
         query = select(Run).where(Run.start_time < cutoff_date)
         results = session.exec(query).all()
 

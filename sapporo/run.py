@@ -88,7 +88,7 @@ def reconcile_runs() -> None:
         try:
             if _reconcile_run(run_id):
                 reconciled += 1
-        except Exception as e:  # noqa: PERF203
+        except Exception as e:
             LOGGER.warning("Skipping run that cannot be reconciled: run_id=%s, error=%s", run_id, e)
 
     if reconciled > 0:

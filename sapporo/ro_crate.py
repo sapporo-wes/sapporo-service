@@ -6,7 +6,7 @@ import logging
 import re
 import shutil
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
@@ -222,9 +222,9 @@ def _ensure_tz(timestamp: str | None) -> str | None:
     if timestamp is None:
         return None
     try:
-        dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00").replace("z", "+00:00"))
+        dt = datetime.fromisoformat(timestamp.replace("z", "Z"))
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         return dt.isoformat()
     except ValueError:
         LOGGER.warning("Invalid timestamp format: %s", timestamp)
@@ -760,7 +760,7 @@ def populate_file_metadata(
     except OSError:
         return
     file_ins["contentSize"] = stat_result.st_size
-    file_ins["dateModified"] = datetime.fromtimestamp(stat_result.st_mtime, tz=timezone.utc).isoformat()
+    file_ins["dateModified"] = datetime.fromtimestamp(stat_result.st_mtime, tz=UTC).isoformat()
 
     with contextlib.suppress(OSError, UnicodeDecodeError):
         file_ins["lineCount"] = count_lines(file_path)
@@ -1144,7 +1144,7 @@ def generate_ro_crate_metadata(run_dir: Path) -> dict[str, Any]:
     crate.root_dataset["publisher"] = sapporo_org
 
     # datePublished on Root Data Entity
-    crate.root_dataset["datePublished"] = datetime.now(timezone.utc).isoformat()
+    crate.root_dataset["datePublished"] = datetime.now(UTC).isoformat()
 
     wf = add_workflow_entity(crate, run_dir, run_request)
     engine_ins, sapporo_ins = add_software_entities(crate, run_request, run_dir)

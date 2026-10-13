@@ -3,7 +3,7 @@ import ipaddress
 import json
 import re
 import socket
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unicodedata import normalize
@@ -19,11 +19,11 @@ def inside_docker() -> bool:
 
 def now_str() -> str:
     """Return the current time in RFC 3339 format (e.g., "2022-01-01T00:00:00Z")."""
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def time_str_to_dt(time_str: str) -> datetime:
-    return datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+    return datetime.fromisoformat(time_str)
 
 
 def dt_to_time_str(dt: datetime) -> str:

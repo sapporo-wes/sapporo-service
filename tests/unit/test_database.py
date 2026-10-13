@@ -1,7 +1,7 @@
 import base64
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -46,30 +46,30 @@ def _seed_runs(tmp_path: object) -> None:
             run_id="run-1",
             username="alice",
             state=State.COMPLETE,
-            start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 1, 0, 10, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 1, tzinfo=UTC),
+            end_time=datetime(2024, 1, 1, 0, 10, tzinfo=UTC),
             tags=json.dumps({"project": "genomics", "env": "production"}),
         ),
         Run(
             run_id="run-2",
             username="alice",
             state=State.RUNNING,
-            start_time=datetime(2024, 1, 2, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 2, tzinfo=UTC),
             tags=json.dumps({"project": "genomics", "env": "staging"}),
         ),
         Run(
             run_id="run-3",
             username="bob",
             state=State.COMPLETE,
-            start_time=datetime(2024, 1, 3, tzinfo=timezone.utc),
-            end_time=datetime(2024, 1, 3, 0, 5, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 3, tzinfo=UTC),
+            end_time=datetime(2024, 1, 3, 0, 5, tzinfo=UTC),
             tags=json.dumps({"project": "proteomics"}),
         ),
         Run(
             run_id="run-4",
             username="bob",
             state=State.QUEUED,
-            start_time=datetime(2024, 1, 4, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 4, tzinfo=UTC),
             tags=json.dumps({}),
         ),
     ]
@@ -187,7 +187,7 @@ def test_init_db_drops_existing_tables_first(tmp_path: Path) -> None:
             Run(
                 run_id="temp-run",
                 state=State.COMPLETE,
-                start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                start_time=datetime(2024, 1, 1, tzinfo=UTC),
                 tags="{}",
             )
         )
@@ -322,7 +322,7 @@ class TestListOldRunsDb:
                 Run(
                     run_id="recent-run",
                     state=State.COMPLETE,
-                    start_time=datetime.now(tz=timezone.utc),
+                    start_time=datetime.now(tz=UTC),
                     tags="{}",
                 )
             )
@@ -348,7 +348,7 @@ class TestListOldRunsDb:
         from datetime import timedelta
 
         cutoff_days = 5
-        cutoff_time = datetime.now(tz=timezone.utc) - timedelta(days=cutoff_days)
+        cutoff_time = datetime.now(tz=UTC) - timedelta(days=cutoff_days)
         with get_session() as session:
             session.add(
                 Run(
@@ -383,8 +383,8 @@ class TestDbRunsToRunSummaries:
             Run(
                 run_id="conv-1",
                 state=State.COMPLETE,
-                start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
-                end_time=datetime(2024, 1, 1, 0, 10, tzinfo=timezone.utc),
+                start_time=datetime(2024, 1, 1, tzinfo=UTC),
+                end_time=datetime(2024, 1, 1, 0, 10, tzinfo=UTC),
                 tags=json.dumps({"k": "v"}),
             )
         ]
@@ -399,7 +399,7 @@ class TestDbRunsToRunSummaries:
             Run(
                 run_id="conv-2",
                 state=State.RUNNING,
-                start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                start_time=datetime(2024, 1, 1, tzinfo=UTC),
                 end_time=None,
                 tags=json.dumps({}),
             )
@@ -413,7 +413,7 @@ class TestDbRunsToRunSummaries:
             Run(
                 run_id="conv-3",
                 state=State.COMPLETE,
-                start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                start_time=datetime(2024, 1, 1, tzinfo=UTC),
                 tags=json.dumps(tags),
             )
         ]
@@ -433,7 +433,7 @@ class TestPageToken:
         run = Run(
             run_id="token-1",
             state=State.COMPLETE,
-            start_time=datetime(2024, 6, 15, 12, 0, 0, tzinfo=timezone.utc),
+            start_time=datetime(2024, 6, 15, 12, 0, 0, tzinfo=UTC),
             tags="{}",
         )
         token = _encode_page_token(run)
@@ -449,7 +449,7 @@ class TestPageToken:
         run = Run(
             run_id=run_id,
             state=State.COMPLETE,
-            start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 1, tzinfo=UTC),
             tags="{}",
         )
         token = _encode_page_token(run)
@@ -469,7 +469,7 @@ class TestPageToken:
         run = Run(
             run_id="tamper-test",
             state=State.COMPLETE,
-            start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            start_time=datetime(2024, 1, 1, tzinfo=UTC),
             tags="{}",
         )
         token = _encode_page_token(run)
@@ -605,7 +605,7 @@ def test_list_runs_db_same_start_time_sorted_by_run_id(tmp_path: Path) -> None:
     get_config.cache_clear()
     init_db()
 
-    same_time = datetime(2024, 6, 1, tzinfo=timezone.utc)
+    same_time = datetime(2024, 6, 1, tzinfo=UTC)
     runs_data = [
         Run(run_id="ccc-run", state=State.COMPLETE, start_time=same_time, tags="{}"),
         Run(run_id="aaa-run", state=State.COMPLETE, start_time=same_time, tags="{}"),
@@ -632,7 +632,7 @@ def test_list_runs_db_same_start_time_pagination_no_overlap(tmp_path: Path) -> N
     get_config.cache_clear()
     init_db()
 
-    same_time = datetime(2024, 6, 1, tzinfo=timezone.utc)
+    same_time = datetime(2024, 6, 1, tzinfo=UTC)
     for i in range(3):
         with get_session() as session:
             session.add(Run(run_id=f"same-{i:02d}", state=State.COMPLETE, start_time=same_time, tags="{}"))
@@ -654,7 +654,7 @@ def test_list_runs_db_same_start_time_pagination_no_overlap(tmp_path: Path) -> N
 @pytest.mark.usefixtures("_seed_runs")
 class TestDecodePageTokenDetailed:
     def test_roundtrip_preserves_exact_values(self) -> None:
-        start_time = datetime(2024, 3, 15, 10, 30, 0, tzinfo=timezone.utc)
+        start_time = datetime(2024, 3, 15, 10, 30, 0, tzinfo=UTC)
         run = Run(run_id="exact-val-test", state=State.COMPLETE, start_time=start_time, tags="{}")
         token = _encode_page_token(run)
         decoded = _decode_page_token(token)
@@ -688,7 +688,7 @@ class TestDecodePageTokenDetailed:
         day=st.integers(min_value=1, max_value=28),
     )
     def test_roundtrip_arbitrary_start_time_and_run_id(self, run_id: str, year: int, month: int, day: int) -> None:
-        start_time = datetime(year, month, day, tzinfo=timezone.utc)
+        start_time = datetime(year, month, day, tzinfo=UTC)
         run = Run(run_id=run_id, state=State.COMPLETE, start_time=start_time, tags="{}")
         token = _encode_page_token(run)
         decoded = _decode_page_token(token)
@@ -762,7 +762,7 @@ class TestDbRunsToRunSummariesAdditional:
             Run(
                 run_id="fmt-1",
                 state=State.COMPLETE,
-                start_time=datetime(2024, 1, 1, 12, 30, 0, tzinfo=timezone.utc),
+                start_time=datetime(2024, 1, 1, 12, 30, 0, tzinfo=UTC),
                 tags="{}",
             )
         ]
@@ -776,7 +776,7 @@ class TestDbRunsToRunSummariesAdditional:
             Run(
                 run_id="multi-tag",
                 state=State.COMPLETE,
-                start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                start_time=datetime(2024, 1, 1, tzinfo=UTC),
                 tags=json.dumps(tags),
             )
         ]
@@ -797,7 +797,7 @@ class TestDbRunsToRunSummariesAdditional:
             Run(
                 run_id="pbt-tags",
                 state=State.COMPLETE,
-                start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                start_time=datetime(2024, 1, 1, tzinfo=UTC),
                 tags=json.dumps(tags),
             )
         ]
@@ -822,9 +822,9 @@ def test_add_run_db_with_start_and_end_time(tmp_path: Path) -> None:
     )
     result = add_run_db(summary)
     # SQLite may not store timezone info; normalize both sides
-    assert result.start_time.replace(tzinfo=timezone.utc) == datetime(2024, 6, 1, tzinfo=timezone.utc)
+    assert result.start_time.replace(tzinfo=UTC) == datetime(2024, 6, 1, tzinfo=UTC)
     assert result.end_time is not None
-    assert result.end_time.replace(tzinfo=timezone.utc) == datetime(2024, 6, 1, 1, 0, 0, tzinfo=timezone.utc)
+    assert result.end_time.replace(tzinfo=UTC) == datetime(2024, 6, 1, 1, 0, 0, tzinfo=UTC)
 
 
 def test_add_run_db_with_none_end_time(tmp_path: Path) -> None:
@@ -880,7 +880,7 @@ class TestListOldRunsDbBoundary:
     def test_boundary_days_value_excludes_recent_runs(self) -> None:
         from datetime import timedelta
 
-        cutoff_time = datetime.now(tz=timezone.utc) - timedelta(days=10)
+        cutoff_time = datetime.now(tz=UTC) - timedelta(days=10)
         with get_session() as session:
             session.add(
                 Run(
@@ -902,7 +902,7 @@ class TestListOldRunsDbBoundary:
                 Run(
                     run_id="very-recent",
                     state=State.COMPLETE,
-                    start_time=datetime.now(tz=timezone.utc),
+                    start_time=datetime.now(tz=UTC),
                     tags="{}",
                 )
             )
@@ -939,7 +939,7 @@ class TestSystemStateCountsFiltered:
                 Run(
                     run_id="only-running",
                     state=State.RUNNING,
-                    start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                    start_time=datetime(2024, 1, 1, tzinfo=UTC),
                     tags="{}",
                 )
             )

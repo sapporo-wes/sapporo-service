@@ -1,5 +1,5 @@
 import socket
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -25,7 +25,7 @@ from sapporo.utils import (
 def test_now_str_returns_rfc3339_utc_format() -> None:
     result = now_str()
     assert result.endswith("Z")
-    dt = datetime.fromisoformat(result.replace("Z", "+00:00"))
+    dt = datetime.fromisoformat(result)
     assert dt.tzinfo is not None
 
 
@@ -50,7 +50,7 @@ def test_time_str_to_dt_parses_rfc3339_with_z() -> None:
 
 
 def test_dt_to_time_str_formats_utc_with_z() -> None:
-    dt = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+    dt = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
     result = dt_to_time_str(dt)
     assert result == "2024-01-15T10:30:00Z"
 
@@ -59,7 +59,7 @@ def test_dt_to_time_str_formats_utc_with_z() -> None:
     st.datetimes(
         min_value=datetime(2000, 1, 1),  # noqa: DTZ001 (hypothesis requires naive min_value)
         max_value=datetime(2099, 12, 31),  # noqa: DTZ001 (hypothesis requires naive max_value)
-        timezones=st.just(timezone.utc),
+        timezones=st.just(UTC),
     )
 )
 def test_time_str_round_trip_preserves_seconds(dt: datetime) -> None:

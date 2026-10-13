@@ -265,7 +265,8 @@ class ServiceInfo(Service):
     )
 
 
-class State(str, Enum):
+# Kept as a str mix-in rather than StrEnum: StrEnum changes what str() and format() return for members.
+class State(str, Enum):  # noqa: UP042
     UNKNOWN = "UNKNOWN"
     QUEUED = "QUEUED"
     INITIALIZING = "INITIALIZING"

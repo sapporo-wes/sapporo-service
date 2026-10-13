@@ -164,13 +164,27 @@ To bump the spec version:
 2. Regenerate the spec: `uv run sapporo-cli generate-openapi`
 3. Rename the output file if the major/minor version changed
 
+## Continuous Integration
+
+GitHub Actions runs the following workflows (`.github/workflows/`):
+
+| Workflow | Trigger | What it runs |
+|---|---|---|
+| `lint` | push to `main`, pull requests | ruff check, ruff format check, mypy on Python 3.11 to 3.14 |
+| `pytest` | push to `main`, pull requests | unit tests on Python 3.11 to 3.14; mutation tests on manual dispatch |
+| `latest-deps` | weekly, manual dispatch | `uv lock --upgrade`, then ruff, mypy and pytest against the newest versions allowed by `pyproject.toml` |
+| `docs` | push to `main` | mkdocs build and deploy to GitHub Pages |
+| `release` | tag push | PyPI publish, Docker image push, GitHub Release |
+
+`lint` and `pytest` install from `uv.lock` (`uv sync --locked`), so they test the same versions that the Docker image gets. `latest-deps` ignores the lock, so it catches an upstream change (for example a removed import) before it reaches `pip install sapporo` users. Dependabot opens a weekly pull request that updates `uv.lock`.
+
 ## Release Process
 
 ### Version Management
 
 - The git tag is the single source of truth for the package version (`hatch-vcs`)
 - At runtime, the version is obtained via `importlib.metadata.version("sapporo")`
-- Docker image version is injected by CI from the tag name with `--build-arg VERSION=...` and `SETUPTOOLS_SCM_PRETEND_VERSION`
+- Docker image version is injected by CI from the tag name with `--build-arg VERSION=...`; the Dockerfile passes it to hatch-vcs through `SETUPTOOLS_SCM_PRETEND_VERSION`
 
 ### Release Steps
 

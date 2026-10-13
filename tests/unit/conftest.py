@@ -385,7 +385,7 @@ def create_signed_jwt(
 
     import jwt as pyjwt
 
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     payload: dict[str, Any] = {
         "sub": subject,
         "iss": issuer,

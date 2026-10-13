@@ -186,8 +186,8 @@ def test_spr_create_access_token_default_expiry_is_24h(mocker: "MockerFixture", 
     )
     token = spr_create_access_token("test-user", _TEST_PASSWORD)
     decoded = pyjwt.decode(token, options={"verify_signature": False})
-    iat = datetime.datetime.fromtimestamp(decoded["iat"], tz=datetime.timezone.utc)
-    exp = datetime.datetime.fromtimestamp(decoded["exp"], tz=datetime.timezone.utc)
+    iat = datetime.datetime.fromtimestamp(decoded["iat"], tz=datetime.UTC)
+    exp = datetime.datetime.fromtimestamp(decoded["exp"], tz=datetime.UTC)
     delta_hours = (exp - iat).total_seconds() / 3600
     assert delta_hours == pytest.approx(DEFAULT_JWT_EXPIRES_HOURS, abs=0.01)
 
@@ -201,8 +201,8 @@ def test_spr_create_access_token_caps_at_max_hours(mocker: "MockerFixture", tmp_
     )
     token = spr_create_access_token("test-user", _TEST_PASSWORD)
     decoded = pyjwt.decode(token, options={"verify_signature": False})
-    iat = datetime.datetime.fromtimestamp(decoded["iat"], tz=datetime.timezone.utc)
-    exp = datetime.datetime.fromtimestamp(decoded["exp"], tz=datetime.timezone.utc)
+    iat = datetime.datetime.fromtimestamp(decoded["iat"], tz=datetime.UTC)
+    exp = datetime.datetime.fromtimestamp(decoded["exp"], tz=datetime.UTC)
     delta_hours = (exp - iat).total_seconds() / 3600
     assert delta_hours == pytest.approx(MAX_JWT_EXPIRES_HOURS, abs=0.01)
 
@@ -247,8 +247,8 @@ def test_spr_decode_token_with_expired_token_raises_401(mocker: "MockerFixture",
 
     expired_payload = {
         "sub": "test-user",
-        "exp": datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=1),
-        "iat": datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=25),
+        "exp": datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=1),
+        "iat": datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=25),
         "aud": SAPPORO_AUDIENCE,
         "iss": "test",
     }
@@ -263,8 +263,8 @@ def test_spr_decode_token_with_wrong_signature_raises_401(mocker: "MockerFixture
 
     wrong_key_payload = {
         "sub": "test-user",
-        "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1),
-        "iat": datetime.datetime.now(datetime.timezone.utc),
+        "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=1),
+        "iat": datetime.datetime.now(datetime.UTC),
         "aud": SAPPORO_AUDIENCE,
         "iss": "test",
     }
@@ -281,8 +281,8 @@ def test_spr_decode_token_with_wrong_audience_raises_401(mocker: "MockerFixture"
 
     wrong_aud_payload = {
         "sub": "test-user",
-        "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1),
-        "iat": datetime.datetime.now(datetime.timezone.utc),
+        "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=1),
+        "iat": datetime.datetime.now(datetime.UTC),
         "aud": "wrong-audience",
         "iss": "test",
     }
@@ -644,7 +644,7 @@ async def test_external_decode_token_with_hs256_raises_401(
             "sub": "test-user",
             "iss": _MOCK_IDP_ISSUER,
             "aud": "account",
-            "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1),
+            "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=1),
         },
         "secret",
         algorithm="HS256",
@@ -691,7 +691,7 @@ async def test_external_decode_token_without_kid_raises_401(
             "sub": "test-user",
             "iss": _MOCK_IDP_ISSUER,
             "aud": "account",
-            "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1),
+            "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=1),
         },
         priv,
         algorithm="RS256",

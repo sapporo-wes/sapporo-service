@@ -1,0 +1,36 @@
+name: latest-deps
+
+# Resolves the newest dependency versions allowed by pyproject.toml, ignoring uv.lock,
+# so that an upstream change breaks this job before it breaks `pip install sapporo`.
+
+on:
+  schedule:
+    - cron: "0 2 * * 1"
+  workflow_dispatch: {}
+
+jobs:
+  test-latest:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+
+      - name: Resolve Latest Dependencies
+        run: uv lock --upgrade
+
+      - name: Install Dependencies
+        run: uv sync --all-extras
+
+      - name: Run ruff check
+        run: uv run ruff check .
+
+      - name: Run mypy
+        run: uv run mypy
+
+      - name: Run pytest
+        run: uv run pytest -v --tb=short
