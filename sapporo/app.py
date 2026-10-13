@@ -41,7 +41,7 @@ def fix_error_handler(app: FastAPI) -> None:
     async def http_exception_handler(_request: Request, exc: StarletteHTTPException) -> JSONResponse:
         app_config = get_config()
         if app_config.debug:
-            LOGGER.exception("HTTP exception occurred", exc_info=exc)
+            LOGGER.error("HTTP exception occurred", exc_info=exc)
         return JSONResponse(
             status_code=exc.status_code,
             content=ErrorResponse(
@@ -54,7 +54,7 @@ def fix_error_handler(app: FastAPI) -> None:
     async def request_validation_exception_handler(_request: Request, exc: RequestValidationError) -> JSONResponse:
         app_config = get_config()
         if app_config.debug:
-            LOGGER.exception("Request validation error occurred", exc_info=exc)
+            LOGGER.error("Request validation error occurred", exc_info=exc)
         return JSONResponse(
             status_code=400,
             content=ErrorResponse(
@@ -65,7 +65,7 @@ def fix_error_handler(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def generic_exception_handler(_request: Request, exc: Exception) -> JSONResponse:
-        LOGGER.exception("Unhandled exception occurred", exc_info=exc)
+        LOGGER.error("Unhandled exception occurred", exc_info=exc)
         return JSONResponse(
             status_code=500,
             content=ErrorResponse(

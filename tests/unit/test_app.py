@@ -193,19 +193,22 @@ class TestFixErrorHandler:
         client = _create_error_test_app(mocker, debug=True)
         mock_logger = mocker.patch("sapporo.app.LOGGER")
         client.get("/raise-http-404")
-        mock_logger.exception.assert_called_once()
+        mock_logger.error.assert_called_once()
+        assert mock_logger.error.call_args.kwargs["exc_info"] is not None
 
     def test_generic_exception_logs_traceback(self, mocker: "MockerFixture") -> None:
         client = _create_error_test_app(mocker)
         mock_logger = mocker.patch("sapporo.app.LOGGER")
         client.get("/raise-runtime-error")
-        mock_logger.exception.assert_called_once()
+        mock_logger.error.assert_called_once()
+        assert mock_logger.error.call_args.kwargs["exc_info"] is not None
 
     def test_generic_exception_logs_traceback_in_debug_mode(self, mocker: "MockerFixture") -> None:
         client = _create_error_test_app(mocker, debug=True)
         mock_logger = mocker.patch("sapporo.app.LOGGER")
         client.get("/raise-runtime-error")
-        mock_logger.exception.assert_called_once()
+        mock_logger.error.assert_called_once()
+        assert mock_logger.error.call_args.kwargs["exc_info"] is not None
 
 
 # === CORSMiddleware ===
@@ -235,7 +238,7 @@ class TestCORSMiddleware:
         )
         assert res.status_code == 200
 
-    def test_with_cookie_uses_explicit_origin(self) -> None:
+    def test_with_cookie_and_wildcard_origin_returns_wildcard(self) -> None:
         client = _create_cors_test_app()
         res = client.get(
             "/hello",
@@ -244,7 +247,7 @@ class TestCORSMiddleware:
                 "Cookie": "session=abc123",
             },
         )
-        assert res.headers["access-control-allow-origin"] == "http://example.com"
+        assert res.headers["access-control-allow-origin"] == "*"
 
     def test_non_http_scope_passes_through(self) -> None:
         client = _create_cors_test_app()

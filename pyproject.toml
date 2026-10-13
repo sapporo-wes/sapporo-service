@@ -49,6 +49,7 @@ Repository = "https://github.com/sapporo-wes/sapporo-service.git"
 
 [project.optional-dependencies]
 tests = [
+    "httpx2", # Required by starlette.testclient (successor of httpx, same author)
     "hypothesis",
     "mutmut",
     "mypy",
@@ -107,6 +108,9 @@ exclude = ["tests/resources/"]
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
+    # Copyright notice (not used in this project)
+    "CPY001",
+
     # Docstring (not required in this project)
     "D100",
     "D101",
@@ -144,6 +148,7 @@ ignore = [
 
     # Import style (circular import workaround, fix in Phase 9)
     "PLC0415",
+    "ICN001", # Import alias convention (`datetime` is used by its full module name)
 
     # Boolean arguments (conflicts with FastAPI Query pattern)
     "FBT001", # Boolean type hint positional argument
