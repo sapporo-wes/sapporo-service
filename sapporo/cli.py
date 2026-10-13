@@ -5,6 +5,7 @@ Usage:
     sapporo-cli generate-secret
     sapporo-cli generate-ro-crate <run_dir>
     sapporo-cli dump-outputs <run_dir>
+    sapporo-cli download <url> <dest>
     sapporo-cli generate-openapi [--output <path>]
 """
 
@@ -67,6 +68,21 @@ def dump_outputs(args: Namespace) -> None:
     from sapporo.run import dump_outputs_list
 
     dump_outputs_list(str(run_dir))
+
+
+def download(args: Namespace) -> None:
+    """Download a URL to a file with the address checks that workflow attachments go through."""
+    import asyncio
+
+    import httpx
+
+    from sapporo.run import download_url
+
+    try:
+        asyncio.run(download_url(args.url, Path(args.dest)))
+    except (ValueError, httpx.HTTPError) as e:
+        print(f"Error: failed to download '{args.url}': {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def generate_openapi(args: Namespace) -> None:
@@ -140,6 +156,15 @@ def main() -> None:
         help="Path to the run directory.",
     )
     dump_outputs_parser.set_defaults(func=dump_outputs)
+
+    # download command
+    download_parser = subparsers.add_parser(
+        "download",
+        help="Download a URL to a file. Cloud metadata service addresses are refused at every redirect.",
+    )
+    download_parser.add_argument("url", type=str, help="URL to download (http or https).")
+    download_parser.add_argument("dest", type=str, help="Path of the file to write.")
+    download_parser.set_defaults(func=download)
 
     # generate-openapi command
     openapi_parser = subparsers.add_parser(

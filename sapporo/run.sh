@@ -145,7 +145,7 @@ function run_snakemake() {
     local wf_url_local
     if [[ "${wf_url}" == http://* ]] || [[ "${wf_url}" == https://* ]]; then
         wf_url_local="${exe_dir}/$(basename "${wf_url}")"
-        curl -fsSL -o "${wf_url_local}" "${wf_url}" || { executor_error $?; }
+        sapporo-cli download "${wf_url}" "${wf_url_local}" || { executor_error $?; }
     elif [[ "${wf_url}" == /* ]]; then
         wf_url_local="${wf_url}"
     else

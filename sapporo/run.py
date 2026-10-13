@@ -7,7 +7,7 @@ import shutil
 import signal
 import time
 import traceback
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path, PurePosixPath
 from subprocess import Popen
@@ -248,37 +248,71 @@ ATTACHMENT_TIMEOUT = httpx.Timeout(connect=10.0, read=60.0, write=60.0, pool=10.
 ATTACHMENT_MAX_ATTEMPTS = 3
 ATTACHMENT_RETRY_BACKOFF_SECONDS = 1.0
 ATTACHMENT_RETRY_STATUS_CODES = frozenset({408, 425, 429, 500, 502, 503, 504})
+ATTACHMENT_MAX_REDIRECTS = 5
+ATTACHMENT_CHUNK_SIZE = 1024 * 1024
 
 
-async def _get_wf_attachment(client: httpx.AsyncClient, url: str) -> httpx.Response:
-    """GET a workflow attachment, retrying transient failures with exponential backoff."""
-    last_error: Exception
-    for attempt in range(1, ATTACHMENT_MAX_ATTEMPTS + 1):
-        try:
-            res = await client.get(
-                url, timeout=ATTACHMENT_TIMEOUT, follow_redirects=True, headers={"User-Agent": user_agent()}
-            )
+async def _stream_to_file(
+    client: httpx.AsyncClient, url: str, file_path: Path, check_abort: Callable[[], None]
+) -> None:
+    """GET url into file_path in chunks, following redirects one hop at a time.
+
+    Every hop is checked against the metadata service addresses before it is requested, so a
+    redirect cannot lead to an address that the first URL was not allowed to point to. check_abort
+    is called before every chunk is written.
+    """
+    for _ in range(ATTACHMENT_MAX_REDIRECTS + 1):
+        # The check resolves the hostname, which blocks, so it runs off the event loop
+        await asyncio.to_thread(validate_url_not_metadata_service, url)
+        async with client.stream(
+            "GET", url, timeout=ATTACHMENT_TIMEOUT, follow_redirects=False, headers={"User-Agent": user_agent()}
+        ) as res:
+            if res.is_redirect:
+                url = str(res.url.join(res.headers["location"]))
+                continue
+            if res.is_error:
+                await res.aread()
             res.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code not in ATTACHMENT_RETRY_STATUS_CODES:
-                raise
-            last_error = e
-        except httpx.TransportError as e:
-            last_error = e
-        else:
-            return res
+            with file_path.open(mode="wb") as f:
+                async for chunk in res.aiter_bytes(ATTACHMENT_CHUNK_SIZE):
+                    check_abort()
+                    f.write(chunk)
+            return
+    msg = f"More than {ATTACHMENT_MAX_REDIRECTS} redirects while downloading {url}"
+    raise httpx.TooManyRedirects(msg)
 
-        if attempt < ATTACHMENT_MAX_ATTEMPTS:
-            backoff = ATTACHMENT_RETRY_BACKOFF_SECONDS * (2 ** (attempt - 1))
-            LOGGER.warning(
-                "Retrying workflow attachment download: url=%s, attempt=%d/%d, backoff=%.1fs, error=%s",
-                url,
-                attempt,
-                ATTACHMENT_MAX_ATTEMPTS,
-                backoff,
-                last_error,
-            )
-            await asyncio.sleep(backoff)
+
+async def download_url(url: str, file_path: Path, check_abort: Callable[[], None] = lambda: None) -> None:
+    """Download url into file_path, retrying transient failures with exponential backoff.
+
+    The body is written in chunks, so a large file does not stay in memory and the download can be
+    abandoned between chunks. A retry starts the file again.
+    """
+    last_error: Exception
+    async with httpx.AsyncClient() as client:
+        for attempt in range(1, ATTACHMENT_MAX_ATTEMPTS + 1):
+            try:
+                await _stream_to_file(client, url, file_path, check_abort)
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code not in ATTACHMENT_RETRY_STATUS_CODES:
+                    raise
+                last_error = e
+            except httpx.TransportError as e:
+                last_error = e
+            else:
+                return
+
+            if attempt < ATTACHMENT_MAX_ATTEMPTS:
+                backoff = ATTACHMENT_RETRY_BACKOFF_SECONDS * (2 ** (attempt - 1))
+                LOGGER.warning(
+                    "Retrying download: url=%s, attempt=%d/%d, backoff=%.1fs, error=%s",
+                    url,
+                    attempt,
+                    ATTACHMENT_MAX_ATTEMPTS,
+                    backoff,
+                    last_error,
+                )
+                await asyncio.sleep(backoff)
 
     raise last_error
 
@@ -287,30 +321,25 @@ async def download_wf_attachment(run_id: str, run_request: RunRequestForm) -> No
     exe_dir = resolve_content_path(run_id, "exe_dir")
     for obj in run_request.workflow_attachment_obj:
         _abort_preparation_if_requested(run_id)
-        name = obj.file_name
         url = obj.file_url
-        parsed_url = parse.urlparse(url)
-        if parsed_url.scheme in ["http", "https"]:
-            try:
-                validate_url_not_metadata_service(url)
-            except ValueError as e:
-                msg = f"Blocked download of workflow attachment {obj}: {e}"
-                raise Exception(msg) from e
-            file_path = exe_dir.joinpath(secure_filepath(name)).resolve()
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            try:
-                async with httpx.AsyncClient() as client:
-                    res = await _get_wf_attachment(client, url)
-                    with file_path.open(mode="wb") as f:
-                        f.write(res.content)
-            except httpx.HTTPStatusError as e:
-                # Because it is a background task, raise Exception instead of HTTPException
-                msg = f"Failed to download workflow attachment {obj}: {e.response.status_code} {e.response.text}"
-                raise Exception(msg) from e
-            except Exception as e:
-                # Because it is a background task, raise Exception instead of HTTPException
-                msg = f"Failed to download workflow attachment {obj}: {e}"
-                raise Exception(msg) from e
+        if parse.urlparse(url).scheme not in ["http", "https"]:
+            continue
+        file_path = exe_dir.joinpath(secure_filepath(obj.file_name)).resolve()
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        # Because it is a background task, raise Exception instead of HTTPException
+        try:
+            await download_url(url, file_path, lambda: _abort_preparation_if_requested(run_id))
+        except RunPreparationAbortedError:
+            raise
+        except ValueError as e:
+            msg = f"Blocked download of workflow attachment {obj}: {e}"
+            raise Exception(msg) from e
+        except httpx.HTTPStatusError as e:
+            msg = f"Failed to download workflow attachment {obj}: {e.response.status_code} {e.response.text}"
+            raise Exception(msg) from e
+        except Exception as e:
+            msg = f"Failed to download workflow attachment {obj}: {e}"
+            raise Exception(msg) from e
 
 
 def fork_run(run_id: str) -> None:

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -23,7 +24,7 @@ from tests.unit.conftest import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
     from pytest_mock import MockerFixture
 
@@ -409,41 +410,6 @@ def test_write_wf_attachment_skips_empty_filename(mocker: "MockerFixture", tmp_p
 # === download_wf_attachment (httpx mock) ===
 
 
-def _make_async_httpx_client(response: MagicMock) -> MagicMock:
-    """Create a MagicMock that works as an async context manager with async get()."""
-    mock_client = MagicMock()
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
-    mock_client.get = AsyncMock(return_value=response)
-
-    return mock_client
-
-
-@pytest.mark.asyncio
-async def test_download_wf_attachment_fetches_http_url(mocker: "MockerFixture", tmp_path: Path) -> None:
-    _setup_config(mocker, tmp_path)
-    from sapporo.run import download_wf_attachment, resolve_content_path
-
-    run_id = "aabbccdd-0000-0000-0000-000000000023"
-    create_run_dir(tmp_path, run_id)
-
-    mock_response = MagicMock()
-    mock_response.content = b"downloaded content"
-    mock_response.raise_for_status = MagicMock()
-
-    mock_client = _make_async_httpx_client(mock_response)
-    mocker.patch("sapporo.run.httpx.AsyncClient", return_value=mock_client)
-
-    req = make_run_request_form(
-        workflow_attachment_obj=[{"file_name": "helper.cwl", "file_url": "https://example.com/helper.cwl"}]
-    )
-    await download_wf_attachment(run_id, req)
-
-    written = resolve_content_path(run_id, "exe_dir") / "helper.cwl"
-    assert written.exists()
-    assert written.read_bytes() == b"downloaded content"
-
-
 @pytest.mark.asyncio
 async def test_download_wf_attachment_skips_non_http_scheme(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
@@ -459,58 +425,6 @@ async def test_download_wf_attachment_skips_non_http_scheme(mocker: "MockerFixtu
 
     written = resolve_content_path(run_id, "exe_dir") / "local.txt"
     assert not written.exists()
-
-
-@pytest.mark.asyncio
-async def test_download_wf_attachment_http_error_raises_exception(mocker: "MockerFixture", tmp_path: Path) -> None:
-    _setup_config(mocker, tmp_path)
-    import httpx
-
-    from sapporo.run import download_wf_attachment
-
-    run_id = "aabbccdd-0000-0000-0000-000000000025"
-    create_run_dir(tmp_path, run_id)
-
-    mock_response = MagicMock()
-    mock_response.status_code = 404
-    mock_response.text = "Not Found"
-    mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-        "404", request=MagicMock(), response=mock_response
-    )
-
-    mock_client = _make_async_httpx_client(mock_response)
-    mocker.patch("sapporo.run.httpx.AsyncClient", return_value=mock_client)
-
-    req = make_run_request_form(
-        workflow_attachment_obj=[{"file_name": "missing.cwl", "file_url": "https://example.com/missing.cwl"}]
-    )
-    with pytest.raises(Exception, match="Failed to download"):
-        await download_wf_attachment(run_id, req)
-
-
-@pytest.mark.asyncio
-async def test_download_wf_attachment_connection_error_raises_exception(
-    mocker: "MockerFixture",
-    tmp_path: Path,
-) -> None:
-    _setup_config(mocker, tmp_path)
-    from sapporo.run import download_wf_attachment
-
-    run_id = "aabbccdd-0000-0000-0000-000000000026"
-    create_run_dir(tmp_path, run_id)
-
-    mock_client = MagicMock()
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
-    mock_client.get = AsyncMock(side_effect=ConnectionError("Connection refused"))
-
-    mocker.patch("sapporo.run.httpx.AsyncClient", return_value=mock_client)
-
-    req = make_run_request_form(
-        workflow_attachment_obj=[{"file_name": "helper.cwl", "file_url": "https://example.com/helper.cwl"}]
-    )
-    with pytest.raises(Exception, match="Failed to download"):
-        await download_wf_attachment(run_id, req)
 
 
 # === fork_run (Popen mock) ===
@@ -1295,131 +1209,6 @@ def test_reconcile_runs_pbt_only_non_terminal_reconciled(states: list[State]) ->
 # === download_wf_attachment retry ===
 
 
-def _make_async_httpx_client_with_side_effect(side_effect: Any) -> MagicMock:
-    mock_client = MagicMock()
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
-    mock_client.get = AsyncMock(side_effect=side_effect)
-
-    return mock_client
-
-
-@pytest.mark.asyncio
-async def test_download_wf_attachment_retries_transport_error_then_succeeds(
-    mocker: "MockerFixture",
-    tmp_path: Path,
-) -> None:
-    _setup_config(mocker, tmp_path)
-    import httpx
-
-    from sapporo.run import download_wf_attachment, resolve_content_path
-
-    run_id = "aabbccdd-0000-0000-0000-000000000090"
-    create_run_dir(tmp_path, run_id)
-
-    ok = MagicMock()
-    ok.content = b"eventually arrived"
-    ok.raise_for_status = MagicMock()
-
-    mock_client = _make_async_httpx_client_with_side_effect([httpx.ConnectError("connection reset"), ok])
-    mocker.patch("sapporo.run.httpx.AsyncClient", return_value=mock_client)
-    mocker.patch("sapporo.run.asyncio.sleep", new_callable=AsyncMock)
-
-    req = make_run_request_form(
-        workflow_attachment_obj=[{"file_name": "helper.cwl", "file_url": "https://example.com/helper.cwl"}]
-    )
-    await download_wf_attachment(run_id, req)
-
-    assert mock_client.get.await_count == 2
-    assert (resolve_content_path(run_id, "exe_dir") / "helper.cwl").read_bytes() == b"eventually arrived"
-
-
-@pytest.mark.asyncio
-async def test_download_wf_attachment_retries_retryable_status_then_succeeds(
-    mocker: "MockerFixture",
-    tmp_path: Path,
-) -> None:
-    _setup_config(mocker, tmp_path)
-    import httpx
-
-    from sapporo.run import download_wf_attachment, resolve_content_path
-
-    run_id = "aabbccdd-0000-0000-0000-000000000091"
-    create_run_dir(tmp_path, run_id)
-
-    bad_gateway = MagicMock()
-    bad_gateway.status_code = 502
-    bad_gateway.text = "Bad Gateway"
-    bad_gateway.raise_for_status.side_effect = httpx.HTTPStatusError("502", request=MagicMock(), response=bad_gateway)
-    ok = MagicMock()
-    ok.content = b"served after the proxy came back"
-    ok.raise_for_status = MagicMock()
-
-    mock_client = _make_async_httpx_client_with_side_effect([bad_gateway, ok])
-    mocker.patch("sapporo.run.httpx.AsyncClient", return_value=mock_client)
-    mocker.patch("sapporo.run.asyncio.sleep", new_callable=AsyncMock)
-
-    req = make_run_request_form(
-        workflow_attachment_obj=[{"file_name": "helper.cwl", "file_url": "https://example.com/helper.cwl"}]
-    )
-    await download_wf_attachment(run_id, req)
-
-    assert mock_client.get.await_count == 2
-    assert (resolve_content_path(run_id, "exe_dir") / "helper.cwl").read_bytes() == b"served after the proxy came back"
-
-
-@pytest.mark.asyncio
-async def test_download_wf_attachment_does_not_retry_client_error(mocker: "MockerFixture", tmp_path: Path) -> None:
-    _setup_config(mocker, tmp_path)
-    import httpx
-
-    from sapporo.run import download_wf_attachment
-
-    run_id = "aabbccdd-0000-0000-0000-000000000092"
-    create_run_dir(tmp_path, run_id)
-
-    not_found = MagicMock()
-    not_found.status_code = 404
-    not_found.text = "Not Found"
-    not_found.raise_for_status.side_effect = httpx.HTTPStatusError("404", request=MagicMock(), response=not_found)
-
-    mock_client = _make_async_httpx_client_with_side_effect([not_found])
-    mocker.patch("sapporo.run.httpx.AsyncClient", return_value=mock_client)
-    sleep_mock = mocker.patch("sapporo.run.asyncio.sleep", new_callable=AsyncMock)
-
-    req = make_run_request_form(
-        workflow_attachment_obj=[{"file_name": "missing.cwl", "file_url": "https://example.com/missing.cwl"}]
-    )
-    with pytest.raises(Exception, match="Failed to download"):
-        await download_wf_attachment(run_id, req)
-
-    assert mock_client.get.await_count == 1
-    sleep_mock.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_download_wf_attachment_gives_up_after_max_attempts(mocker: "MockerFixture", tmp_path: Path) -> None:
-    _setup_config(mocker, tmp_path)
-    import httpx
-
-    from sapporo.run import ATTACHMENT_MAX_ATTEMPTS, download_wf_attachment
-
-    run_id = "aabbccdd-0000-0000-0000-000000000093"
-    create_run_dir(tmp_path, run_id)
-
-    mock_client = _make_async_httpx_client_with_side_effect(httpx.ConnectError("connection reset"))
-    mocker.patch("sapporo.run.httpx.AsyncClient", return_value=mock_client)
-    mocker.patch("sapporo.run.asyncio.sleep", new_callable=AsyncMock)
-
-    req = make_run_request_form(
-        workflow_attachment_obj=[{"file_name": "helper.cwl", "file_url": "https://example.com/helper.cwl"}]
-    )
-    with pytest.raises(Exception, match="Failed to download"):
-        await download_wf_attachment(run_id, req)
-
-    assert mock_client.get.await_count == ATTACHMENT_MAX_ATTEMPTS
-
-
 # === post_run_task exit code ===
 
 
@@ -1822,39 +1611,6 @@ async def test_post_run_task_registers_run_while_preparing(mocker: "MockerFixtur
     assert run_id not in run_module._INITIALIZING_RUNS
 
 
-@pytest.mark.asyncio
-async def test_download_wf_attachment_stops_before_next_attachment_after_cancel(
-    mocker: "MockerFixture", tmp_path: Path
-) -> None:
-    _setup_config(mocker, tmp_path)
-    from sapporo.run import RunPreparationAbortedError, download_wf_attachment, write_file
-
-    run_id = "aabbccdd-0000-0000-0000-000000000f05"
-    create_run_dir(tmp_path, run_id, state="INITIALIZING")
-
-    mock_response = MagicMock()
-    mock_response.content = b"first"
-    mock_response.raise_for_status = MagicMock()
-
-    async def respond_and_cancel(*_args: object, **_kwargs: object) -> MagicMock:
-        write_file(run_id, "state", State.CANCELING)
-        return mock_response
-
-    mock_client = _make_async_httpx_client_with_side_effect(respond_and_cancel)
-    mocker.patch("sapporo.run.httpx.AsyncClient", return_value=mock_client)
-
-    req = make_run_request_form(
-        workflow_attachment_obj=[
-            {"file_name": "first.cwl", "file_url": "https://example.com/first.cwl"},
-            {"file_name": "second.cwl", "file_url": "https://example.com/second.cwl"},
-        ]
-    )
-    with pytest.raises(RunPreparationAbortedError):
-        await download_wf_attachment(run_id, req)
-
-    assert mock_client.get.await_count == 1
-
-
 def test_reconcile_runs_skips_initializing_run_prepared_by_this_process(
     mocker: "MockerFixture", tmp_path: Path
 ) -> None:
@@ -1970,3 +1726,253 @@ def test_resolve_output_file_rejects_traversal_and_outside_symlink(mocker: "Mock
         with pytest.raises(HTTPException) as exc_info:
             resolve_output_file(run_id, bad)
         assert exc_info.value.status_code == 400, bad
+
+
+# === download_wf_attachment (httpx.MockTransport) ===
+
+
+def _mock_http(mocker: "MockerFixture", handler: "Callable[[httpx.Request], httpx.Response]") -> list[httpx.Request]:
+    """Route every request that sapporo.run sends through handler and record the requests."""
+    requests: list[httpx.Request] = []
+
+    def record(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return handler(request)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(record))
+    mocker.patch("sapporo.run.httpx.AsyncClient", return_value=client)
+    return requests
+
+
+# An IP literal in a private range: allowed, and checked without a DNS lookup
+_ATTACHMENT_URL = "http://127.0.0.1:1/helper.cwl"
+
+
+def _attachment_request(url: str = _ATTACHMENT_URL) -> Any:
+    return make_run_request_form(workflow_attachment_obj=[{"file_name": "helper.cwl", "file_url": url}])
+
+
+@pytest.mark.asyncio
+async def test_download_wf_attachment_writes_a_body_larger_than_one_chunk(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import ATTACHMENT_CHUNK_SIZE, download_wf_attachment, resolve_content_path
+
+    run_id = "aabbccdd-0000-0000-0000-000000000023"
+    create_run_dir(tmp_path, run_id)
+    body = bytes(range(256)) * (2 * ATTACHMENT_CHUNK_SIZE // 256) + b"tail"
+    requests = _mock_http(mocker, lambda _request: httpx.Response(200, content=body))
+
+    await download_wf_attachment(run_id, _attachment_request())
+
+    assert (resolve_content_path(run_id, "exe_dir") / "helper.cwl").read_bytes() == body
+    assert len(requests) == 1
+    assert requests[0].headers["user-agent"].startswith("sapporo/")
+
+
+@pytest.mark.asyncio
+async def test_download_wf_attachment_http_error_raises_exception(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import download_wf_attachment
+
+    run_id = "aabbccdd-0000-0000-0000-000000000025"
+    create_run_dir(tmp_path, run_id)
+    _mock_http(mocker, lambda _request: httpx.Response(404, text="Not Found"))
+
+    with pytest.raises(Exception, match=r"Failed to download .* 404 Not Found"):
+        await download_wf_attachment(run_id, _attachment_request())
+
+
+@pytest.mark.asyncio
+async def test_download_wf_attachment_retries_transport_error_then_succeeds(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import download_wf_attachment, resolve_content_path
+
+    run_id = "aabbccdd-0000-0000-0000-000000000090"
+    create_run_dir(tmp_path, run_id)
+    outcomes: Iterator[httpx.Response | Exception] = iter(
+        [httpx.ConnectError("connection reset"), httpx.Response(200, content=b"eventually arrived")]
+    )
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        outcome = next(outcomes)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    requests = _mock_http(mocker, handler)
+    mocker.patch("sapporo.run.asyncio.sleep", new_callable=AsyncMock)
+
+    await download_wf_attachment(run_id, _attachment_request())
+
+    assert len(requests) == 2
+    assert (resolve_content_path(run_id, "exe_dir") / "helper.cwl").read_bytes() == b"eventually arrived"
+
+
+@pytest.mark.asyncio
+async def test_download_wf_attachment_retries_retryable_status_then_succeeds(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import download_wf_attachment, resolve_content_path
+
+    run_id = "aabbccdd-0000-0000-0000-000000000091"
+    create_run_dir(tmp_path, run_id)
+    responses = iter(
+        [httpx.Response(502, text="Bad Gateway"), httpx.Response(200, content=b"served after the proxy came back")]
+    )
+    requests = _mock_http(mocker, lambda _request: next(responses))
+    mocker.patch("sapporo.run.asyncio.sleep", new_callable=AsyncMock)
+
+    await download_wf_attachment(run_id, _attachment_request())
+
+    assert len(requests) == 2
+    assert (resolve_content_path(run_id, "exe_dir") / "helper.cwl").read_bytes() == b"served after the proxy came back"
+
+
+@pytest.mark.asyncio
+async def test_download_wf_attachment_does_not_retry_client_error(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import download_wf_attachment
+
+    run_id = "aabbccdd-0000-0000-0000-000000000092"
+    create_run_dir(tmp_path, run_id)
+    requests = _mock_http(mocker, lambda _request: httpx.Response(404, text="Not Found"))
+    sleep_mock = mocker.patch("sapporo.run.asyncio.sleep", new_callable=AsyncMock)
+
+    with pytest.raises(Exception, match="Failed to download"):
+        await download_wf_attachment(run_id, _attachment_request())
+
+    assert len(requests) == 1
+    sleep_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_download_wf_attachment_gives_up_after_max_attempts(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import ATTACHMENT_MAX_ATTEMPTS, download_wf_attachment
+
+    run_id = "aabbccdd-0000-0000-0000-000000000093"
+    create_run_dir(tmp_path, run_id)
+
+    def refuse(_request: httpx.Request) -> httpx.Response:
+        msg = "connection reset"
+        raise httpx.ConnectError(msg)
+
+    requests = _mock_http(mocker, refuse)
+    mocker.patch("sapporo.run.asyncio.sleep", new_callable=AsyncMock)
+
+    with pytest.raises(Exception, match="Failed to download"):
+        await download_wf_attachment(run_id, _attachment_request())
+
+    assert len(requests) == ATTACHMENT_MAX_ATTEMPTS
+
+
+@pytest.mark.asyncio
+async def test_download_wf_attachment_follows_a_redirect_to_an_allowed_address(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import download_wf_attachment, resolve_content_path
+
+    run_id = "aabbccdd-0000-0000-0000-000000000094"
+    create_run_dir(tmp_path, run_id)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/helper.cwl":
+            return httpx.Response(302, headers={"Location": "/moved/helper.cwl"})
+        return httpx.Response(200, content=b"moved here")
+
+    requests = _mock_http(mocker, handler)
+
+    await download_wf_attachment(run_id, _attachment_request())
+
+    assert [str(r.url) for r in requests] == [_ATTACHMENT_URL, "http://127.0.0.1:1/moved/helper.cwl"]
+    assert (resolve_content_path(run_id, "exe_dir") / "helper.cwl").read_bytes() == b"moved here"
+
+
+@pytest.mark.asyncio
+async def test_download_wf_attachment_blocks_a_redirect_to_a_metadata_address(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import download_wf_attachment
+
+    run_id = "aabbccdd-0000-0000-0000-000000000095"
+    create_run_dir(tmp_path, run_id)
+    requests = _mock_http(
+        mocker, lambda _request: httpx.Response(302, headers={"Location": "http://169.254.169.254/latest/meta-data/"})
+    )
+
+    with pytest.raises(Exception, match=r"Blocked download .* link-local"):
+        await download_wf_attachment(run_id, _attachment_request())
+
+    # The metadata address itself is never requested
+    assert [str(r.url) for r in requests] == [_ATTACHMENT_URL]
+
+
+@pytest.mark.asyncio
+async def test_download_wf_attachment_blocks_a_metadata_address_before_any_request(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import download_wf_attachment
+
+    run_id = "aabbccdd-0000-0000-0000-000000000096"
+    create_run_dir(tmp_path, run_id)
+    requests = _mock_http(mocker, lambda _request: httpx.Response(200, content=b"secret"))
+
+    with pytest.raises(Exception, match="Blocked download"):
+        await download_wf_attachment(run_id, _attachment_request("http://[fd00:ec2::254]/latest/meta-data/"))
+
+    assert requests == []
+
+
+@pytest.mark.asyncio
+async def test_download_wf_attachment_gives_up_after_too_many_redirects(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import ATTACHMENT_MAX_REDIRECTS, download_wf_attachment
+
+    run_id = "aabbccdd-0000-0000-0000-000000000097"
+    create_run_dir(tmp_path, run_id)
+    requests = _mock_http(mocker, lambda _request: httpx.Response(302, headers={"Location": "/again"}))
+
+    with pytest.raises(Exception, match=r"Failed to download .* redirects"):
+        await download_wf_attachment(run_id, _attachment_request())
+
+    assert len(requests) == ATTACHMENT_MAX_REDIRECTS + 1
+
+
+@pytest.mark.asyncio
+async def test_download_wf_attachment_stops_at_the_next_chunk_after_cancel(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import RunPreparationAbortedError, download_wf_attachment, resolve_content_path, write_file
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f05"
+    create_run_dir(tmp_path, run_id, state="INITIALIZING")
+
+    def cancel_then_respond(_request: httpx.Request) -> httpx.Response:
+        write_file(run_id, "state", State.CANCELING)
+        return httpx.Response(200, content=b"first")
+
+    requests = _mock_http(mocker, cancel_then_respond)
+    req = make_run_request_form(
+        workflow_attachment_obj=[
+            {"file_name": "first.cwl", "file_url": "http://127.0.0.1:1/first.cwl"},
+            {"file_name": "second.cwl", "file_url": "http://127.0.0.1:1/second.cwl"},
+        ]
+    )
+
+    with pytest.raises(RunPreparationAbortedError):
+        await download_wf_attachment(run_id, req)
+
+    assert len(requests) == 1
+    assert (resolve_content_path(run_id, "exe_dir") / "first.cwl").read_bytes() == b""
+    assert not (resolve_content_path(run_id, "exe_dir") / "second.cwl").exists()

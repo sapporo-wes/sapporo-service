@@ -297,6 +297,35 @@ def test_validate_url_link_local_ip_is_blocked(url: str) -> None:
         validate_url_not_metadata_service(url)
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://[fd00:ec2::254]/latest/meta-data/",
+        "http://100.100.100.200/latest/meta-data/",
+        "http://[::ffff:169.254.169.254]/latest/meta-data/",
+    ],
+)
+def test_validate_url_other_metadata_service_addresses_are_blocked(url: str) -> None:
+    with pytest.raises(ValueError, match="metadata service"):
+        validate_url_not_metadata_service(url)
+
+
+def test_validate_url_ip_literal_is_checked_without_dns() -> None:
+    with patch("sapporo.utils.socket.getaddrinfo", side_effect=AssertionError("DNS must not be used")):
+        validate_url_not_metadata_service("http://10.0.0.1/file.txt")
+
+
+def test_validate_url_dns_result_with_scope_id_is_checked() -> None:
+    fake_addrinfo = [
+        (socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("fe80::1%eth0", 0, 0, 2)),
+    ]
+    with (
+        patch("sapporo.utils.socket.getaddrinfo", return_value=fake_addrinfo),
+        pytest.raises(ValueError, match="link-local"),
+    ):
+        validate_url_not_metadata_service("http://evil.example.com/steal")
+
+
 def test_validate_url_dns_rebinding_to_link_local_is_blocked() -> None:
     fake_addrinfo = [
         (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.169.254", 0)),

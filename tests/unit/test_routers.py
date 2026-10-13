@@ -596,6 +596,55 @@ class TestListExecutableWorkflows:
         assert body["workflows"] == ["https://example.com/custom.cwl"]
 
 
+class TestRunWorkflowAllowlist:
+    def _allowlist_client(self, mocker: "MockerFixture", tmp_path: Path) -> Any:
+        from unittest.mock import AsyncMock
+
+        from sapporo.config import AppConfig
+
+        ew_path = tmp_path / "ew.json"
+        ew_path.write_text(json.dumps({"workflows": ["https://example.com/wf.cwl"]}), encoding="utf-8")
+        mocker.patch("sapporo.routers.post_run_task", new=AsyncMock())
+        return create_test_client(
+            mocker, tmp_path, app_config=AppConfig(run_dir=tmp_path, executable_workflows=ew_path)
+        )
+
+    def test_engine_parameters_are_rejected(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        client = self._allowlist_client(mocker, tmp_path)
+
+        res = client.post(
+            "/runs",
+            json={
+                "workflow_type": "CWL",
+                "workflow_type_version": "v1.0",
+                "workflow_engine": "cwltool",
+                "workflow_url": "https://example.com/wf.cwl",
+                "workflow_engine_parameters": {"--debug": "true"},
+            },
+        )
+
+        assert res.status_code == 400
+        assert "workflow_engine_parameters" in res.text
+
+    def test_registered_workflow_without_engine_parameters_is_accepted(
+        self, mocker: "MockerFixture", tmp_path: Path
+    ) -> None:
+        client = self._allowlist_client(mocker, tmp_path)
+
+        res = client.post(
+            "/runs",
+            json={
+                "workflow_type": "CWL",
+                "workflow_type_version": "v1.0",
+                "workflow_engine": "cwltool",
+                "workflow_url": "https://example.com/wf.cwl",
+            },
+        )
+
+        assert res.status_code == 200
+        assert "run_id" in res.json()
+
+
 # === GET /runs/{run_id}/outputs ===
 
 

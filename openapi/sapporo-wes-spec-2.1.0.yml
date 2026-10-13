@@ -1511,7 +1511,11 @@ paths:
 
         - `workflow_type_version` and `workflow_url` are now required.
 
-        - Supports `application/json` request body in addition to `multipart/form-data`.'
+        - Supports `application/json` request body in addition to `multipart/form-data`.
+
+        - When `executable_workflows.json` lists workflows, `workflow_engine_parameters`
+        is rejected with 400 and the `default_workflow_engine_parameters` of the service
+        are used.'
       operationId: run_workflow_runs_post
       requestBody:
         content:

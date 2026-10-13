@@ -1,3 +1,4 @@
+import asyncio
 import json
 import shutil
 from typing import Literal, cast
@@ -51,6 +52,7 @@ from sapporo.schemas import (
     RunRequestForm,
     RunRequestJson,
     RunStatus,
+    RunSummary,
     ServiceInfo,
     State,
     TaskListResponse,
@@ -136,12 +138,17 @@ async def list_runs(
     token: str | None = auth_depends_factory(),
 ) -> RunListResponse:
     username = await resolve_username(token)
-    (db_runs, next_page_token) = list_runs_db(page_size, page_token, sort_order, state, run_ids, username, tags)
-    if latest:  # noqa: SIM108
-        runs = [create_run_summary(run.run_id) for run in db_runs]
-    else:
-        runs = db_runs_to_run_summaries(db_runs)
-    total_runs = count_runs_db(state, run_ids, username, tags)
+
+    def read_page() -> tuple[list[RunSummary], str | None, int]:
+        db_runs, next_page_token = list_runs_db(page_size, page_token, sort_order, state, run_ids, username, tags)
+        if latest:  # noqa: SIM108
+            runs = [create_run_summary(run.run_id) for run in db_runs]
+        else:
+            runs = db_runs_to_run_summaries(db_runs)
+        return runs, next_page_token, count_runs_db(state, run_ids, username, tags)
+
+    # The index queries and up to page_size run directory reads block, so they run off the event loop
+    runs, next_page_token, total_runs = await asyncio.to_thread(read_page)
     return RunListResponse(
         runs=runs,
         next_page_token=next_page_token,
@@ -160,6 +167,7 @@ async def list_runs(
 - Added a field `workflow_attachment_obj`. With this field, download files from remote locations directly to the execution directory.
 - `workflow_type_version` and `workflow_url` are now required.
 - Supports `application/json` request body in addition to `multipart/form-data`.
+- When `executable_workflows.json` lists workflows, `workflow_engine_parameters` is rejected with 400 and the `default_workflow_engine_parameters` of the service are used.
 """,
     response_model=RunId,
     openapi_extra={
@@ -253,7 +261,7 @@ async def run_workflow(
         shutil.rmtree(resolve_run_dir(run_id), ignore_errors=True)
         raise
 
-    add_run_db(create_run_summary(run_id), username)
+    await asyncio.to_thread(lambda: add_run_db(create_run_summary(run_id), username))
     background_tasks.add_task(post_run_task, run_id, run_request)
     return RunId(run_id=run_id)
 
@@ -288,7 +296,7 @@ async def _prepare_run(request: Request, run_id: str, username: str | None) -> R
             if json_req.workflow_attachment_obj
             else None,
         )
-        prepare_run_dir(run_id, run_request, username)
+        await asyncio.to_thread(prepare_run_dir, run_id, run_request, username)
         return run_request
 
     async with request.form() as form:
@@ -304,7 +312,7 @@ async def _prepare_run(request: Request, run_id: str, username: str | None) -> R
             cast("list[UploadFile]", form.getlist("workflow_attachment")),
             str(form.get("workflow_attachment_obj")) if form.get("workflow_attachment_obj") is not None else None,
         )
-        prepare_run_dir(run_id, run_request, username)
+        await asyncio.to_thread(prepare_run_dir, run_id, run_request, username)
         return run_request
 
 
@@ -327,7 +335,8 @@ async def get_run_log(
     username = await resolve_username(token)
     validate_run_id(run_id, username)
 
-    return create_run_log(run_id)
+    # Reads the engine logs, so it runs off the event loop
+    return await asyncio.to_thread(create_run_log, run_id)
 
 
 @router.get(
@@ -529,7 +538,7 @@ async def get_run_outputs_list(
         if not resolve_content_path(run_id, "outputs_dir").is_dir():
             raise_not_found("Outputs of run", run_id)
         sanitized_name = str(secure_filepath(name)) if name else f"sapporo_{run_id}_outputs"
-        stream, content_length = outputs_zip_stream(run_id, sanitized_name)
+        stream, content_length = await asyncio.to_thread(outputs_zip_stream, run_id, sanitized_name)
         return StreamingResponse(
             stream,
             media_type="application/zip",
@@ -538,7 +547,7 @@ async def get_run_outputs_list(
                 "Content-Length": str(content_length),
             },
         )
-    return create_outputs_list_response(run_id)
+    return await asyncio.to_thread(create_outputs_list_response, run_id)
 
 
 @router.get(
@@ -595,7 +604,7 @@ async def get_run_ro_crate(
     username = await resolve_username(token)
     validate_run_id(run_id, username)
     if download:
-        stream, content_length = ro_crate_zip_stream(run_id)
+        stream, content_length = await asyncio.to_thread(ro_crate_zip_stream, run_id)
         return StreamingResponse(
             stream,
             media_type="application/zip",
@@ -605,7 +614,7 @@ async def get_run_ro_crate(
             },
         )
     return JSONResponse(
-        content=create_ro_crate_response(run_id),
+        content=await asyncio.to_thread(create_ro_crate_response, run_id),
         media_type="application/ld+json",
     )
 

@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
+import httpx
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -11,6 +12,8 @@ from hypothesis import strategies as st
 from sapporo.cli import generate_secret, hash_password, main
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pytest_mock import MockerFixture
 
 # === hash_password ===
@@ -346,3 +349,50 @@ def test_main_help_contains_new_subcommands(capsys: pytest.CaptureFixture[str]) 
     assert "generate-ro-crate" in captured.out
     assert "dump-outputs" in captured.out
     assert "generate-openapi" in captured.out
+
+
+# === download ===
+
+
+def _route_requests(mocker: "MockerFixture", handler: "Callable[[httpx.Request], httpx.Response]") -> None:
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    mocker.patch("sapporo.run.httpx.AsyncClient", return_value=client)
+
+
+def test_download_writes_the_response_body(tmp_path: Path, mocker: "MockerFixture") -> None:
+    _route_requests(mocker, lambda _request: httpx.Response(200, content=b"rule all:\n"))
+    dest = tmp_path / "Snakefile"
+
+    sys.argv = ["sapporo-cli", "download", "http://127.0.0.1:1/Snakefile", str(dest)]
+    main()
+
+    assert dest.read_bytes() == b"rule all:\n"
+
+
+def test_download_blocked_address_exits_with_error(
+    tmp_path: Path, mocker: "MockerFixture", capsys: pytest.CaptureFixture[str]
+) -> None:
+    _route_requests(mocker, lambda _request: httpx.Response(200, content=b"secret"))
+    dest = tmp_path / "Snakefile"
+
+    sys.argv = ["sapporo-cli", "download", "http://169.254.169.254/latest/meta-data/", str(dest)]
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 1
+    assert "link-local" in capsys.readouterr().err
+    assert not dest.exists()
+
+
+def test_download_http_error_exits_with_error(
+    tmp_path: Path, mocker: "MockerFixture", capsys: pytest.CaptureFixture[str]
+) -> None:
+    _route_requests(mocker, lambda _request: httpx.Response(404, text="Not Found"))
+    dest = tmp_path / "Snakefile"
+
+    sys.argv = ["sapporo-cli", "download", "http://127.0.0.1:1/Snakefile", str(dest)]
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 1
+    assert "404" in capsys.readouterr().err

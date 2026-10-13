@@ -101,6 +101,8 @@ Format:
 - An empty array allows all workflows.
 - Each URL must be a remote resource (http/https).
 - Any `workflow_url` in `POST /runs` must match this list or the request returns a 400 Bad Request error.
+- While the list is not empty, `workflow_engine_parameters` in `POST /runs` is rejected with 400 Bad Request. Every run uses the `default_workflow_engine_parameters` of `service_info.json`, so a registered workflow runs only with the parameters that the administrator chose. Engine parameters could otherwise point the engine at another workflow or configuration file.
+- `workflow_attachment` and `workflow_attachment_obj` stay available for input files. Whether a registered workflow reads a file from the attachments is decided by the workflow itself, so register only workflows that you trust.
 - Query available workflows via `GET /executable-workflows`.
 
 ## Custom run.sh

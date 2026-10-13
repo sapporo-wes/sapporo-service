@@ -166,6 +166,8 @@ sapporo reads a control file only when it is a regular file. The files in the ta
 
 The workflow can still write `state.txt` and the other control files, and sapporo believes their content. This affects only the run that the workflow belongs to.
 
+URLs that sapporo fetches on behalf of a request (`workflow_attachment_obj`, and `workflow_url` for snakemake through `sapporo-cli download`) must use `http` or `https` and must not point to a cloud metadata service. sapporo rejects the link-local ranges (`169.254.0.0/16`, `fe80::/10`), the IPv6 address of the AWS instance metadata service (`fd00:ec2::254`) and the Alibaba Cloud metadata address (`100.100.100.200`), both as IP literals and as DNS results. Redirects are followed one hop at a time, and every hop is checked in the same way. Private networks such as `10.0.0.0/8` and `127.0.0.0/8` are allowed, because local file servers are common. A hostname that changes its address between the check and the connection (DNS rebinding) is not covered.
+
 ## Reconciliation
 
 Detects runs stuck in `RUNNING`/`QUEUED` after a process restart and marks them as `SYSTEM_ERROR`.

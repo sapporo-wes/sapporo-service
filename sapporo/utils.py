@@ -248,20 +248,30 @@ def secure_filepath(filepath: str) -> Path:
     return Path(*sanitized_parts)
 
 
-def _is_link_local(addr: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
-    """Check if an IP address belongs to the link-local range (cloud metadata services)."""
-    return addr.is_link_local
+# Addresses of cloud metadata services: the link-local ranges (169.254.169.254 of AWS, GCP and Azure
+# lies in 169.254.0.0/16), the IPv6 endpoint of the AWS instance metadata service, and the Alibaba
+# Cloud metadata address. Private networks stay allowed, because local file servers are common in
+# development environments.
+_BLOCKED_NETWORKS: tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...] = (
+    ipaddress.ip_network("169.254.0.0/16"),
+    ipaddress.ip_network("fe80::/10"),
+    ipaddress.ip_network("fd00:ec2::254/128"),
+    ipaddress.ip_network("100.100.100.200/32"),
+)
+
+
+def _is_blocked_address(addr: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    if isinstance(addr, ipaddress.IPv6Address) and addr.ipv4_mapped is not None:
+        addr = addr.ipv4_mapped
+    return any(addr in network for network in _BLOCKED_NETWORKS)
 
 
 def validate_url_not_metadata_service(url: str) -> None:
     """Validate that a URL does not point to a cloud metadata service.
 
-    Blocks link-local addresses (169.254.0.0/16, fe80::/10) which are used by
-    AWS, GCP, and Azure metadata services. Also checks DNS-resolved addresses
-    to prevent DNS rebinding attacks.
-
-    Private IPs (localhost, 10.x, 192.168.x) are intentionally allowed
-    for development environments where local file servers are common.
+    An IP literal is checked directly. A hostname is resolved, and every address that it resolves to
+    is checked. The check covers one URL, so the caller checks every redirect target in the same
+    way. A hostname that changes its address after this check (DNS rebinding) is not covered.
     """
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):
@@ -273,26 +283,24 @@ def validate_url_not_metadata_service(url: str) -> None:
         msg = f"URL has no hostname: {url!r}"
         raise ValueError(msg)
 
-    # Check if hostname is an IP literal
     try:
-        addr = ipaddress.ip_address(hostname)
-        if _is_link_local(addr):
-            msg = f"URL points to a link-local address (metadata service): {hostname}"
+        literal = ipaddress.ip_address(hostname)
+    except ValueError:
+        literal = None
+    if literal is not None:
+        if _is_blocked_address(literal):
+            msg = f"URL points to a link-local or metadata service address: {hostname}"
             raise ValueError(msg)
-    except ValueError as e:
-        if "link-local" in str(e) or "metadata" in str(e):
-            raise
-        # Not an IP literal, will resolve via DNS below
+        return
 
-    # DNS resolution check (prevents DNS rebinding to metadata IPs)
     try:
         addrinfos = socket.getaddrinfo(hostname, None)
     except socket.gaierror:
-        return  # DNS resolution failure is not a security concern here
+        return  # A hostname that does not resolve cannot reach a metadata service
 
     for _family, _type, _proto, _canonname, sockaddr in addrinfos:
-        ip_str = sockaddr[0]
-        addr = ipaddress.ip_address(ip_str)
-        if _is_link_local(addr):
-            msg = f"URL hostname {hostname!r} resolves to link-local address: {ip_str}"
+        # An IPv6 address may carry a scope id, such as fe80::1%eth0
+        ip_str = str(sockaddr[0]).split("%", 1)[0]
+        if _is_blocked_address(ipaddress.ip_address(ip_str)):
+            msg = f"URL hostname {hostname!r} resolves to a link-local or metadata service address: {ip_str}"
             raise ValueError(msg)

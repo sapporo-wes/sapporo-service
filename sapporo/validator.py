@@ -60,10 +60,16 @@ def validate_run_request(
 
     # Check executable_wfs
     executable_wfs = create_executable_wfs()
-    if len(executable_wfs.workflows) != 0 and wf_url not in executable_wfs.workflows:
-        raise_bad_request(
-            f"Invalid workflow_url: {wf_url}. Sapporo is currently operating in the mode where only registered workflows can be executed. Please refer to GET /executable-workflows to see the list of executable workflows."
-        )
+    if len(executable_wfs.workflows) != 0:
+        if wf_url not in executable_wfs.workflows:
+            raise_bad_request(
+                f"Invalid workflow_url: {wf_url}. Sapporo is currently operating in the mode where only registered workflows can be executed. Please refer to GET /executable-workflows to see the list of executable workflows."
+            )
+        # Engine parameters can point the engine at another workflow or config, which would bypass the list
+        if wf_engine_parameters is not None:
+            raise_bad_request(
+                "workflow_engine_parameters is not accepted while Sapporo is operating in the mode where only registered workflows can be executed. The default_workflow_engine_parameters of the service are used instead."
+            )
 
     try:
         return RunRequestForm(

@@ -334,6 +334,59 @@ def test_validate_run_request_with_registered_wf_url_succeeds(mocker: "MockerFix
     assert result.workflow_url == "https://registered.com/wf.cwl"
 
 
+@pytest.mark.parametrize("wf_engine_parameters", ['{"--debug": "true"}', "{}"])
+def test_validate_run_request_with_registered_wf_url_and_engine_parameters_raises_400(
+    mocker: "MockerFixture", wf_engine_parameters: str
+) -> None:
+    from fastapi import HTTPException
+
+    mocker.patch("sapporo.validator.create_service_info", return_value=_make_service_info())
+    mocker.patch(
+        "sapporo.validator.create_executable_wfs",
+        return_value=ExecutableWorkflows(workflows=["https://registered.com/wf.cwl"]),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        validate_run_request(
+            wf_params=None,
+            wf_type="CWL",
+            wf_type_version="v1.0",
+            tags=None,
+            wf_engine="cwltool",
+            wf_engine_version=None,
+            wf_engine_parameters=wf_engine_parameters,
+            wf_url="https://registered.com/wf.cwl",
+            wf_attachment=[],
+            wf_attachment_obj=None,
+        )
+
+    assert exc_info.value.status_code == 400
+    assert "workflow_engine_parameters" in str(exc_info.value.detail)
+
+
+def test_validate_run_request_with_empty_executable_wfs_allows_engine_parameters(mocker: "MockerFixture") -> None:
+    mocker.patch("sapporo.validator.create_service_info", return_value=_make_service_info())
+    mocker.patch(
+        "sapporo.validator.create_executable_wfs",
+        return_value=ExecutableWorkflows(workflows=[]),
+    )
+
+    result = validate_run_request(
+        wf_params=None,
+        wf_type="CWL",
+        wf_type_version="v1.0",
+        tags=None,
+        wf_engine="cwltool",
+        wf_engine_version=None,
+        wf_engine_parameters='{"--debug": "true"}',
+        wf_url="https://anything.example.com/wf.cwl",
+        wf_attachment=[],
+        wf_attachment_obj=None,
+    )
+
+    assert result.workflow_engine_parameters == {"--debug": "true"}
+
+
 # === validate_run_request: JSON parse error cases ===
 
 
