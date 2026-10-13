@@ -70,6 +70,8 @@ The process group contains the engine process and everything it started on this 
 
 Once the parent process has written `CANCELING` or `SYSTEM_ERROR`, the background job does not write a terminal state anymore. A workflow that ends after the cancel therefore cannot turn the run back into `COMPLETE` or `EXECUTOR_ERROR`. If `state.txt` already says `CANCELING` when `run.sh` starts, it writes `CANCELED` without starting the engine.
 
+A run in `INITIALIZING` has no `run.sh` process yet: the service is still downloading its attachments. A cancel in this phase writes `CANCELING`, the download stops before the next attachment, and the run becomes `CANCELED` with exit code `138` without starting `run.sh`. A delete in this phase removes the run directory contents in the same way, and whatever the download wrote after the deletion is removed again when the download stops.
+
 ### Error Handling
 
 `run.sh` uses `trap` to handle errors and signals. `set -E` makes the `ERR` trap apply inside functions and inside the background job as well.
@@ -157,6 +159,8 @@ Detects runs stuck in `RUNNING`/`QUEUED` after a process restart and marks them 
 | Absent | N/A | Set `SYSTEM_ERROR` (reason: "no pid file") |
 
 Runs in terminal states (`COMPLETE`, `EXECUTOR_ERROR`, `SYSTEM_ERROR`, `CANCELED`, `DELETED`) and `UNKNOWN` are skipped. For each reconciled run, `state.txt` is set to `SYSTEM_ERROR`, the current timestamp is written to `end_time.txt`, and the reason is logged to `system_logs.json`.
+
+`INITIALIZING` runs whose attachments this process is still downloading have no `run.pid` yet and are skipped by the periodic reconciliation. At startup, every `INITIALIZING` run is reconciled, because no download survives a restart.
 
 A run whose files cannot be processed (for example a `system_logs.json` that is not a list) is logged and skipped. One broken run directory does not stop reconciliation or server startup.
 

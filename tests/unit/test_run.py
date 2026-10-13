@@ -1647,3 +1647,164 @@ def test_fork_run_passes_cancel_grace_seconds_to_run_sh(mocker: "MockerFixture",
     fork_run(run_id)
 
     assert mock_popen.call_args.kwargs["env"]["SAPPORO_CANCEL_GRACE_SECONDS"] == "5"
+
+
+# === cancel / delete while attachments are downloading (INITIALIZING) ===
+
+
+def test_fork_run_canceling_does_not_start_run_sh(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import RunPreparationAbortedError, fork_run
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f00"
+    create_run_dir(tmp_path, run_id, state="CANCELING")
+    mock_popen = mocker.patch("sapporo.run.Popen")
+
+    with pytest.raises(RunPreparationAbortedError):
+        fork_run(run_id)
+
+    mock_popen.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_post_run_task_canceled_during_download_writes_canceled(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import post_run_task, read_file, read_state, write_file
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f01"
+    create_run_dir(tmp_path, run_id, state="INITIALIZING")
+
+    async def cancel_while_downloading(run_id: str, _req: object) -> None:
+        write_file(run_id, "state", State.CANCELING)
+
+    mocker.patch("sapporo.run.download_wf_attachment", side_effect=cancel_while_downloading)
+    mock_popen = mocker.patch("sapporo.run.Popen")
+
+    await post_run_task(run_id, make_run_request_form())
+
+    mock_popen.assert_not_called()
+    assert read_state(run_id) == State.CANCELED
+    assert read_file(run_id, "exit_code") == 138
+    assert read_file(run_id, "end_time")
+
+
+@pytest.mark.asyncio
+async def test_post_run_task_deleted_during_download_keeps_deleted_and_removes_exe_dir(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import post_run_task, read_state, resolve_content_path, write_file
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f02"
+    create_run_dir(tmp_path, run_id, state="INITIALIZING")
+
+    async def delete_while_downloading(run_id: str, _req: object) -> None:
+        write_file(run_id, "state", State.DELETED)
+        exe_dir = resolve_content_path(run_id, "exe_dir")
+        exe_dir.mkdir(parents=True, exist_ok=True)
+        exe_dir.joinpath("late-attachment.txt").write_text("arrived after delete", encoding="utf-8")
+
+    mocker.patch("sapporo.run.download_wf_attachment", side_effect=delete_while_downloading)
+    mock_popen = mocker.patch("sapporo.run.Popen")
+
+    await post_run_task(run_id, make_run_request_form())
+
+    mock_popen.assert_not_called()
+    assert read_state(run_id) == State.DELETED
+    assert not resolve_content_path(run_id, "exe_dir").exists()
+
+
+@pytest.mark.asyncio
+async def test_post_run_task_download_failure_after_cancel_writes_canceled(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import post_run_task, read_state, write_file
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f03"
+    create_run_dir(tmp_path, run_id, state="INITIALIZING")
+
+    async def cancel_then_fail(run_id: str, _req: object) -> None:
+        write_file(run_id, "state", State.CANCELING)
+        msg = "download failed"
+        raise RuntimeError(msg)
+
+    mocker.patch("sapporo.run.download_wf_attachment", side_effect=cancel_then_fail)
+
+    await post_run_task(run_id, make_run_request_form())
+
+    assert read_state(run_id) == State.CANCELED
+
+
+@pytest.mark.asyncio
+async def test_post_run_task_registers_run_while_preparing(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    import sapporo.run as run_module
+    from sapporo.run import post_run_task
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f04"
+    create_run_dir(tmp_path, run_id, state="INITIALIZING")
+    seen_during_download: list[bool] = []
+
+    async def record(run_id: str, _req: object) -> None:
+        seen_during_download.append(run_id in run_module._INITIALIZING_RUNS)
+
+    mocker.patch("sapporo.run.download_wf_attachment", side_effect=record)
+    mocker.patch("sapporo.run.fork_run")
+
+    await post_run_task(run_id, make_run_request_form())
+
+    assert seen_during_download == [True]
+    assert run_id not in run_module._INITIALIZING_RUNS
+
+
+@pytest.mark.asyncio
+async def test_download_wf_attachment_stops_before_next_attachment_after_cancel(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import RunPreparationAbortedError, download_wf_attachment, write_file
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f05"
+    create_run_dir(tmp_path, run_id, state="INITIALIZING")
+
+    mock_response = MagicMock()
+    mock_response.content = b"first"
+    mock_response.raise_for_status = MagicMock()
+
+    async def respond_and_cancel(*_args: object, **_kwargs: object) -> MagicMock:
+        write_file(run_id, "state", State.CANCELING)
+        return mock_response
+
+    mock_client = _make_async_httpx_client_with_side_effect(respond_and_cancel)
+    mocker.patch("sapporo.run.httpx.AsyncClient", return_value=mock_client)
+
+    req = make_run_request_form(
+        workflow_attachment_obj=[
+            {"file_name": "first.cwl", "file_url": "https://example.com/first.cwl"},
+            {"file_name": "second.cwl", "file_url": "https://example.com/second.cwl"},
+        ]
+    )
+    with pytest.raises(RunPreparationAbortedError):
+        await download_wf_attachment(run_id, req)
+
+    assert mock_client.get.await_count == 1
+
+
+def test_reconcile_runs_skips_initializing_run_prepared_by_this_process(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    import sapporo.run as run_module
+    from sapporo.run import read_state, reconcile_runs
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f06"
+    create_run_dir(tmp_path, run_id, state="INITIALIZING")
+
+    run_module._INITIALIZING_RUNS.add(run_id)
+    try:
+        reconcile_runs()
+    finally:
+        run_module._INITIALIZING_RUNS.discard(run_id)
+
+    assert read_state(run_id) == State.INITIALIZING

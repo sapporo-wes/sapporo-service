@@ -82,6 +82,25 @@ def _run_sh_alive(run_id: str, pid: int) -> bool:
     return str(resolve_run_dir(run_id)).encode() in cmdline.split(b"\0")
 
 
+# Same value that run.sh writes for a canceled run
+CANCELED_EXIT_CODE = 138
+
+# Runs whose attachments this process is still downloading. They have no run.sh process yet, so
+# reconcile_runs must not treat them as vanished.
+_INITIALIZING_RUNS: set[str] = set()
+
+_PREPARATION_ABORT_STATES = frozenset({State.CANCELING, State.DELETING, State.DELETED})
+
+
+class RunPreparationAbortedError(Exception):
+    """The run was canceled or deleted while its attachments were being downloaded."""
+
+
+def _abort_preparation_if_requested(run_id: str) -> None:
+    if read_state(run_id) in _PREPARATION_ABORT_STATES:
+        raise RunPreparationAbortedError(run_id)
+
+
 _RECONCILE_SKIP_STATES = frozenset(
     {
         State.COMPLETE,
@@ -123,6 +142,8 @@ def _reconcile_run(run_id: str) -> bool:
     """Reconcile one run. Returns True when the run was marked as SYSTEM_ERROR."""
     state = read_state(run_id)
     if state in _RECONCILE_SKIP_STATES:
+        return False
+    if state == State.INITIALIZING and run_id in _INITIALIZING_RUNS:
         return False
 
     pid: int | None = read_file(run_id, "pid")
@@ -251,6 +272,7 @@ async def _get_wf_attachment(client: httpx.AsyncClient, url: str) -> httpx.Respo
 async def download_wf_attachment(run_id: str, run_request: RunRequestForm) -> None:
     exe_dir = resolve_content_path(run_id, "exe_dir")
     for obj in run_request.workflow_attachment_obj:
+        _abort_preparation_if_requested(run_id)
         name = obj.file_name
         url = obj.file_url
         parsed_url = parse.urlparse(url)
@@ -278,6 +300,7 @@ async def download_wf_attachment(run_id: str, run_request: RunRequestForm) -> No
 
 
 def fork_run(run_id: str) -> None:
+    _abort_preparation_if_requested(run_id)
     run_dir = resolve_run_dir(run_id)
     stdout = resolve_content_path(run_id, "stdout")
     stderr = resolve_content_path(run_id, "stderr")
@@ -302,16 +325,37 @@ POST_RUN_TASK_FAILURE_EXIT_CODE = 1
 
 async def post_run_task(run_id: str, run_request: RunRequestForm) -> None:
     """Run in the background after issuing a run_id in POST /runs."""
+    _INITIALIZING_RUNS.add(run_id)
     try:
         await download_wf_attachment(run_id, run_request)
         fork_run(run_id)
+    except RunPreparationAbortedError:
+        _settle_aborted_preparation(run_id)
     except Exception as e:
+        if read_state(run_id) in _PREPARATION_ABORT_STATES:
+            _settle_aborted_preparation(run_id)
+            return
         LOGGER.exception("Background task failed for run %s", run_id)
         write_file(run_id, "exit_code", POST_RUN_TASK_FAILURE_EXIT_CODE)
         write_file(run_id, "state", State.SYSTEM_ERROR)
         write_file(run_id, "end_time", now_str())
         error_msg = "".join(traceback.TracebackException.from_exception(e).format())
         append_system_logs(run_id, error_msg)
+    finally:
+        _INITIALIZING_RUNS.discard(run_id)
+
+
+def _settle_aborted_preparation(run_id: str) -> None:
+    """Finish a run that was canceled or deleted before run.sh started."""
+    if read_state(run_id) == State.CANCELING:
+        write_file(run_id, "exit_code", CANCELED_EXIT_CODE)
+        write_file(run_id, "end_time", now_str())
+        write_file(run_id, "state", State.CANCELED)
+        LOGGER.info("Run %s was canceled before run.sh started", run_id)
+        return
+    # Deleted while attachments were downloading: remove what the download wrote after the deletion
+    shutil.rmtree(resolve_content_path(run_id, "exe_dir"), ignore_errors=True)
+    LOGGER.info("Run %s was deleted before run.sh started", run_id)
 
 
 def append_system_logs(run_id: str, log: str) -> None:
