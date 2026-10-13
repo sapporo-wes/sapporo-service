@@ -2146,3 +2146,38 @@ class TestEdgeCases:
         enc = file_ins.get("encodingFormat")
         first = enc[0] if isinstance(enc, list) else enc
         assert isinstance(first, str)
+
+
+# === output symlinks ===
+
+
+class TestOutputSymlinks:
+    def test_symlink_outside_run_dir_is_left_out_and_inside_is_kept(
+        self, tmp_path: Path, mocker: "MockerFixture"
+    ) -> None:
+        from sapporo.config import RUN_DIR_STRUCTURE
+
+        rd = create_run_dir(
+            tmp_path,
+            RUN_ID,
+            exit_code="0",
+            end_time="2024-01-01T00:10:00",
+            wf_params="{}",
+            output_files={"result.txt": "hello"},
+            outputs_json=[],
+        )
+        outputs_dir = rd / RUN_DIR_STRUCTURE["outputs_dir"]
+        secret = tmp_path / "secret.txt"
+        secret.write_text("secret", encoding="utf-8")
+        (outputs_dir / "leak.txt").symlink_to(secret)
+        work_file = rd / RUN_DIR_STRUCTURE["exe_dir"] / "work.txt"
+        work_file.write_text("work", encoding="utf-8")
+        (outputs_dir / "published.txt").symlink_to(work_file)
+        mocker.patch("sapporo.ro_crate.shutil.which", return_value=None)
+
+        jsonld = generate_ro_crate_metadata(rd)
+
+        ids = {e["@id"] for e in jsonld["@graph"]}
+        assert "outputs/result.txt" in ids
+        assert "outputs/published.txt" in ids
+        assert "outputs/leak.txt" not in ids

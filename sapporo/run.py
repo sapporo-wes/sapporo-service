@@ -9,7 +9,7 @@ import time
 import traceback
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from subprocess import Popen
 from threading import Thread
 from typing import Any
@@ -19,7 +19,7 @@ import httpx
 from zipstream import ZipStream
 
 from sapporo.config import RUN_DIR_STRUCTURE, get_config
-from sapporo.exceptions import raise_bad_request
+from sapporo.exceptions import raise_bad_request, raise_not_found
 from sapporo.factory import create_service_info
 from sapporo.run_io import (
     dump_runtime_info,
@@ -388,7 +388,9 @@ def dump_outputs_list(run_dir: str | Path) -> None:
     outputs = []
     for file in output_files:
         file_name = str(file.relative_to(outputs_dir))
-        outputs.append({"file_name": file_name, "file_url": f"{base_url}/runs/{run_id}/outputs/{file_name}"})
+        # The URL must round-trip names with spaces, "+" and other reserved characters
+        file_url = f"{base_url}/runs/{run_id}/outputs/{parse.quote(file_name)}"
+        outputs.append({"file_name": file_name, "file_url": file_url})
     with run_dir.joinpath(RUN_DIR_STRUCTURE["outputs"]).open(mode="w", encoding="utf-8") as f:
         json.dump(outputs, f, indent=2)
 
@@ -489,18 +491,65 @@ def _sync_run_db(run_id: str) -> None:
         LOGGER.warning("Could not update the run index after deleting run %s: %s", run_id, e)
 
 
+def _inside_run_dir(path: Path, run_dir: Path) -> bool:
+    """Whether the file that path refers to (symlinks followed) lies inside the run directory."""
+    try:
+        real_path = path.resolve(strict=True)
+    except (OSError, RuntimeError):
+        return False
+
+    return real_path.is_relative_to(run_dir)
+
+
+def resolve_output_file(run_id: str, path: str) -> Path:
+    """Map a requested output path to the file to serve.
+
+    The path is used as given, not sanitized, so that every file the engine wrote can be addressed.
+    A path that climbs out of outputs/ is rejected, and a symlink is followed only when its target
+    lies inside the run directory.
+    """
+    parts = PurePosixPath(path).parts
+    if not parts or path.startswith("/") or any(part in ("", "..") or "\0" in part for part in parts):
+        raise_bad_request(f"Invalid file path: {path!r}")
+    file_path = resolve_content_path(run_id, "outputs_dir").joinpath(*parts)
+    if not file_path.exists() and not file_path.is_symlink():
+        raise_not_found("File", path)
+    if not _inside_run_dir(file_path, resolve_run_dir(run_id)):
+        raise_bad_request(f"Invalid file path: {path!r}")
+    if not file_path.is_file():
+        raise_not_found("File", path)
+
+    return file_path
+
+
+def _zip_stream_within_run(root: Path, arcname: str, run_dir: Path) -> tuple[Iterable[bytes], int]:
+    """Zip a directory tree, leaving out files whose target lies outside the run directory."""
+    zs = ZipStream(sized=True)
+    for current, dirs, files in os.walk(root):
+        current_path = Path(current)
+        current_arcname = Path(arcname) / current_path.relative_to(root)
+        if not dirs and not files:
+            zs.add_path(current_path, arcname=str(current_arcname), recurse=False)
+        for name in files:
+            file_path = current_path / name
+            if not _inside_run_dir(file_path, run_dir):
+                LOGGER.warning("Leaving %s out of the archive: it points outside the run directory", file_path)
+                continue
+            zs.add_path(file_path, arcname=str(current_arcname / name))
+
+    return iter(zs), len(zs)
+
+
 def outputs_zip_stream(run_id: str, name: str | None = None) -> tuple[Iterable[bytes], int]:
     outputs_dir = resolve_content_path(run_id, "outputs_dir")
     base_dir_name = name or f"sapporo_{run_id}_outputs"
-    zs = ZipStream.from_path(outputs_dir, arcname=base_dir_name, sized=True)
-    return iter(zs), len(zs)
+    return _zip_stream_within_run(outputs_dir, base_dir_name, resolve_run_dir(run_id))
 
 
 def ro_crate_zip_stream(run_id: str) -> tuple[Iterable[bytes], int]:
     run_dir = resolve_run_dir(run_id)
     base_dir_name = f"sapporo_{run_id}_ro_crate"
-    zs = ZipStream.from_path(run_dir, arcname=base_dir_name, sized=True)
-    return iter(zs), len(zs)
+    return _zip_stream_within_run(run_dir, base_dir_name, run_dir)
 
 
 def bulk_delete_run_tasks(run_ids: list[str]) -> None:

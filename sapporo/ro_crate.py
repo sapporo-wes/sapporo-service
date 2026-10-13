@@ -619,15 +619,18 @@ def add_output_file_entities(
 
         try:
             file_apath = source.resolve(strict=True)
-        except FileNotFoundError:
+            # A symlink whose target lies outside the run directory is not part of the crate
+            file_apath.relative_to(run_dir)
+        except (OSError, RuntimeError, ValueError):
             continue
-        file_rpath = file_apath.relative_to(run_dir)
+        # The entity keeps its path under outputs/, which is also what outputs.json and tataki use
+        file_rpath = source.relative_to(run_dir)
 
         file_ins = File(crate, file_apath, file_rpath, properties={"@type": "File"})
         populate_file_metadata(file_ins, file_apath)
 
         if outputs is not None:
-            output_dir_dest = file_apath.relative_to(outputs_dir_path)
+            output_dir_dest = source.relative_to(outputs_dir_path)
             for output in outputs:
                 if str(output.file_name) == str(output_dir_dest):
                     file_ins["url"] = output.file_url

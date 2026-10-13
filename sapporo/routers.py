@@ -37,6 +37,7 @@ from sapporo.run import (
     post_run_task,
     prepare_run_dir,
     resolve_content_path,
+    resolve_output_file,
     resolve_run_dir,
     ro_crate_zip_stream,
 )
@@ -546,7 +547,7 @@ async def get_run_outputs_list(
     "/runs/{run_id}/outputs/{path:path}",
     tags=[TAG_EXT],
     summary="DownloadRunOutput",
-    description=f"{_EXT} Download a specific output file from a run.",
+    description=f"{_EXT} Download a specific output file from a run. The path is taken as it is listed in `GET /runs/{{run_id}}/outputs`. A symlink is followed only when its target is inside the run directory.",
     response_model=None,
     responses={
         200: {
@@ -562,13 +563,7 @@ async def get_run_outputs(
 ) -> FileResponse:
     username = await resolve_username(token)
     validate_run_id(run_id, username)
-    outputs_dir = resolve_content_path(run_id, "outputs_dir").resolve()
-    file_path = outputs_dir.joinpath(secure_filepath(path)).resolve()
-    if not file_path.is_relative_to(outputs_dir):
-        raise_bad_request(f"Invalid file path: {path!r}")
-    if not file_path.is_file():
-        raise_not_found("File", path)
-    return FileResponse(file_path)
+    return FileResponse(resolve_output_file(run_id, path))
 
 
 @router.get(

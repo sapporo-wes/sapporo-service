@@ -129,6 +129,8 @@ the following:
 - Download all outputs as zip: `GET /runs/{run_id}/outputs?download=true`
 - Download a specific file: `GET /runs/{run_id}/outputs/{path}`
 - Configure the base URL for downloads using `--base-url` or `SAPPORO_BASE_URL`. Files are accessible at `{base_url}/runs/{run_id}/outputs/{path}`.
+- File names are used as the engine wrote them, so every output can be addressed. `file_url` in the outputs list percent-encodes the path.
+- A symlink in `outputs/` is served when its target is inside the run directory (for example a Nextflow `publishDir` in `symlink` mode, which points into the work directory under `exe/`). A symlink whose target is outside the run directory is rejected with 400 and left out of the ZIP download and the RO-Crate.
 
 ## Run Cleanup
 

@@ -1911,7 +1911,8 @@ paths:
   /runs/{run_id}/outputs/{path}:
     get:
       description: '**sapporo-wes-2.1.0 extension:** Download a specific output file
-        from a run.'
+        from a run. The path is taken as it is listed in `GET /runs/{run_id}/outputs`.
+        A symlink is followed only when its target is inside the run directory.'
       operationId: get_run_outputs_runs__run_id__outputs__path__get
       parameters:
       - in: path

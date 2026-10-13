@@ -1841,3 +1841,66 @@ def test_delete_run_task_updates_index_to_deleted(mocker: "MockerFixture", tmp_p
 
         run = session.exec(select(Run).where(Run.run_id == run_id)).one()
         assert run.state == State.DELETED
+
+
+# === outputs: symlinks and file names ===
+
+
+def test_outputs_zip_stream_skips_symlink_outside_run_dir_and_keeps_one_inside(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import outputs_zip_stream, resolve_content_path
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f20"
+    create_run_dir(tmp_path, run_id, output_files={"result.txt": "hello"})
+    outputs_dir = resolve_content_path(run_id, "outputs_dir")
+    secret = tmp_path / "secret.txt"
+    secret.write_text("secret", encoding="utf-8")
+    (outputs_dir / "leak.txt").symlink_to(secret)
+    work_file = resolve_content_path(run_id, "exe_dir") / "work.txt"
+    work_file.write_text("work", encoding="utf-8")
+    (outputs_dir / "published.txt").symlink_to(work_file)
+
+    stream, content_length = outputs_zip_stream(run_id)
+    data = b"".join(stream)
+
+    assert content_length == len(data)
+    with zipfile.ZipFile(BytesIO(data)) as zf:
+        names = {Path(name).name for name in zf.namelist()}
+    assert "result.txt" in names
+    assert "published.txt" in names
+    assert "leak.txt" not in names
+
+
+def test_dump_outputs_list_percent_encodes_file_url(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import dump_outputs_list, read_file, resolve_run_dir
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f21"
+    create_run_dir(tmp_path, run_id, output_files={"my report (1).html": "<p/>", "a+b.txt": "plus"})
+
+    dump_outputs_list(resolve_run_dir(run_id))
+
+    outputs = {o["file_name"]: o["file_url"] for o in read_file(run_id, "outputs")}
+    assert outputs["my report (1).html"].endswith("/outputs/my%20report%20%281%29.html")
+    assert outputs["a+b.txt"].endswith("/outputs/a%2Bb.txt")
+
+
+def test_resolve_output_file_rejects_traversal_and_outside_symlink(mocker: "MockerFixture", tmp_path: Path) -> None:
+    from fastapi import HTTPException
+
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import resolve_content_path, resolve_output_file
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f22"
+    create_run_dir(tmp_path, run_id, output_files={"ok.txt": "ok"})
+    secret = tmp_path / "secret.txt"
+    secret.write_text("secret", encoding="utf-8")
+    (resolve_content_path(run_id, "outputs_dir") / "leak.txt").symlink_to(secret)
+
+    assert resolve_output_file(run_id, "ok.txt").read_text(encoding="utf-8") == "ok"
+    for bad in ["../state.txt", "/etc/passwd", "leak.txt", "", "a\0b"]:
+        with pytest.raises(HTTPException) as exc_info:
+            resolve_output_file(run_id, bad)
+        assert exc_info.value.status_code == 400, bad

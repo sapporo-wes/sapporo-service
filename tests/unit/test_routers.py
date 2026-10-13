@@ -657,6 +657,61 @@ class TestGetRunOutputs:
         res = client.get(f"/runs/{run_id}/outputs", params={"download": "true"})
         assert res.status_code == 404
 
+    def test_file_name_with_plus_is_served_as_is(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        run_id = "aabbccdd-0000-0000-0000-000000001408"
+        rd = create_run_dir(tmp_path, run_id)
+
+        from sapporo.config import RUN_DIR_STRUCTURE
+
+        outputs_dir = rd / RUN_DIR_STRUCTURE["outputs_dir"]
+        (outputs_dir / "a+b.txt").write_text("plus", encoding="utf-8")
+        (outputs_dir / "ab.txt").write_text("plain", encoding="utf-8")
+
+        res = client.get(f"/runs/{run_id}/outputs/a%2Bb.txt")
+        assert res.status_code == 200
+        assert res.text == "plus"
+
+    def test_file_name_with_spaces_and_parentheses_is_served(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        from urllib.parse import quote
+
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        run_id = "aabbccdd-0000-0000-0000-000000001409"
+        rd = create_run_dir(tmp_path, run_id)
+
+        from sapporo.config import RUN_DIR_STRUCTURE
+
+        name = "my report (1).html"
+        (rd / RUN_DIR_STRUCTURE["outputs_dir"] / name).write_text("<p>hi</p>", encoding="utf-8")
+
+        res = client.get(f"/runs/{run_id}/outputs/{quote(name)}")
+        assert res.status_code == 200
+        assert res.text == "<p>hi</p>"
+
+    def test_dotdot_segment_returns_400(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        run_id = "aabbccdd-0000-0000-0000-00000000140a"
+        create_run_dir(tmp_path, run_id)
+
+        res = client.get(f"/runs/{run_id}/outputs/%2e%2e/state.txt")
+        assert res.status_code == 400
+
+    def test_symlink_inside_run_dir_is_served(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        run_id = "aabbccdd-0000-0000-0000-00000000140b"
+        rd = create_run_dir(tmp_path, run_id)
+
+        from sapporo.config import RUN_DIR_STRUCTURE
+
+        work_file = rd / RUN_DIR_STRUCTURE["exe_dir"] / "work" / "data.txt"
+        work_file.parent.mkdir(parents=True)
+        work_file.write_text("published by symlink", encoding="utf-8")
+        (rd / RUN_DIR_STRUCTURE["outputs_dir"] / "data.txt").symlink_to(work_file)
+
+        res = client.get(f"/runs/{run_id}/outputs/data.txt")
+        assert res.status_code == 200
+        assert res.text == "published by symlink"
+
     def test_symlink_outside_outputs_dir_returns_400(self, mocker: "MockerFixture", tmp_path: Path) -> None:
         client = _client_with_mock_run_tasks(mocker, tmp_path)
         run_id = "aabbccdd-0000-0000-0000-000000001405"
