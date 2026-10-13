@@ -247,7 +247,7 @@ function cancel_docker_engine() {
     # `docker run` client. The id is trusted only if the container was started for this run's
     # exe directory, since the run directory is writable from inside the engine container.
     if [[ ! -s "${engine_cid}" ]]; then
-        return
+        return 0
     fi
     local container_id
     container_id=$(cat "${engine_cid}")
@@ -341,7 +341,7 @@ function stop_run_wf() {
     # still alive after the grace period. Attached `docker run`, `podman run` and `srun` forward
     # SIGTERM to what they run.
     if [[ -z "${bg_pid:-}" ]]; then
-        return
+        return 0
     fi
     kill -TERM -- "-${bg_pid}" 2>/dev/null || true
     wait "${bg_pid}" 2>/dev/null || true
