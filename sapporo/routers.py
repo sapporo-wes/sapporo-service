@@ -428,8 +428,8 @@ async def delete_runs(
 {_EXT}
 Delete the run and associated files.
 If the run is in progress, it will be canceled first.
-Then, the run directory contents will be deleted, but `state.txt`, `start_time.txt`, and `end_time.txt` will not be deleted.
-This is because the information that the run has been deleted should be retained.
+Then, the run directory contents will be deleted, but `state.txt`, `start_time.txt`, `end_time.txt`, and `username.txt` will not be deleted.
+This is because the information that the run has been deleted should be retained: the run stays listed with state `DELETED`.
 """,
     response_model=RunId,
 )

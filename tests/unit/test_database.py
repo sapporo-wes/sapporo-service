@@ -1059,3 +1059,112 @@ def test_add_run_db_without_start_time_raises_value_error(tmp_path: Path) -> Non
 
     with pytest.raises(ValueError, match="start_time"):
         add_run_db(summary)
+
+
+# === index keeps deleted runs ===
+
+
+def _indexed_run(run_id: str) -> Run:
+    with get_session() as session:
+        from sqlmodel import select
+
+        return session.exec(select(Run).where(Run.run_id == run_id)).one()
+
+
+def test_init_db_incremental_sync_updates_terminal_run_that_was_deleted(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    config = AppConfig(run_dir=tmp_path)
+    mock_get_config(mocker, config)
+
+    run_id = "aabbccdd-0000-0000-0000-000000000a10"
+    create_run_dir(tmp_path, run_id, state="COMPLETE", tags={"env": "test"})
+    init_db()
+    assert _indexed_run(run_id).state == State.COMPLETE
+
+    rd = tmp_path.joinpath(run_id[:2], run_id)
+    rd.joinpath(RUN_DIR_STRUCTURE["run_request"]).unlink()
+    rd.joinpath(RUN_DIR_STRUCTURE["state"]).write_text("DELETED", encoding="utf-8")
+
+    init_db()
+
+    run = _indexed_run(run_id)
+    assert run.state == State.DELETED
+    assert json.loads(run.tags) == {}
+
+
+def test_init_db_incremental_sync_does_not_reread_unchanged_terminal_run(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    config = AppConfig(run_dir=tmp_path)
+    mock_get_config(mocker, config)
+
+    run_id = "aabbccdd-0000-0000-0000-000000000a11"
+    create_run_dir(tmp_path, run_id, state="COMPLETE")
+    init_db()
+
+    mock_summary = mocker.patch("sapporo.database.create_run_summary")
+    init_db()
+
+    mock_summary.assert_not_called()
+
+
+def test_init_db_full_rebuild_indexes_deleted_run(mocker: "MockerFixture", tmp_path: Path) -> None:
+    config = AppConfig(run_dir=tmp_path)
+    mock_get_config(mocker, config)
+
+    run_id = "aabbccdd-0000-0000-0000-000000000a12"
+    create_run_dir(tmp_path, run_id, state="DELETED", username="alice")
+    rd = tmp_path.joinpath(run_id[:2], run_id)
+    rd.joinpath(RUN_DIR_STRUCTURE["run_request"]).unlink()
+
+    init_db()
+
+    run = _indexed_run(run_id)
+    assert run.state == State.DELETED
+    assert run.username == "alice"
+
+
+def test_sync_run_db_refreshes_one_run(mocker: "MockerFixture", tmp_path: Path) -> None:
+    from sapporo.database import sync_run_db
+
+    config = AppConfig(run_dir=tmp_path)
+    mock_get_config(mocker, config)
+
+    run_id = "aabbccdd-0000-0000-0000-000000000a13"
+    create_run_dir(tmp_path, run_id, state="COMPLETE")
+    init_db()
+    tmp_path.joinpath(run_id[:2], run_id, RUN_DIR_STRUCTURE["state"]).write_text("DELETED", encoding="utf-8")
+
+    sync_run_db(run_id)
+
+    assert _indexed_run(run_id).state == State.DELETED
+
+
+def test_sync_run_db_inserts_run_missing_from_index(mocker: "MockerFixture", tmp_path: Path) -> None:
+    from sapporo.database import sync_run_db
+
+    config = AppConfig(run_dir=tmp_path)
+    mock_get_config(mocker, config)
+
+    run_id = "aabbccdd-0000-0000-0000-000000000a14"
+    create_run_dir(tmp_path, run_id, state="DELETED")
+
+    sync_run_db(run_id)
+
+    assert _indexed_run(run_id).state == State.DELETED
+
+
+def test_list_old_runs_db_excludes_deleted_runs(tmp_path: Path) -> None:
+    sys.argv = ["sapporo", "--run-dir", str(tmp_path)]
+    get_config.cache_clear()
+    init_db()
+    old = datetime(2020, 1, 1, tzinfo=UTC)
+    with get_session() as session:
+        session.add(Run(run_id="old-complete", state=State.COMPLETE, start_time=old, tags="{}"))
+        session.add(Run(run_id="old-deleted", state=State.DELETED, start_time=old, tags="{}"))
+        session.commit()
+
+    old_runs = list_old_runs_db(older_than_days=1)
+
+    assert {run.run_id for run in old_runs} == {"old-complete"}

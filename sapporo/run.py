@@ -420,10 +420,13 @@ def cancel_run_task(run_id: str) -> None:
                 LOGGER.warning("Permission denied when canceling run %s (pid=%d)", run_id, pid)
 
 
+# Kept when a run is deleted, so that the run stays listed as DELETED and stays attributable to
+# its owner
 KEEP_FILES = [
     RUN_DIR_STRUCTURE["state"],
     RUN_DIR_STRUCTURE["start_time"],
     RUN_DIR_STRUCTURE["end_time"],
+    RUN_DIR_STRUCTURE["username"],
 ]
 
 
@@ -468,6 +471,17 @@ def delete_run_task(run_id: str) -> None:
 
     # 4. Record the deletion.
     write_file(run_id, "state", State.DELETED)
+    _sync_run_db(run_id)
+
+
+def _sync_run_db(run_id: str) -> None:
+    # Avoid circular import
+    from sapporo.database import sync_run_db
+
+    try:
+        sync_run_db(run_id)
+    except Exception as e:
+        LOGGER.warning("Could not update the run index after deleting run %s: %s", run_id, e)
 
 
 def outputs_zip_stream(run_id: str, name: str | None = None) -> tuple[Iterable[bytes], int]:

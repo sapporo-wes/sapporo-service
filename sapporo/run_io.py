@@ -103,7 +103,8 @@ def read_state(run_id: str) -> State:
 
 
 def glob_all_run_ids() -> list[str]:
-    return [run_dir.parent.name for run_dir in get_config().run_dir.glob(f"*/*/{RUN_DIR_STRUCTURE['run_request']}")]
+    """List every run directory, including deleted runs, which keep only state.txt and the timestamps."""
+    return [run_dir.parent.name for run_dir in get_config().run_dir.glob(f"*/*/{RUN_DIR_STRUCTURE['state']}")]
 
 
 def dump_runtime_info(run_id: str) -> dict[str, Any]:

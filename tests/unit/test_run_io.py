@@ -42,15 +42,15 @@ class TestGlobAllRunIds:
 
         assert glob_all_run_ids() == []
 
-    def test_ignores_dirs_without_run_request(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+    def test_ignores_dirs_without_state_file(self, mocker: "MockerFixture", tmp_path: Path) -> None:
         config = AppConfig(run_dir=tmp_path)
         mock_get_config(mocker, config)
 
-        # Create a directory structure that looks like a run but has no run_request.json
+        # Create a directory structure that looks like a run but has no state.txt
         fake_run_id = "aabbccdd-0000-0000-0000-000000000099"
         fake_dir = tmp_path / fake_run_id[:2] / fake_run_id
         fake_dir.mkdir(parents=True)
-        (fake_dir / "state.txt").write_text("COMPLETE", encoding="utf-8")
+        (fake_dir / "run_request.json").write_text("{}", encoding="utf-8")
 
         assert glob_all_run_ids() == []
 
@@ -309,3 +309,19 @@ class TestReadBrokenRunDir:
         )
 
         assert read_file(rid, "run_request") is None
+
+
+# === glob_all_run_ids: deleted runs ===
+
+
+class TestGlobAllRunIdsDeletedRuns:
+    def test_finds_run_that_keeps_only_state_file(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        config = AppConfig(run_dir=tmp_path)
+        mock_get_config(mocker, config)
+
+        rid = "aabbccdd-0000-0000-0000-0000000000e5"
+        rd = tmp_path.joinpath(rid[:2], rid)
+        rd.mkdir(parents=True)
+        rd.joinpath(RUN_DIR_STRUCTURE["state"]).write_text("DELETED", encoding="utf-8")
+
+        assert glob_all_run_ids() == [rid]

@@ -132,6 +132,7 @@ runs/
 | File | Description |
 |---|---|
 | `run_request.json` | Original run request (workflow URL, engine, parameters) |
+| `username.txt` | Owner of the run. Written when authentication is enabled |
 | `state.txt` | Current run state (e.g., `RUNNING`, `COMPLETE`). Read as `UNKNOWN` when the file is missing or does not contain a valid state |
 | `exe/` | Execution directory (working directory for the workflow engine) |
 | `exe/workflow_params.json` | Workflow parameters |
@@ -167,6 +168,10 @@ A run whose files cannot be processed (for example a `system_logs.json` that is 
 ## SQLite Index
 
 The SQLite database (`sapporo.db`) is an **index**, not a data store. It is rebuilt at a configurable interval (default: 30 minutes) by a background asyncio task that scans the run directories, and can be deleted at any time without data loss. It exists solely to make `GET /runs` (list all runs) fast. Individual run queries (`GET /runs/{run_id}`) always read from the filesystem.
+
+Each sync adds runs that are new on disk, removes rows whose run directory is gone, and refreshes rows that are not in a terminal state or whose `state.txt` differs from the index. `POST /runs` and `DELETE /runs/{run_id}` update the index immediately; the periodic sync covers the state changes that `run.sh` makes.
+
+A deleted run keeps `state.txt`, `start_time.txt`, `end_time.txt` and `username.txt`, so it stays in the index as `DELETED`: it appears in `GET /runs`, in `GET /runs?state=DELETED`, and in `system_state_counts`, and its owner can still read its status. Automatic cleanup (`--run-remove-older-than-days`) does not pick up runs that are already `DELETED`.
 
 A run whose directory cannot be parsed (for example a missing `start_time.txt`) is logged and left out of the index. The run stays accessible through `GET /runs/{run_id}`. An error inside a background loop is logged and the loop continues.
 

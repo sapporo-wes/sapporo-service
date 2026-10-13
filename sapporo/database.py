@@ -31,7 +31,7 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 from sapporo.config import get_config
 from sapporo.exceptions import raise_bad_request
 from sapporo.factory import create_run_summary
-from sapporo.run_io import glob_all_run_ids, read_file
+from sapporo.run_io import glob_all_run_ids, read_file, read_state
 from sapporo.schemas import RunSummary, State
 from sapporo.utils import dt_to_time_str, time_str_to_dt
 
@@ -169,7 +169,9 @@ def _incremental_sync(session: Session, disk_run_ids: set[str]) -> None:
     for run_id, db_run in db_run_map.items():
         if run_id not in disk_run_ids:
             continue
-        if db_run.state in terminal_states:
+        # A terminal run only changes when it is deleted, so its full summary is read only when
+        # state.txt differs from the index
+        if db_run.state in terminal_states and read_state(run_id) == db_run.state:
             continue
         try:
             run_summary = create_run_summary(run_id)
@@ -179,6 +181,7 @@ def _incremental_sync(session: Session, disk_run_ids: set[str]) -> None:
             continue
         db_run.state = run_summary.state or State.UNKNOWN
         db_run.end_time = end_time
+        db_run.tags = json.dumps(run_summary.tags)
         session.add(db_run)
         updated += 1
 
@@ -214,6 +217,21 @@ def init_db() -> None:
             _full_rebuild(session, disk_run_ids)
         else:
             _incremental_sync(session, disk_run_ids)
+
+
+def sync_run_db(run_id: str) -> None:
+    """Refresh the index row of one run from its run directory.
+
+    Called after a run is deleted, so that the index shows DELETED before the next periodic sync.
+    """
+    engine = create_db_engine()
+    SQLModel.metadata.create_all(engine)
+    run = _db_run_from_disk(run_id)
+    if run is None:
+        return
+    with get_session() as session:
+        session.merge(run)
+        session.commit()
 
 
 def add_run_db(
@@ -389,7 +407,7 @@ def list_old_runs_db(
 ) -> list[Run]:
     with get_session() as session:
         cutoff_date = datetime.now(tz=UTC) - timedelta(days=older_than_days)
-        query = select(Run).where(Run.start_time < cutoff_date)
+        query = select(Run).where(Run.start_time < cutoff_date).where(Run.state != State.DELETED)
         results = session.exec(query).all()
 
     return list(results)

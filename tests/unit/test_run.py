@@ -878,15 +878,13 @@ def test_delete_run_task_removes_files_except_keepfiles(mocker: "MockerFixture",
     from sapporo.run import KEEP_FILES, delete_run_task, resolve_run_dir
 
     run_id = "aabbccdd-0000-0000-0000-000000000080"
-    create_run_dir(tmp_path, run_id, state="COMPLETE", end_time="2024-01-01T01:00:00Z")
+    create_run_dir(tmp_path, run_id, state="COMPLETE", end_time="2024-01-01T01:00:00Z", username="alice")
 
     delete_run_task(run_id)
 
     run_dir = resolve_run_dir(run_id)
     remaining = {p.name for p in run_dir.iterdir()}
-    # state.txt, start_time.txt, end_time.txt should remain
-    for keep in KEEP_FILES:
-        assert keep in remaining
+    assert remaining == set(KEEP_FILES)
 
 
 def test_delete_run_task_sets_state_to_deleted(mocker: "MockerFixture", tmp_path: Path) -> None:
@@ -1808,3 +1806,38 @@ def test_reconcile_runs_skips_initializing_run_prepared_by_this_process(
         run_module._INITIALIZING_RUNS.discard(run_id)
 
     assert read_state(run_id) == State.INITIALIZING
+
+
+# === delete_run_task: index and ownership ===
+
+
+def test_delete_run_task_keeps_username_file(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import delete_run_task, read_file
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f10"
+    create_run_dir(tmp_path, run_id, state="COMPLETE", username="alice")
+
+    delete_run_task(run_id)
+
+    assert read_file(run_id, "username") == "alice"
+    assert read_file(run_id, "run_request") is None
+
+
+def test_delete_run_task_updates_index_to_deleted(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    mocker.patch("sapporo.database.get_config", return_value=AppConfig(run_dir=tmp_path))
+    from sapporo.database import Run, get_session, init_db
+    from sapporo.run import delete_run_task
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f11"
+    create_run_dir(tmp_path, run_id, state="COMPLETE")
+    init_db()
+
+    delete_run_task(run_id)
+
+    with get_session() as session:
+        from sqlmodel import select
+
+        run = session.exec(select(Run).where(Run.run_id == run_id)).one()
+        assert run.state == State.DELETED
