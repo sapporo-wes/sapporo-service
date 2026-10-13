@@ -61,6 +61,19 @@ def test_app_config_default_snapshot_interval() -> None:
     assert AppConfig().snapshot_interval == 30
 
 
+def test_app_config_default_cancel_grace_seconds() -> None:
+    assert AppConfig().cancel_grace_seconds == 30
+
+
+def test_app_config_cancel_grace_seconds_zero_is_allowed() -> None:
+    assert AppConfig(cancel_grace_seconds=0).cancel_grace_seconds == 0
+
+
+def test_app_config_cancel_grace_seconds_negative_raises() -> None:
+    with pytest.raises(ValueError, match="cancel-grace-seconds"):
+        AppConfig(cancel_grace_seconds=-1)
+
+
 def test_app_config_default_base_url() -> None:
     config = AppConfig()
     assert config.base_url == f"http://{config.host}:1122"
@@ -84,6 +97,7 @@ def test_app_config_default_base_url() -> None:
         ("--auth-config", "/tmp/ac.json", "auth_config", Path("/tmp/ac.json")),
         ("--run-remove-older-than-days", "30", "run_remove_older_than_days", 30),
         ("--snapshot-interval", "60", "snapshot_interval", 60),
+        ("--cancel-grace-seconds", "5", "cancel_grace_seconds", 5),
     ],
 )
 def test_get_config_with_cli_args(arg_name: str, arg_value: str, attr_name: str, expected: object) -> None:
@@ -117,6 +131,7 @@ def test_get_config_with_debug_flag() -> None:
         ("SAPPORO_AUTH_CONFIG", "/tmp/ac.json", "auth_config", Path("/tmp/ac.json")),
         ("SAPPORO_RUN_REMOVE_OLDER_THAN_DAYS", "30", "run_remove_older_than_days", 30),
         ("SAPPORO_SNAPSHOT_INTERVAL", "60", "snapshot_interval", 60),
+        ("SAPPORO_CANCEL_GRACE_SECONDS", "5", "cancel_grace_seconds", 5),
     ],
 )
 def test_get_config_with_env_vars(env_var: str, value: str, attr_name: str, expected: object) -> None:

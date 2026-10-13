@@ -9,7 +9,7 @@ usage: sapporo [-h] [--host str] [--port int] [--debug] [--run-dir PATH]
                [--run-sh PATH] [--url-prefix str] [--base-url str]
                [--allow-origin str] [--auth-config PATH]
                [--run-remove-older-than-days int]
-               [--snapshot-interval int]
+               [--snapshot-interval int] [--cancel-grace-seconds int]
 
 options:
   -h, --help                       show this help message and exit
@@ -37,6 +37,9 @@ options:
   --snapshot-interval int          Interval in minutes for DB snapshot
                                    rebuilds and cleanup jobs (must be >= 1,
                                    default: 30)
+  --cancel-grace-seconds int       Seconds between SIGTERM and SIGKILL when
+                                   a run is canceled (must be >= 0,
+                                   default: 30)
 ```
 
 ## Environment Variables
@@ -58,8 +61,8 @@ All CLI options can be set via environment variables with the `SAPPORO_` prefix:
 | `--auth-config` | `SAPPORO_AUTH_CONFIG` | Built-in default |
 | `--run-remove-older-than-days` | `SAPPORO_RUN_REMOVE_OLDER_THAN_DAYS` | None |
 | `--snapshot-interval` | `SAPPORO_SNAPSHOT_INTERVAL` | `30` |
+| `--cancel-grace-seconds` | `SAPPORO_CANCEL_GRACE_SECONDS` | `30` |
 | - | `SAPPORO_EXTRA_DOCKER_ARGS` | (unset) |
-| - | `SAPPORO_CANCEL_GRACE_SECONDS` | `30` |
 
 `SAPPORO_EXTRA_DOCKER_ARGS` is used by `run.sh` to pass additional `docker run` flags to inner workflow engine containers. Use this to mount host directories that workflows need to read. Multiple flags can be space-separated. Applied to all engines.
 
@@ -71,7 +74,7 @@ SAPPORO_EXTRA_DOCKER_ARGS="-v /data:/data"
 SAPPORO_EXTRA_DOCKER_ARGS="-v /data:/data -v /ref:/ref"
 ```
 
-`SAPPORO_CANCEL_GRACE_SECONDS` is used by `run.sh`. When a run is canceled or `run.sh` is shut down, the engine receives `SIGTERM` and has this many seconds to exit before it receives `SIGKILL`. See [Architecture - Cancellation](architecture.md#cancellation).
+`--cancel-grace-seconds` is passed to `run.sh` as `SAPPORO_CANCEL_GRACE_SECONDS`. When a run is canceled or `run.sh` is shut down, the engine receives `SIGTERM` and has this many seconds to exit before it receives `SIGKILL`. See [Architecture - Cancellation](architecture.md#cancellation).
 
 Priority: CLI arguments > Environment variables > Default values.
 

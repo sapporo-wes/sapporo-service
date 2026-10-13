@@ -63,7 +63,7 @@ Override the default `run.sh` location using `--run-sh` or `SAPPORO_RUN_SH`. See
 `run.sh` runs the workflow function as a background job in its own process group (`set -m`) and waits for it, so that the parent process stays free to handle signals. `POST /runs/{run_id}/cancel` writes `CANCELING` to `state.txt` and sends `SIGUSR1` to the `run.sh` process. The signal handler then:
 
 1. Calls `cancel()`, which first runs the engine-specific hook `cancel_<engine>()` if that function is defined, and then `stop_run_wf()`
-2. `stop_run_wf()` sends `SIGTERM` to the process group of the background job, waits up to `SAPPORO_CANCEL_GRACE_SECONDS` (default 30), and then sends `SIGKILL` to the group
+2. `stop_run_wf()` sends `SIGTERM` to the process group of the background job, waits up to `--cancel-grace-seconds` (default 30 seconds), and then sends `SIGKILL` to the group
 3. Writes exit code `138` and the `CANCELED` state
 
 The process group contains the engine process and everything it started on this host. An attached `docker run`, `podman run` or `srun` forwards `SIGTERM` to what it runs, so the engine inside a container or a Slurm step receives the signal as well. Work that lives elsewhere, such as a Slurm job submitted with `sbatch` or containers that the engine itself started through the Docker socket, is not reached by the signal. Put that cleanup into `cancel_<engine>()`.
@@ -139,7 +139,7 @@ runs/
 | `stdout.log` / `stderr.log` | Workflow engine stdout/stderr |
 | `start_time.txt` / `end_time.txt` | ISO 8601 timestamps |
 | `exit_code.txt` | Process exit code |
-| `run.pid` | PID of the `run.sh` subprocess |
+| `run.pid` | PID of the `run.sh` subprocess. A value of 1 or less is ignored |
 | `runtime_info.json` | Runtime metadata |
 | `system_logs.json` | System-level logs |
 | `workflow_engine_params.txt` | Engine-specific parameters |
@@ -148,9 +148,9 @@ runs/
 
 Detects runs stuck in `RUNNING`/`QUEUED` after a process restart and marks them as `SYSTEM_ERROR`.
 
-`reconcile_runs()` runs at startup (before `init_db()`) and periodically in the background (at the snapshot interval, default: 30 minutes). For each run in a non-terminal state, it reads `run.pid` and checks process liveness via `os.kill(pid, 0)`:
+`reconcile_runs()` runs at startup (before `init_db()`) and periodically in the background (at the snapshot interval, default: 30 minutes). For each run in a non-terminal state, it reads `run.pid` and checks whether that process is still the `run.sh` of this run. The check reads `/proc/<pid>/cmdline` and requires the run directory to appear in it, so a PID that the system reused for another process (for example after a container restart) does not count as alive.
 
-| PID file | Process alive | Action |
+| PID file | run.sh alive | Action |
 |---|---|---|
 | Present | Yes | Skip (running normally) |
 | Present | No | Set `SYSTEM_ERROR` (reason: "process vanished") |

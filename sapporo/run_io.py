@@ -68,11 +68,12 @@ def read_file(run_id: str, key: RunDirStructureKeys) -> Any:
             return shlex.split(content)
         if key in ["start_time", "end_time", "stdout", "stderr", "username"]:
             return content
-        if key in ["pid", "exit_code"]:
-            try:
-                return int(content)
-            except ValueError:
-                return None
+        if key == "exit_code":
+            return _parse_int(content)
+        if key == "pid":
+            pid = _parse_int(content)
+            # 0 and negative values address process groups and 1 is init, so none of them is run.sh
+            return pid if pid is not None and pid > 1 else None
         if key == "ro_crate":
             return json.loads(content)
 
@@ -80,6 +81,13 @@ def read_file(run_id: str, key: RunDirStructureKeys) -> Any:
             return json.loads(content)
         except json.JSONDecodeError:
             return content
+
+
+def _parse_int(content: str) -> int | None:
+    try:
+        return int(content)
+    except ValueError:
+        return None
 
 
 def read_state(run_id: str) -> State:

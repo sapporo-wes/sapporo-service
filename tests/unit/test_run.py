@@ -1,5 +1,8 @@
 import json
+import os
 import signal
+import subprocess
+import time
 import zipfile
 from io import BytesIO
 from pathlib import Path
@@ -20,6 +23,8 @@ from tests.unit.conftest import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from pytest_mock import MockerFixture
 
 
@@ -820,6 +825,7 @@ def test_cancel_run_task_queued_sends_sigusr1(mocker: "MockerFixture", tmp_path:
     create_run_dir(tmp_path, run_id, state="QUEUED")
     resolve_content_path(run_id, "pid").write_text("99999", encoding="utf-8")
 
+    mocker.patch("sapporo.run._run_sh_alive", return_value=True)
     mock_kill = mocker.patch("sapporo.run.os.kill")
     cancel_run_task(run_id)
 
@@ -834,6 +840,7 @@ def test_cancel_run_task_running_sends_sigusr1(mocker: "MockerFixture", tmp_path
     create_run_dir(tmp_path, run_id, state="RUNNING")
     resolve_content_path(run_id, "pid").write_text("88888", encoding="utf-8")
 
+    mocker.patch("sapporo.run._run_sh_alive", return_value=True)
     mock_kill = mocker.patch("sapporo.run.os.kill")
     cancel_run_task(run_id)
 
@@ -1202,7 +1209,7 @@ def test_reconcile_runs_pid_alive_skips(mocker: "MockerFixture", tmp_path: Path)
     create_run_dir(tmp_path, run_id, state="RUNNING")
     write_file(run_id, "pid", 99999)
 
-    mocker.patch("sapporo.run._process_alive", return_value=True)
+    mocker.patch("sapporo.run._run_sh_alive", return_value=True)
     reconcile_runs()
     assert read_state(run_id) == State.RUNNING
 
@@ -1215,7 +1222,7 @@ def test_reconcile_runs_pid_dead_marks_system_error(mocker: "MockerFixture", tmp
     create_run_dir(tmp_path, run_id, state="RUNNING")
     write_file(run_id, "pid", 99999)
 
-    mocker.patch("sapporo.run._process_alive", return_value=False)
+    mocker.patch("sapporo.run._run_sh_alive", return_value=False)
     reconcile_runs()
     assert read_state(run_id) == State.SYSTEM_ERROR
     system_logs = read_file(run_id, "system_logs")
@@ -1534,3 +1541,109 @@ def test_remove_old_runs_continues_when_one_delete_fails(mocker: "MockerFixture"
 
     assert read_state(ids[1]) == State.DELETED
     assert read_state(ids[0]) == State.COMPLETE
+
+
+# === _run_sh_alive / run.pid handling ===
+
+
+@pytest.fixture
+def unrelated_process() -> "Iterator[subprocess.Popen[bytes]]":
+    process = subprocess.Popen(["/bin/sleep", "60"])
+    yield process
+    process.kill()
+    process.wait()
+
+
+def test_run_sh_alive_true_for_process_started_with_run_dir(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import _run_sh_alive, resolve_run_dir
+
+    run_id = "aabbccdd-0000-0000-0000-000000000e00"
+    # Started like fork_run does: bash <script> <run_dir>, so the run directory is in argv
+    script = tmp_path / "fake_run.sh"
+    script.write_text("sleep 60\n", encoding="utf-8")
+    process = subprocess.Popen(["/bin/bash", str(script), str(resolve_run_dir(run_id))])
+    try:
+        assert _run_sh_alive(run_id, process.pid) is True
+    finally:
+        process.kill()
+        process.wait()
+
+    assert _run_sh_alive(run_id, process.pid) is False
+
+
+def test_run_sh_alive_false_for_unrelated_process(
+    mocker: "MockerFixture", tmp_path: Path, unrelated_process: "subprocess.Popen[bytes]"
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import _run_sh_alive
+
+    run_id = "aabbccdd-0000-0000-0000-000000000e01"
+
+    assert _run_sh_alive(run_id, unrelated_process.pid) is False
+    assert _run_sh_alive(run_id, os.getpid()) is False
+
+
+@pytest.mark.parametrize("content", ["0", "-1", "1", "abc", ""])
+def test_read_file_pid_rejects_values_that_cannot_be_run_sh(
+    mocker: "MockerFixture", tmp_path: Path, content: str
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import read_file, resolve_content_path
+
+    run_id = "aabbccdd-0000-0000-0000-000000000e02"
+    create_run_dir(tmp_path, run_id, state="RUNNING")
+    resolve_content_path(run_id, "pid").write_text(content, encoding="utf-8")
+
+    assert read_file(run_id, "pid") is None
+
+
+def test_cancel_run_task_running_with_dead_pid_leaves_canceling_without_signal(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import cancel_run_task, read_state, resolve_content_path
+
+    run_id = "aabbccdd-0000-0000-0000-000000000e03"
+    create_run_dir(tmp_path, run_id, state="RUNNING")
+    resolve_content_path(run_id, "pid").write_text("99999", encoding="utf-8")
+
+    mocker.patch("sapporo.run._run_sh_alive", return_value=False)
+    mock_kill = mocker.patch("sapporo.run.os.kill")
+    cancel_run_task(run_id)
+
+    mock_kill.assert_not_called()
+    assert read_state(run_id) == State.CANCELING
+
+
+def test_delete_run_task_does_not_wait_for_or_kill_reused_pid(
+    mocker: "MockerFixture", tmp_path: Path, unrelated_process: "subprocess.Popen[bytes]"
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import delete_run_task, read_state, resolve_content_path
+
+    run_id = "aabbccdd-0000-0000-0000-000000000e04"
+    create_run_dir(tmp_path, run_id, state="COMPLETE")
+    resolve_content_path(run_id, "pid").write_text(str(unrelated_process.pid), encoding="utf-8")
+
+    started = time.monotonic()
+    delete_run_task(run_id)
+
+    assert time.monotonic() - started < 5
+    assert unrelated_process.poll() is None
+    assert read_state(run_id) == State.DELETED
+
+
+def test_fork_run_passes_cancel_grace_seconds_to_run_sh(mocker: "MockerFixture", tmp_path: Path) -> None:
+    config = AppConfig(run_dir=tmp_path, cancel_grace_seconds=5)
+    mock_get_config(mocker, config)
+    from sapporo.run import fork_run
+
+    run_id = "aabbccdd-0000-0000-0000-000000000e05"
+    create_run_dir(tmp_path, run_id, state="INITIALIZING")
+    mock_popen = mocker.patch("sapporo.run.Popen")
+    mock_popen.return_value.pid = 4242
+
+    fork_run(run_id)
+
+    assert mock_popen.call_args.kwargs["env"]["SAPPORO_CANCEL_GRACE_SECONDS"] == "5"

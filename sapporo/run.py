@@ -58,6 +58,30 @@ def _process_alive(pid: int) -> bool:
     return True
 
 
+def _run_sh_alive(run_id: str, pid: int) -> bool:
+    """Whether pid is the run.sh process of this run.
+
+    The command line in /proc is checked, so that a PID that the system reused for another process
+    (for example after a container restart) is not mistaken for the run. Without /proc, any live
+    process counts.
+    """
+    proc_dir = Path("/proc")
+    if not proc_dir.is_dir():
+        return _process_alive(pid)
+    cmdline = b""
+    for _ in range(5):
+        try:
+            cmdline = proc_dir.joinpath(str(pid), "cmdline").read_bytes()
+        except OSError:
+            return False
+        if cmdline:
+            break
+        # Empty for a zombie, and for a moment while the process is still being exec'd
+        time.sleep(0.01)
+
+    return str(resolve_run_dir(run_id)).encode() in cmdline.split(b"\0")
+
+
 _RECONCILE_SKIP_STATES = frozenset(
     {
         State.COMPLETE,
@@ -102,7 +126,7 @@ def _reconcile_run(run_id: str) -> bool:
         return False
 
     pid: int | None = read_file(run_id, "pid")
-    if pid is not None and _process_alive(pid):
+    if pid is not None and _run_sh_alive(run_id, pid):
         return False
 
     reason = "process vanished" if pid is not None else "no pid file"
@@ -258,11 +282,11 @@ def fork_run(run_id: str) -> None:
     stdout = resolve_content_path(run_id, "stdout")
     stderr = resolve_content_path(run_id, "stderr")
     cmd = ["/bin/bash", str(get_config().run_sh), str(run_dir)]
+    env = os.environ.copy()
+    env["SAPPORO_CANCEL_GRACE_SECONDS"] = str(get_config().cancel_grace_seconds)
     write_file(run_id, "state", State.QUEUED)
     with stdout.open(mode="w", encoding="utf-8") as f_stdout, stderr.open(mode="w", encoding="utf-8") as f_stderr:
-        process = Popen(
-            cmd, cwd=str(run_dir), env=os.environ.copy(), encoding="utf-8", stdout=f_stdout, stderr=f_stderr
-        )
+        process = Popen(cmd, cwd=str(run_dir), env=env, encoding="utf-8", stdout=f_stdout, stderr=f_stderr)
     if process.pid is not None:
         write_file(run_id, "pid", process.pid)
     # Reap the child process in a background thread to prevent zombie processes
@@ -338,15 +362,18 @@ def cancel_run_task(run_id: str) -> None:
         # The process is doing in run.sh. Send SIGUSR1 to the process.
         write_file(run_id, "state", State.CANCELING)
         pid: int | None = read_file(run_id, "pid")
-        if pid is not None:
+        if pid is None:
+            write_file(run_id, "state", State.UNKNOWN)
+        elif not _run_sh_alive(run_id, pid):
+            # run.sh is gone without a terminal state; reconcile_runs settles the run later
+            LOGGER.warning("run.sh (pid=%d) of run %s is not running, nothing to cancel", pid, run_id)
+        else:
             try:
                 os.kill(pid, signal.SIGUSR1)
             except ProcessLookupError:
                 LOGGER.warning("Process %d not found when canceling run %s", pid, run_id)
             except PermissionError:
                 LOGGER.warning("Permission denied when canceling run %s (pid=%d)", run_id, pid)
-        else:
-            write_file(run_id, "state", State.UNKNOWN)
 
 
 KEEP_FILES = [
@@ -356,18 +383,16 @@ KEEP_FILES = [
 ]
 
 
-def _wait_for_process_exit(pid: int, timeout: float = 30.0) -> bool:
-    """Wait for a process to exit, sending SIGKILL on timeout."""
+def _wait_for_run_sh_exit(run_id: str, pid: int, timeout: float) -> bool:
+    """Wait for the run.sh process of this run to exit, sending SIGKILL on timeout."""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
+        if not _run_sh_alive(run_id, pid):
             return True
         time.sleep(0.5)
-    # Timeout: force kill
-    with contextlib.suppress(ProcessLookupError):
-        os.kill(pid, signal.SIGKILL)
+    if _run_sh_alive(run_id, pid):
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(pid, signal.SIGKILL)
     return False
 
 
@@ -376,10 +401,13 @@ def delete_run_task(run_id: str) -> None:
     # 1. Cancel the run if it is running.
     cancel_run_task(run_id)
 
-    # 1.5 Wait for the process to exit before deleting files.
+    # 1.5 Wait for run.sh to exit before deleting files. run.sh needs the cancel grace period to
+    # stop the engine, so allow a little more than that.
     pid: int | None = read_file(run_id, "pid")
-    if pid is not None and not _wait_for_process_exit(pid):
-        LOGGER.warning("Process %d did not exit in time for run %s, sent SIGKILL", pid, run_id)
+    if pid is not None and _run_sh_alive(run_id, pid):
+        timeout = get_config().cancel_grace_seconds + 10
+        if not _wait_for_run_sh_exit(run_id, pid, timeout):
+            LOGGER.warning("Process %d did not exit in time for run %s, sent SIGKILL", pid, run_id)
 
     # 2. Transition to DELETING immediately (non-blocking).
     write_file(run_id, "state", State.DELETING)
