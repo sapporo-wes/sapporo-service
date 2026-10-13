@@ -12,7 +12,7 @@ The generated RO-Crate metadata conforms to the following specifications:
 
 | Specification | Version | Notes |
 |---|---|---|
-| RO-Crate | 1.1 | ro-crate-py 0.14.x default |
+| RO-Crate | 1.1 | Requested explicitly from ro-crate-py (0.15 or later) |
 | WRROC Process Run Crate | 0.5 | Prerequisite for Workflow Run Crate |
 | WRROC Workflow Run Crate | 0.5 | sapporo treats engines as black boxes |
 | Workflow RO-Crate | 1.0 | Standard ComputationalWorkflow representation |

@@ -667,7 +667,7 @@ name = "exceptiongroup"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371, upload-time = "2025-11-21T23:01:54.787Z" }
 wheels = [
@@ -881,7 +881,7 @@ name = "importlib-metadata"
 version = "8.7.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "zipp", marker = "python_full_version < '3.12'" },
+    { name = "zipp" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f3/49/3b30cad09e7771a4982d9975a8cbf64f00d4a1ececb53297f1d9a7be1b10/importlib_metadata-8.7.1.tar.gz", hash = "sha256:49fef1ae6440c182052f407c8d34a68f72efc36db9ca90dc0113398f2fdde8bb", size = 57107, upload-time = "2025-12-21T10:00:19.278Z" }
 wheels = [
@@ -2117,7 +2117,7 @@ wheels = [
 
 [[package]]
 name = "rocrate"
-version = "0.14.2"
+version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "arcp" },
@@ -2126,9 +2126,9 @@ dependencies = [
     { name = "python-dateutil" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/59/30/68e6a46f01c643d5af5e151afd69608dde4f9009191436db4c94432dcc92/rocrate-0.14.2.tar.gz", hash = "sha256:22263f149b17edeb0bb55cccbcc307917e93f62fe64cfcd14de53bbf1e561d10", size = 309959, upload-time = "2025-10-13T15:14:04.966Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cb/55/67deaa5169d10a4ef6eee0209bbec95d09465255daa3c74fb740ce1f1e1f/rocrate-0.16.0.tar.gz", hash = "sha256:eafd31adf0f6c0603eb68ff6e0f1f9f82028f7ffd345a7fe485eecee8240d485", size = 366394, upload-time = "2026-10-06T13:46:04.265Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/cb/4c/d74018818d4cc53e113d6df178b4b8894b304b10abfa9f44eb89e3648a0d/rocrate-0.14.2-py3-none-any.whl", hash = "sha256:2fcb1452e81e2f54e4456a7d69c74b37a0a56e55a43428292f593d9deebc6de2", size = 340572, upload-time = "2025-10-13T15:14:03.862Z" },
+    { url = "https://files.pythonhosted.org/packages/9f/4e/d4fa9de88f1c779de02758a1f52284fd771f5cc5efadecb514d0ca50141e/rocrate-0.16.0-py3-none-any.whl", hash = "sha256:1f5b4563833a166640f9e09596f8f88c9a5d8ea733bc96345e73466beae85eea", size = 396420, upload-time = "2026-10-06T13:46:02.86Z" },
 ]
 
 [[package]]
@@ -2305,7 +2305,7 @@ requires-dist = [
     { name = "python-multipart", specifier = ">=0.0.5" },
     { name = "pyyaml", specifier = ">=6,<7" },
     { name = "roc-validator", marker = "extra == 'tests'" },
-    { name = "rocrate", specifier = ">=0.9,<1" },
+    { name = "rocrate", specifier = ">=0.15,<1" },
     { name = "ruff", marker = "extra == 'tests'" },
     { name = "runcrate", marker = "extra == 'tests'" },
     { name = "sqlmodel", specifier = ">=0.0.14,<1" },

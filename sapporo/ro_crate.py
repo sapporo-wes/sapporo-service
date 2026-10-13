@@ -23,7 +23,6 @@ from rocrate.model.computerlanguage import get_lang as ro_crate_get_lang
 from rocrate.model.contextentity import ContextEntity
 from rocrate.model.creativework import CreativeWork
 from rocrate.model.file import File
-from rocrate.model.metadata import WORKFLOW_PROFILE
 from rocrate.model.softwareapplication import SoftwareApplication
 from rocrate.rocrate import ROCrate
 from rocrate.utils import get_norm_value
@@ -36,6 +35,9 @@ LOGGER = logging.getLogger(__name__)
 
 # === Constants ===
 
+RO_CRATE_VERSION = "1.1"
+RO_CRATE_PROFILE = f"https://w3id.org/ro/crate/{RO_CRATE_VERSION}"
+WORKFLOW_PROFILE = "https://w3id.org/workflowhub/workflow-ro-crate/1.0"
 PROCESS_RUN_PROFILE = "https://w3id.org/ro/wfrun/process/0.5"
 WORKFLOW_RUN_PROFILE = "https://w3id.org/ro/wfrun/workflow/0.5"
 WFRUN_CONTEXT = "https://w3id.org/ro/terms/workflow-run/context"
@@ -234,7 +236,7 @@ def _ensure_tz(timestamp: str | None) -> str | None:
 
 def create_base_crate() -> ROCrate:
     """Create a new RO-Crate with WRROC 0.5 profiles."""
-    crate = ROCrate(init=False, gen_preview=False)
+    crate = ROCrate(init=False, gen_preview=False, version=RO_CRATE_VERSION)
 
     crate.metadata.extra_contexts.append(WFRUN_CONTEXT)
     crate.metadata.extra_contexts.append(SAPPORO_CONTEXT)
@@ -258,7 +260,7 @@ def create_base_crate() -> ROCrate:
 
     # Metadata File Descriptor conformsTo (RO-Crate 1.1 + Workflow RO-Crate 1.0)
     crate.metadata["conformsTo"] = [
-        {"@id": "https://w3id.org/ro/crate/1.1"},
+        {"@id": RO_CRATE_PROFILE},
         {"@id": WORKFLOW_PROFILE},
     ]
 

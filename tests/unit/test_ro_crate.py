@@ -9,14 +9,15 @@ from unittest.mock import patch
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from rocrate.model.metadata import WORKFLOW_PROFILE
 
 from sapporo.ro_crate import (
     BIOSCHEMAS_COMPUTATIONAL_WORKFLOW,
     BIOSCHEMAS_FORMAL_PARAMETER,
     PROCESS_RUN_PROFILE,
+    RO_CRATE_PROFILE,
     SAPPORO_CONTEXT,
     WFRUN_CONTEXT,
+    WORKFLOW_PROFILE,
     WORKFLOW_RUN_PROFILE,
     _ensure_tz,
     add_create_action,
@@ -57,6 +58,11 @@ class TestCreateBaseCrate:
         assert isinstance(context, list)
         assert WFRUN_CONTEXT in context
         assert SAPPORO_CONTEXT in context
+
+    def test_context_first_entry_is_ro_crate_1_1(self) -> None:
+        crate = create_base_crate()
+        context = crate.metadata.generate()["@context"]
+        assert context[0] == f"{RO_CRATE_PROFILE}/context"
 
     def test_root_conforms_to_three_profiles(self) -> None:
         crate = create_base_crate()
