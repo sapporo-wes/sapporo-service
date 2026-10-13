@@ -1,6 +1,6 @@
-FROM python:3.12-slim-bookworm
+FROM python:3.13-slim-bookworm
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13.0 /uv /uvx /bin/
 
 ARG TARGETARCH
 ARG VERSION=0.0.0.dev0
@@ -27,7 +27,7 @@ RUN DOCKER_ARCH=$(case "${TARGETARCH}" in \
     arm64) echo "aarch64" ;; \
     *) echo "x86_64" ;; \
     esac) && \
-    curl -fsSL -o /tmp/docker.tgz "https://download.docker.com/linux/static/stable/${DOCKER_ARCH}/docker-29.2.1.tgz" && \
+    curl -fsSL -o /tmp/docker.tgz "https://download.docker.com/linux/static/stable/${DOCKER_ARCH}/docker-29.9.0.tgz" && \
     tar -xzf /tmp/docker.tgz -C /tmp && \
     mv /tmp/docker/docker /usr/local/bin/docker && \
     rm -rf /tmp/docker /tmp/docker.tgz

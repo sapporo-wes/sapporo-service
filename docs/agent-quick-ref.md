@@ -49,9 +49,10 @@ curl -s $SAPPORO_ENDPOINT/runs/$RUN_ID | jq '{exit_code: .run_log.exit_code, std
 
 | Engine | Type | Version |
 |---|---|---|
-| `cwltool` | `CWL` | `v1.0`, `v1.2` |
+| `cwltool` | `CWL` | `v1.0`, `v1.1`, `v1.2` |
 | `cromwell` | `WDL` | `1.0` |
 | `nextflow` | `NFL` | `DSL2` |
-| `snakemake` | `SMK` | `v1` |
+| `snakemake` | `SMK` | `1.0` |
+| `streamflow` | `StreamFlow` | `v1.0` |
 
 Full reference: `docs/agent-skill.md`

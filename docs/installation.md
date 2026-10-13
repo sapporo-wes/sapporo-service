@@ -38,8 +38,8 @@ See [Configuration](configuration.md) for CLI options and environment variables.
 The official Docker image is published at `ghcr.io/sapporo-wes/sapporo-service`. Multi-architecture images (amd64/arm64) are built by CI on each release.
 
 ```bash
-# Specific version
-docker pull ghcr.io/sapporo-wes/sapporo-service:2.1.0
+# Specific version (the tag is the release number, for example 2.2.6)
+docker pull ghcr.io/sapporo-wes/sapporo-service:<version>
 
 # Latest
 docker pull ghcr.io/sapporo-wes/sapporo-service:latest
@@ -56,6 +56,11 @@ docker compose up -d
 The `compose.yml` in the repository:
 
 ```yaml
+# Sapporo spawns sub-containers via Docker socket (DinD).
+# Sub-container volume mounts are resolved on the HOST, not inside this container.
+# Therefore, SAPPORO_RUN_DIR uses ${PWD} (host absolute path) and mounts
+# host-path:host-path so that paths are identical on both sides.
+
 services:
   app:
     image: ghcr.io/sapporo-wes/sapporo-service:${SAPPORO_VERSION:-latest}
@@ -65,6 +70,10 @@ services:
       - SAPPORO_PORT=1122
       - SAPPORO_DEBUG=False
       - SAPPORO_RUN_DIR=${PWD}/runs
+      # Optional: pass extra docker run flags to inner workflow containers.
+      # Use this to mount data directories that workflows need to read.
+      # Example: SAPPORO_EXTRA_DOCKER_ARGS=-v /data:/data
+      # - SAPPORO_EXTRA_DOCKER_ARGS=
     volumes:
       - ${PWD}/runs:${PWD}/runs:rw
       - /var/run/docker.sock:/var/run/docker.sock
@@ -78,6 +87,7 @@ services:
 
 networks:
   sapporo-network:
+    name: sapporo-network
 ```
 
 ### Volume Mounts (Docker-in-Docker)

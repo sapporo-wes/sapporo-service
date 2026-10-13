@@ -36,17 +36,17 @@
   "workflow_engine_versions": {
     "cwltool": {
       "workflow_engine_version": [
-        "3.1.20260108082145"
+        "3.3.20260925135507"
       ]
     },
     "nextflow": {
       "workflow_engine_version": [
-        "25.10.4"
+        "26.10.0"
       ]
     },
     "toil": {
       "workflow_engine_version": [
-        "9.1.1"
+        "9.5.0"
       ]
     },
     "cromwell": {
@@ -56,7 +56,7 @@
     },
     "snakemake": {
       "workflow_engine_version": [
-        "v9.16.3"
+        "v9.27.0"
       ]
     },
     "ep3": {
@@ -66,7 +66,7 @@
     },
     "streamflow": {
       "workflow_engine_version": [
-        "0.2.0.dev14"
+        "0.2.0rc3"
       ]
     }
   },

@@ -76,7 +76,7 @@ QUEUED → INITIALIZING → RUNNING → COMPLETE
                                ↘ CANCELED
 ```
 
-`CANCELING`, `DELETING`, and `DELETED` are transient/lifecycle states. All others are terminal.
+`COMPLETE`, `EXECUTOR_ERROR`, `SYSTEM_ERROR`, `CANCELED` and `DELETED` are terminal. `INITIALIZING`, `QUEUED`, `RUNNING`, `CANCELING` and `DELETING` are in progress; keep polling while the state is one of them.
 
 Poll loop:
 
@@ -125,8 +125,8 @@ curl -s $SAPPORO_ENDPOINT/runs/$RUN_ID | jq '{exit_code: .run_log.exit_code, std
 
 API errors (4xx/5xx) return `{"msg": "...", "status_code": N}`. Common ones:
 
-- `400 Workflow is not in the executable workflows list` — check `GET /executable-workflows`
-- `404 Run not found` — invalid `run_id`
+- `400 Invalid workflow_url: ... only registered workflows can be executed ...` — check `GET /executable-workflows`
+- `404 Run ID <run_id> not found.` — invalid `run_id`
 
 ## End-to-end example: CWL trimming + QC
 
@@ -139,11 +139,11 @@ RUN_ID=$(curl -s -X POST $SAPPORO_ENDPOINT/runs \
   -d '{
     "workflow_type": "CWL",
     "workflow_type_version": "v1.0",
-    "workflow_url": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwltool/trimming_and_qc_remote.cwl",
+    "workflow_url": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwl/trimming_and_qc_remote.cwl",
     "workflow_engine": "cwltool",
     "workflow_params": {
-      "fastq_1": {"class": "File", "location": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwltool/ERR034597_1.small.fq.gz"},
-      "fastq_2": {"class": "File", "location": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwltool/ERR034597_2.small.fq.gz"}
+      "fastq_1": {"class": "File", "location": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwl/ERR034597_1.small.fq.gz"},
+      "fastq_2": {"class": "File", "location": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwl/ERR034597_2.small.fq.gz"}
     }
   }' | jq -r .run_id)
 echo "Submitted: $RUN_ID"

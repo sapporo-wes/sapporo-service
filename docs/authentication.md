@@ -24,6 +24,7 @@ When authentication is enabled, each run is associated with a username, ensuring
 | `/runs/{run_id}/ro-crate` | GET | |
 | `/runs/{run_id}` | DELETE | |
 | `/runs` | DELETE | Bulk delete (sapporo 2.1.0+) |
+| `/me` | GET | Returns the username of the token; 400 when authentication is disabled |
 
 ## auth_config.json
 

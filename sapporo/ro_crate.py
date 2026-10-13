@@ -46,7 +46,7 @@ BIOSCHEMAS_FORMAL_PARAMETER = "https://bioschemas.org/profiles/FormalParameter/1
 BIOSCHEMAS_COMPUTATIONAL_WORKFLOW = "https://bioschemas.org/profiles/ComputationalWorkflow/1.0-RELEASE"
 
 _STDERR_TAIL_LINES = 20
-_TATAKI_IMAGE = "ghcr.io/sapporo-wes/tataki:latest"
+_TATAKI_IMAGE = "ghcr.io/sapporo-wes/tataki:v0.7.0"
 _DOCKER_IMAGE_RE = re.compile(
     r"(?:^|\s)"
     r"((?:[\w.-]+(?::\d+)?/)?[\w.-]+(?:/[\w.-]+)*:[\w.+-]+)"
@@ -814,7 +814,7 @@ def add_multiqc_stats(crate: ROCrate, run_dir: Path, create_action_ins: ContextE
         f"{run_dir}:/work",
         "-w",
         "/work",
-        "quay.io/biocontainers/multiqc:1.33--pyhdfd78af_0",
+        "quay.io/biocontainers/multiqc:1.35--pyhdfd78af_2",
         "multiqc",
         "--data-format",
         "json",
@@ -879,7 +879,7 @@ def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
         f"{source}:/work/{source.name}",
         "-w",
         "/work",
-        "quay.io/biocontainers/samtools:1.23--h96c455f_0",
+        "quay.io/biocontainers/samtools:1.24--h9dcdb79_1",
         "samtools",
         "flagstats",
         "--output-fmt",
@@ -922,7 +922,7 @@ def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
             properties["duplicateRate"] = 0.0
         stats_ins = ContextEntity(crate, properties=properties)
         stats_ins.append_to(
-            "generatedBy", find_or_generate_software_ins(crate, "samtools", "1.23--h96c455f_0"), compact=True
+            "generatedBy", find_or_generate_software_ins(crate, "samtools", "1.24--h9dcdb79_1"), compact=True
         )
         file_ins.append_to("stats", stats_ins, compact=True)
         crate.add(stats_ins)

@@ -48,7 +48,7 @@ All CLI options can be set via environment variables with the `SAPPORO_` prefix:
 
 | CLI Option | Environment Variable | Default |
 |---|---|---|
-| `--host` | `SAPPORO_HOST` | `127.0.0.1` (Docker 内では `0.0.0.0`) |
+| `--host` | `SAPPORO_HOST` | `127.0.0.1` (`0.0.0.0` inside Docker) |
 | `--port` | `SAPPORO_PORT` | `1122` |
 | `--debug` | `SAPPORO_DEBUG` | `False` |
 | `--run-dir` | `SAPPORO_RUN_DIR` | `./runs` |
@@ -115,13 +115,13 @@ the following:
 
 | Engine | Workflow Type | Container Image | Notes |
 |---|---|---|---|
-| cwltool | CWL | `quay.io/commonwl/cwltool:3.1.20260108082145` | |
-| toil | CWL | `quay.io/ucsc_cgl/toil:9.1.1` | |
+| cwltool | CWL | `quay.io/commonwl/cwltool:3.3.20260925135507` | |
+| toil | CWL | `quay.io/ucsc_cgl/toil:9.5.0` | |
 | ep3 | CWL | `ghcr.io/tom-tan/ep3:v1.7.0` | |
 | cromwell | WDL | `ghcr.io/sapporo-wes/cromwell-with-docker:92` | CWL support was removed in Cromwell 85 |
-| nextflow | NFL | `nextflow/nextflow:25.10.4` | |
-| snakemake | SMK | `snakemake/snakemake:v9.16.3` | |
-| streamflow | CWL | `alphaunito/streamflow:0.2.0.dev14` | Pre-release; uses cwl-runner interface |
+| nextflow | NFL | `nextflow/nextflow:26.10.0` | |
+| snakemake | SMK | `snakemake/snakemake:v9.27.0` | |
+| streamflow | CWL | `alphaunito/streamflow:0.2.0rc3` | Pre-release; uses cwl-runner interface |
 
 ## Output File Download
 

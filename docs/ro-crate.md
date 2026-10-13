@@ -34,7 +34,7 @@ If RO-Crate generation itself fails, `run.sh` writes `{"@error": "RO-Crate gener
 
 ## Graceful Degradation
 
-sapporo-service accepts arbitrary workflow engines and workflow languages via the WES API. Unknown engines or languages are expected cases, not errors. The RO-Crate generation applies the following fallback rules to produce valid metadata without crashing. All fallbacks are normal operation and do not emit warning logs (to prevent log file bloat in production).
+sapporo-service accepts arbitrary workflow engines and workflow languages via the WES API. Unknown engines or languages are expected cases, not errors. The RO-Crate generation applies the following fallback rules to produce valid metadata without crashing. All fallbacks are normal operation and do not emit warning logs (to prevent log file bloat in production). The Docker-based steps (MultiQC, samtools, vcftools, tataki) are the exception: a command that fails or exceeds its 300 second timeout is logged as a warning, and the step is skipped.
 
 | Condition | Fallback Behavior |
 |---|---|
@@ -141,7 +141,7 @@ sapporo automatically runs bioinformatics analysis tools on output files to embe
 
 ### MultiQC Statistics
 
-[MultiQC](https://multiqc.info/) is run in a Docker container (`quay.io/biocontainers/multiqc:1.33--pyhdfd78af_0`) automatically on the entire run directory after workflow completion. If Docker is not available, MultiQC is skipped. If MultiQC finds supported tool outputs (e.g., FastQC, samtools), it generates a `multiqc_general_stats.json` file. This file is:
+[MultiQC](https://multiqc.info/) is run in a Docker container (`quay.io/biocontainers/multiqc:1.35--pyhdfd78af_2`) automatically on the entire run directory after workflow completion. If Docker is not available, MultiQC is skipped. If MultiQC finds supported tool outputs (e.g., FastQC, samtools), it generates a `multiqc_general_stats.json` file. This file is:
 
 - Stored at `{run_dir}/multiqc_general_stats.json`.
 - Added to the crate as a `File` entity with full content embedded.
@@ -149,7 +149,7 @@ sapporo automatically runs bioinformatics analysis tools on output files to embe
 
 ### samtools Stats (BAM/SAM)
 
-For output files with BAM (`.bam`) or SAM (`.sam`) format (detected via EDAM ontology), `samtools flagstats` is run in a Docker container (`quay.io/biocontainers/samtools:1.23--h96c455f_0`). The resulting `FileStats` entity includes:
+For output files with BAM (`.bam`) or SAM (`.sam`) format (detected via EDAM ontology), `samtools flagstats` is run in a Docker container (`quay.io/biocontainers/samtools:1.24--h9dcdb79_1`). The resulting `FileStats` entity includes:
 
 | Property | Description |
 |---|---|
@@ -177,11 +177,11 @@ Output files are automatically annotated with [EDAM ontology](http://edamontolog
 
 ### tataki Content-Based Format Detection
 
-[tataki](https://github.com/sapporo-wes/tataki) is run in a Docker container (`ghcr.io/sapporo-wes/tataki:latest`) against all output files after the extension-based EDAM detection. tataki detects file formats by inspecting file content (magic bytes, structure analysis) rather than relying on file extensions, covering both bioinformatics formats (BAM, VCF, FASTQ, ...) and common formats (TSV, CSV, JSON, HTML, PDF, PNG, SVG).
+[tataki](https://github.com/sapporo-wes/tataki) is run in a Docker container (`ghcr.io/sapporo-wes/tataki:v0.7.0`) against all output files after the extension-based EDAM detection. tataki detects file formats by inspecting file content (magic bytes, structure analysis) rather than relying on file extensions, covering both bioinformatics formats (BAM, VCF, FASTQ, ...) and common formats (TSV, CSV, JSON, HTML, PDF, PNG, SVG).
 
 When tataki identifies a file's format, the file's `encodingFormat` is replaced with the EDAM ontology entity returned by tataki. Files that tataki cannot identify retain their original `encodingFormat` (extension-based EDAM + MIME type).
 
-This enrichment enables [tonkaz](https://github.com/sapporo-wes/tonkaz) Level 1-3 file-content comparison on typical workflow outputs. If Docker is not available or tataki fails, the enrichment is silently skipped.
+This enrichment enables [tonkaz](https://github.com/sapporo-wes/tonkaz) Level 1-3 file-content comparison on typical workflow outputs. If the `docker` command is not on PATH, the enrichment is skipped without a log entry; if tataki fails or times out, a warning is logged and the enrichment is skipped.
 
 ## API Endpoint
 
@@ -214,9 +214,11 @@ The generation flow:
 2. Add the `ComputationalWorkflow` entity from the run request.
 3. Add `SoftwareApplication` entities for the workflow engine and sapporo.
 4. Build the `CreateAction` with inputs, outputs, logs, and metadata.
-5. Run MultiQC in Docker and attach statistics (skipped if Docker is unavailable).
-6. Run samtools/vcftools in Docker on applicable output files (skipped if Docker is unavailable).
-7. Run tataki in Docker to enrich output files with EDAM format IDs (skipped if Docker is unavailable).
+5. Run MultiQC in Docker and attach statistics.
+6. Run samtools/vcftools in Docker on applicable output files.
+7. Run tataki in Docker to enrich output files with EDAM format IDs.
+
+Steps 5 to 7 are skipped when the `docker` command is not on PATH. Each command has a 300 second timeout; a failure or timeout is logged as a warning and the step is skipped.
 8. Write `ro-crate-metadata.json` and `README.md` to the run directory.
 
 ## Validation

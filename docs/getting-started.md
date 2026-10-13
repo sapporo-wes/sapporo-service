@@ -34,15 +34,15 @@ Submit a [CWL](https://www.commonwl.org/) workflow that runs quality control on 
 ```bash
 curl -fsSL -X POST \
   -F "workflow_type=CWL" \
-  -F "workflow_url=https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwltool/trimming_and_qc_remote.cwl" \
+  -F "workflow_url=https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwl/trimming_and_qc_remote.cwl" \
   -F 'workflow_params={
     "fastq_1": {
       "class": "File",
-      "location": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwltool/ERR034597_1.small.fq.gz"
+      "location": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwl/ERR034597_1.small.fq.gz"
     },
     "fastq_2": {
       "class": "File",
-      "location": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwltool/ERR034597_2.small.fq.gz"
+      "location": "https://raw.githubusercontent.com/sapporo-wes/sapporo-service/main/tests/resources/cwl/ERR034597_2.small.fq.gz"
     }
   }' \
   -F "workflow_engine=cwltool" \
@@ -65,7 +65,7 @@ Poll the run status using the `run_id` from the previous step:
 curl -fsSL localhost:1122/runs/${RUN_ID}/status | jq .
 ```
 
-The run progresses through these states: `QUEUED` -> `INITIALIZING` -> `RUNNING` -> `COMPLETE`. See [WES Compatibility](wes-compatibility.md) for the full state list.
+The run progresses through these states: `INITIALIZING` -> `QUEUED` -> `RUNNING` -> `COMPLETE`. See [WES Compatibility](wes-compatibility.md) for the full state list.
 
 Retrieve the full run details:
 

@@ -191,7 +191,7 @@ Optional field containing a JSON array of `FileObject` to download remote files:
 
 | Behavior | Description |
 |---|---|
-| `GET /runs` snapshot mode | Returns a snapshot aggregated periodically, not live state |
+| `GET /runs` snapshot mode | Returns live state by default (`latest=true`); with `latest=false` returns the snapshot that is aggregated periodically |
 | `GET /runs/{run_id}` live state | Always reads the run directory and returns the latest state |
 | `system_state_counts` user scoping | When authenticated, counts only the authenticated user's runs |
 

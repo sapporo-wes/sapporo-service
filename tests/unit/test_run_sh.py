@@ -48,9 +48,46 @@ function run_fake_stubborn() {{
     local -a cmd_arr=(bash -c 'trap "" TERM; echo $$ >"${{0}}"; exec sleep 20' "${{run_dir}}/{ENGINE_PID_FILE}")
     _write_and_run cmd_arr
 }}
+function run_fake_docker() {{
+    local -a cmd_arr=(docker run --rm --cidfile "${{engine_cid}}" fake-image sleep 20)
+    _write_and_run cmd_arr
+}}
 function generate_ro_crate() {{
     echo '{{}}' >"${{ro_crate}}"
 }}
+"""
+
+# A fake docker CLI: "run" records a container id, writes the engine PID and ignores SIGTERM like an
+# engine that does not stop on it; "inspect" reports the working directory; "kill" stops the engine.
+FAKE_DOCKER = """#!/usr/bin/env bash
+set -u
+dir="${FAKE_DOCKER_DIR}"
+case "${1:-}" in
+run)
+    shift
+    cidfile=""
+    while (($#)) && [[ "$1" != "fake-image" ]]; do
+        if [[ "$1" == "--cidfile" ]]; then cidfile="$2"; shift; fi
+        shift
+    done
+    (($#)) || exit 1
+    shift
+    echo "fakecontainerid" >"${cidfile}"
+    trap "" TERM
+    echo $$ >"${dir}/engine.pid"
+    exec "$@"
+    ;;
+inspect)
+    echo "${FAKE_DOCKER_WORKDIR}"
+    ;;
+kill)
+    echo "$@" >>"${dir}/kill.log"
+    kill -KILL "$(cat "${dir}/engine.pid")" 2>/dev/null || true
+    ;;
+*)
+    exit 1
+    ;;
+esac
 """
 
 
@@ -113,11 +150,27 @@ def _alive(pid: int) -> bool:
 class RunSh:
     """Start run.sh for a run directory and clean up its process group afterwards."""
 
-    def __init__(self, tmp_path: Path, engine: str, state: str = "QUEUED", grace_seconds: int = 30) -> None:
+    def __init__(
+        self,
+        tmp_path: Path,
+        engine: str,
+        state: str = "QUEUED",
+        grace_seconds: int = 30,
+        fake_docker_workdir: str | None = None,
+    ) -> None:
         self.run_dir = _prepare_run_dir(tmp_path, engine, state)
+        self.fake_docker_dir = tmp_path / "fake-docker"
+        self.fake_docker_dir.mkdir(exist_ok=True)
+        fake_docker = self.fake_docker_dir / "docker"
+        fake_docker.write_text(FAKE_DOCKER, encoding="utf-8")
+        fake_docker.chmod(0o755)
         env = os.environ.copy()
-        env["PATH"] = f"{Path(sys.executable).parent}{os.pathsep}{env.get('PATH', '')}"
+        env["PATH"] = (
+            f"{self.fake_docker_dir}{os.pathsep}{Path(sys.executable).parent}{os.pathsep}{env.get('PATH', '')}"
+        )
         env["SAPPORO_CANCEL_GRACE_SECONDS"] = str(grace_seconds)
+        env["FAKE_DOCKER_DIR"] = str(self.fake_docker_dir)
+        env["FAKE_DOCKER_WORKDIR"] = fake_docker_workdir or str(self.run_dir / RUN_DIR_STRUCTURE["exe_dir"])
         env.pop("SAPPORO_EXTRA_DOCKER_ARGS", None)
         self.stderr_path = tmp_path / "run_sh.stderr"
         with self.stderr_path.open("w", encoding="utf-8") as stderr:
@@ -132,6 +185,11 @@ class RunSh:
     def wait_for_engine(self) -> int:
         _wait_until((self.run_dir / ENGINE_PID_FILE).exists)
         return _engine_pid(self.run_dir)
+
+    def wait_for_docker_engine(self) -> int:
+        pid_file = self.fake_docker_dir / "engine.pid"
+        _wait_until(pid_file.exists)
+        return int(pid_file.read_text(encoding="utf-8").strip())
 
     def wait(self, timeout: float = 15.0) -> int:
         try:
@@ -150,8 +208,10 @@ class RunSh:
 def run_sh(tmp_path: Path) -> Iterator[Callable[..., RunSh]]:
     started: list[RunSh] = []
 
-    def _start(engine: str, state: str = "QUEUED", grace_seconds: int = 30) -> RunSh:
-        instance = RunSh(tmp_path, engine, state, grace_seconds)
+    def _start(
+        engine: str, state: str = "QUEUED", grace_seconds: int = 30, fake_docker_workdir: str | None = None
+    ) -> RunSh:
+        instance = RunSh(tmp_path, engine, state, grace_seconds, fake_docker_workdir)
         started.append(instance)
         return instance
 
@@ -250,3 +310,31 @@ def test_run_sh_canceled_before_start_does_not_run_engine(run_sh: Callable[..., 
     assert _read(run.run_dir, "state") == "CANCELED"
     assert _read(run.run_dir, "exit_code") == "138"
     assert not (run.run_dir / ENGINE_PID_FILE).exists()
+
+
+def test_run_sh_cancel_kills_docker_engine_container_by_id(run_sh: Callable[..., RunSh]) -> None:
+    run = run_sh("fake_docker", grace_seconds=5)
+    engine_pid = run.wait_for_docker_engine()
+    assert (run.run_dir / "engine.cid").read_text(encoding="utf-8").strip() == "fakecontainerid"
+
+    (run.run_dir / RUN_DIR_STRUCTURE["state"]).write_text("CANCELING", encoding="utf-8")
+    started = time.monotonic()
+    run.process.send_signal(signal.SIGUSR1)
+
+    assert run.wait() == 138
+    assert time.monotonic() - started < 4, "the container was not killed; cancel waited for the grace period"
+    assert not _alive(engine_pid)
+    assert (run.fake_docker_dir / "kill.log").read_text(encoding="utf-8").split() == ["kill", "fakecontainerid"]
+    assert _read(run.run_dir, "state") == "CANCELED"
+
+
+def test_run_sh_cancel_ignores_container_id_not_started_for_this_run(run_sh: Callable[..., RunSh]) -> None:
+    run = run_sh("fake_docker", grace_seconds=1, fake_docker_workdir="/somewhere/else")
+    run.wait_for_docker_engine()
+
+    (run.run_dir / RUN_DIR_STRUCTURE["state"]).write_text("CANCELING", encoding="utf-8")
+    run.process.send_signal(signal.SIGUSR1)
+
+    assert run.wait() == 138
+    assert not (run.fake_docker_dir / "kill.log").exists()
+    assert _read(run.run_dir, "state") == "CANCELED"

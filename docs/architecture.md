@@ -62,11 +62,12 @@ Override the default `run.sh` location using `--run-sh` or `SAPPORO_RUN_SH`. See
 
 `run.sh` runs the workflow function as a background job in its own process group (`set -m`) and waits for it, so that the parent process stays free to handle signals. `POST /runs/{run_id}/cancel` writes `CANCELING` to `state.txt` and sends `SIGUSR1` to the `run.sh` process. The signal handler then:
 
-1. Calls `cancel()`, which first runs the engine-specific hook `cancel_<engine>()` if that function is defined, and then `stop_run_wf()`
-2. `stop_run_wf()` sends `SIGTERM` to the process group of the background job, waits up to `--cancel-grace-seconds` (default 30 seconds), and then sends `SIGKILL` to the group
-3. Writes exit code `138` and the `CANCELED` state
+1. Calls `cancel()`, which runs `cancel_docker_engine()`, then the engine-specific hook `cancel_<engine>()` if that function is defined, and then `stop_run_wf()`
+2. `cancel_docker_engine()` kills the engine container: the bundled `run_<engine>()` functions pass `--cidfile` to `docker run`, and the recorded id is used only if that container was started for this run's `exe/` directory
+3. `stop_run_wf()` sends `SIGTERM` to the process group of the background job, waits up to `--cancel-grace-seconds` (default 30 seconds), and then sends `SIGKILL` to the group
+4. Writes exit code `138` and the `CANCELED` state
 
-The process group contains the engine process and everything it started on this host. An attached `docker run`, `podman run` or `srun` forwards `SIGTERM` to what it runs, so the engine inside a container or a Slurm step receives the signal as well. Work that lives elsewhere, such as a Slurm job submitted with `sbatch` or containers that the engine itself started through the Docker socket, is not reached by the signal. Put that cleanup into `cancel_<engine>()`.
+The process group contains the engine process and everything it started on this host. An attached `docker run`, `podman run` or `srun` forwards `SIGTERM` to what it runs, but an engine inside a container does not always exit on it, and the container outlives the `docker run` client; this is why the bundled engines also kill the container by id. Work that lives elsewhere, such as a Slurm job submitted with `sbatch` or containers that the engine itself started through the Docker socket for workflow steps, is not reached. Put that cleanup into `cancel_<engine>()`.
 
 Once the parent process has written `CANCELING` or `SYSTEM_ERROR`, the background job does not write a terminal state anymore. A workflow that ends after the cancel therefore cannot turn the run back into `COMPLETE` or `EXECUTOR_ERROR`. If `state.txt` already says `CANCELING` when `run.sh` starts, it writes `CANCELED` without starting the engine.
 
@@ -91,7 +92,7 @@ To add a new workflow engine, define a `run_<engine>()` function in `run.sh` tha
 1. Build a `docker run` command that mounts the Docker socket and run directory
 2. Pass the command array to `_write_and_run()`, which writes the command to `${cmd}`, runs it with stdout/stderr redirected to `${stdout}` and `${stderr}`, and calls `executor_error $?` on non-zero exit
 
-If cancel needs more than a signal to the engine process (for example `scancel` for a Slurm job, or `docker kill` for containers the engine started), define `cancel_<engine>()`. `cancel()` calls it before stopping the process group.
+Pass `--cidfile "${engine_cid}"` to `docker run` so that `cancel_docker_engine()` can kill the container. If cancel needs more than that (for example `scancel` for a Slurm job, or stopping containers the engine started for its steps), define `cancel_<engine>()`. `cancel()` calls it before stopping the process group.
 
 For a complete example, see the [StreamFlow addition PR](https://github.com/sapporo-wes/sapporo-service/pull/29).
 
@@ -110,9 +111,12 @@ runs/
 │       ├── exe/
 │       │   └── workflow_params.json
 │       ├── exit_code.txt
+│       ├── multiqc_general_stats.json
 │       ├── outputs/
 │       │   └── <output_file>
 │       ├── outputs.json
+│       ├── README.md
+│       ├── ro-crate-metadata.json
 │       ├── run.pid
 │       ├── run_request.json
 │       ├── runtime_info.json
@@ -121,6 +125,7 @@ runs/
 │       ├── stderr.log
 │       ├── stdout.log
 │       ├── system_logs.json
+│       ├── username.txt
 │       └── workflow_engine_params.txt
 ├── 2d/
 │   └── ...
@@ -146,6 +151,8 @@ runs/
 | `runtime_info.json` | Runtime metadata |
 | `system_logs.json` | System-level logs |
 | `workflow_engine_params.txt` | Engine-specific parameters |
+| `ro-crate-metadata.json` / `README.md` | RO-Crate metadata and its README, written after the run ends (see [RO-Crate](ro-crate.md)) |
+| `multiqc_general_stats.json` | MultiQC statistics, written during RO-Crate generation when MultiQC finds supported tool outputs |
 
 ## Reconciliation
 
@@ -167,7 +174,7 @@ A run whose files cannot be processed (for example a `system_logs.json` that is 
 
 ## SQLite Index
 
-The SQLite database (`sapporo.db`) is an **index**, not a data store. It is rebuilt at a configurable interval (default: 30 minutes) by a background asyncio task that scans the run directories, and can be deleted at any time without data loss. It exists solely to make `GET /runs` (list all runs) fast. Individual run queries (`GET /runs/{run_id}`) always read from the filesystem.
+The SQLite database (`sapporo.db`) is an **index**, not a data store. A background asyncio task syncs it with the run directories at a configurable interval (default: 30 minutes), and it can be deleted at any time without data loss. `GET /runs` uses it to filter, sort and paginate; with the default `latest=true` the state of each listed run is then read from its run directory, and with `latest=false` the indexed snapshot is returned as is. `system_state_counts` in `GET /service-info` is also counted from the index. Individual run queries (`GET /runs/{run_id}`) always read from the filesystem.
 
 Each sync adds runs that are new on disk, removes rows whose run directory is gone, and refreshes rows that are not in a terminal state or whose `state.txt` differs from the index. `POST /runs` and `DELETE /runs/{run_id}` update the index immediately; the periodic sync covers the state changes that `run.sh` makes.
 

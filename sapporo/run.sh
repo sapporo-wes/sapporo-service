@@ -32,6 +32,7 @@ function run_wf() {
 function _write_and_run() {
     # Write the command to cmd.txt and execute it
     local -n _cmd_ref=$1
+    rm -f "${engine_cid}"
     printf '%s ' "${_cmd_ref[@]}" >"${cmd}"
     echo "" >>"${cmd}"
     "${_cmd_ref[@]}" 1>"${stdout}" 2>"${stderr}" || { executor_error $?; }
@@ -48,8 +49,8 @@ function _append_engine_params() {
 }
 
 function run_cwltool() {
-    local container="quay.io/commonwl/cwltool:3.1.20260108082145"
-    local -a cmd_arr=(docker run --rm
+    local container="quay.io/commonwl/cwltool:3.3.20260925135507"
+    local -a cmd_arr=(docker run --rm --cidfile "${engine_cid}"
         -v /var/run/docker.sock:/var/run/docker.sock
         -e DOCKER_HOST=unix:///var/run/docker.sock
         -e DOCKER_API_VERSION=1.44
@@ -65,7 +66,7 @@ function run_cwltool() {
 }
 
 function run_nextflow() {
-    local container="nextflow/nextflow:25.10.4"
+    local container="nextflow/nextflow:26.10.0"
     # Store NXF_HOME inside the run_dir so pipeline assets (bin/ scripts, etc.)
     # are on the host-mounted filesystem. Without this, Nextflow caches assets
     # inside the container at /.nextflow/, which is not visible to the host.
@@ -80,7 +81,7 @@ function run_nextflow() {
     cat > "${nf_config}" <<'NFCFG'
 docker.envWhitelist = 'DOCKER_API_VERSION'
 NFCFG
-    local -a cmd_arr=(docker run --rm
+    local -a cmd_arr=(docker run --rm --cidfile "${engine_cid}"
         -v /var/run/docker.sock:/var/run/docker.sock
         -e DOCKER_HOST=unix:///var/run/docker.sock
         -e DOCKER_API_VERSION=1.44
@@ -97,8 +98,8 @@ NFCFG
 }
 
 function run_toil() {
-    local container="quay.io/ucsc_cgl/toil:9.1.1"
-    local -a cmd_arr=(docker run --rm
+    local container="quay.io/ucsc_cgl/toil:9.5.0"
+    local -a cmd_arr=(docker run --rm --cidfile "${engine_cid}"
         -v /var/run/docker.sock:/var/run/docker.sock
         -e DOCKER_HOST=unix:///var/run/docker.sock
         -e DOCKER_API_VERSION=1.44
@@ -115,7 +116,7 @@ function run_toil() {
 
 function run_cromwell() {
     local container="ghcr.io/sapporo-wes/cromwell-with-docker:92"
-    local -a cmd_arr=(docker run --rm
+    local -a cmd_arr=(docker run --rm --cidfile "${engine_cid}"
         -v /var/run/docker.sock:/var/run/docker.sock
         -e DOCKER_HOST=unix:///var/run/docker.sock
         -v /tmp:/tmp
@@ -151,8 +152,8 @@ function run_snakemake() {
         wf_url_local="${exe_dir}/${wf_url}"
     fi
 
-    local container="snakemake/snakemake:v9.16.3"
-    local -a cmd_arr=(docker run --rm
+    local container="snakemake/snakemake:v9.27.0"
+    local -a cmd_arr=(docker run --rm --cidfile "${engine_cid}"
         -v "${run_dir}:${run_dir}"
         "${extra_docker_args[@]+"${extra_docker_args[@]}"}"
         "-w=${exe_dir}"
@@ -187,7 +188,7 @@ function run_snakemake() {
 
 function run_ep3() {
     local container="ghcr.io/tom-tan/ep3:v1.7.0"
-    local -a cmd_arr=(docker run --rm
+    local -a cmd_arr=(docker run --rm --cidfile "${engine_cid}"
         -v /var/run/docker.sock:/var/run/docker.sock
         -e DOCKER_HOST=unix:///var/run/docker.sock
         -e DOCKER_API_VERSION=1.44
@@ -209,8 +210,8 @@ function run_streamflow() {
     # bind-mount it into the StreamFlow container.
     local docker_stage="${exe_dir}/.docker-bin"
     cp "$(command -v docker)" "${docker_stage}"
-    local container="alphaunito/streamflow:0.2.0.dev14"
-    local -a cmd_arr=(docker run --rm
+    local container="alphaunito/streamflow:0.2.0rc3"
+    local -a cmd_arr=(docker run --rm --cidfile "${engine_cid}"
         -v /var/run/docker.sock:/var/run/docker.sock
         -e DOCKER_HOST=unix:///var/run/docker.sock
         -v "${docker_stage}:/usr/bin/docker:ro"
@@ -227,14 +228,34 @@ function run_streamflow() {
 
 function cancel() {
     # Edit this function for environment-specific cancellation procedures.
-    # stop_run_wf sends SIGTERM to the process group of run_wf (the engine and everything it
-    # started on this host) and SIGKILL after the grace period. Work that lives elsewhere, such as
-    # a Slurm job or containers that the engine itself started, needs a cancel_<engine>() function.
+    # cancel_docker_engine kills the engine container that the bundled run_<engine>() functions
+    # start. stop_run_wf then sends SIGTERM to the process group of run_wf (the engine process and
+    # everything it started on this host) and SIGKILL after the grace period. Work that lives
+    # elsewhere, such as a Slurm job or containers that the engine itself started for workflow
+    # steps, needs a cancel_<engine>() function.
+    cancel_docker_engine
     local hook="cancel_${wf_engine}"
     if [[ "$(type -t "${hook}")" == "function" ]]; then
         "${hook}"
     fi
     stop_run_wf
+}
+
+function cancel_docker_engine() {
+    # The bundled run_<engine>() functions pass `--cidfile "${engine_cid}"` to `docker run`, because
+    # an engine inside a container does not always exit on SIGTERM and the container outlives the
+    # `docker run` client. The id is trusted only if the container was started for this run's
+    # exe directory, since the run directory is writable from inside the engine container.
+    if [[ ! -s "${engine_cid}" ]]; then
+        return
+    fi
+    local container_id
+    container_id=$(cat "${engine_cid}")
+    local workdir
+    workdir=$(docker inspect -f '{{.Config.WorkingDir}}' "${container_id}" 2>/dev/null || true)
+    if [[ "${workdir}" == "${exe_dir}" ]]; then
+        docker kill "${container_id}" >/dev/null 2>&1 || true
+    fi
 }
 
 function cancel_cwltool() {
@@ -269,6 +290,7 @@ wf_engine_params_file="${run_dir}/workflow_engine_params.txt"
 cmd="${run_dir}/cmd.txt"
 system_logs="${run_dir}/system_logs.json"
 ro_crate="${run_dir}/ro-crate-metadata.json"
+engine_cid="${run_dir}/engine.cid"
 
 # Extract workflow engine and URL from the run request
 wf_engine=$(jq -r ".workflow_engine" "${run_request}")

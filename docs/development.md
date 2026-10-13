@@ -102,7 +102,10 @@ workflow engine:
 | `test_cromwell.py` | cromwell | WDL |
 | `test_nextflow.py` | nextflow | NFL |
 | `test_snakemake.py` | snakemake | SMK |
+| `test_streamflow.py` | streamflow | CWL |
 | `test_ro_crate.py` | all of the above | (multi-engine RO-Crate validation) |
+
+`test_cancel.py`, `test_delete.py`, `test_auth.py` and `test_auth_external.py` cover the run lifecycle and authentication with cwltool.
 
 Run integration tests inside the development container:
 
@@ -211,4 +214,4 @@ GitHub Actions runs the following workflows (`.github/workflows/`):
 - Organized Python and Docker toolchain
 - Simplified `executable_workflows.json` to a list of `workflow_url`s
 - Full support for automatic run directory cleanup
-- See the [sapporo-wes-2.0.0 specification](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo-wes-spec-2.0.0.yml) for detailed API changes
+- See the [sapporo-wes-2.0.0 specification](https://github.com/sapporo-wes/sapporo-service/blob/main/openapi/sapporo-wes-spec-2.0.0.yml) for detailed API changes
