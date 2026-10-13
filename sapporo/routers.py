@@ -82,13 +82,11 @@ _EXT = f"**sapporo-wes-{SAPPORO_WES_SPEC_VERSION} extension:**"
     response_model=ServiceInfo,
 )
 async def get_service_info(
-    token: str | None = auth_depends_factory(),
+    token: str | None = auth_depends_factory(optional=True),
 ) -> ServiceInfo:
-    service_info = create_service_info()
     username = await resolve_username(token)
-    service_info.system_state_counts = system_state_counts(username)
-
-    return service_info
+    # create_service_info() is cached, so the per-request counts go into a copy
+    return create_service_info().model_copy(update={"system_state_counts": system_state_counts(username)})
 
 
 @router.get(
@@ -431,8 +429,8 @@ if a run is in progress, it will be canceled first, then its contents will be de
     response_model=BulkDeleteResponse,
 )
 async def delete_runs(
+    background_tasks: BackgroundTasks,
     run_ids: list[str] = Query(..., description="Run IDs to delete."),
-    background_tasks: BackgroundTasks = BackgroundTasks(),
     token: str | None = auth_depends_factory(),
 ) -> BulkDeleteResponse:
     username = await resolve_username(token)

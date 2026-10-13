@@ -4,6 +4,7 @@ import datetime
 import logging
 import os
 import re
+import secrets
 from functools import cache
 from threading import RLock
 from typing import Any, Literal
@@ -34,6 +35,10 @@ LOGGER = logging.getLogger(__name__)
 
 # Password hasher instance
 _password_hasher = PasswordHasher()
+
+# Verified when the username is unknown, so that an unknown username costs the same time as a
+# wrong password and cannot be told apart by timing
+_DUMMY_PASSWORD_HASH = _password_hasher.hash(secrets.token_urlsafe(32))
 
 # Username validation pattern: alphanumeric, underscore, hyphen, dot, at-sign
 # Max length 128 characters to prevent abuse
@@ -99,7 +104,7 @@ class TokenPayload(BaseModel):
     sub: str
     exp: datetime.datetime | None
     iat: datetime.datetime | None
-    aud: str
+    aud: str | list[str]  # an external IdP puts several audiences in a list
     iss: str
 
     model_config = ConfigDict(extra="allow")
@@ -124,45 +129,50 @@ def get_auth_config() -> AuthConfig:
 
 
 class HTTPBearerCustom:
-    def __init__(self, scheme_name: str, description: str) -> None:
+    def __init__(self, scheme_name: str, description: str, auto_error: bool = True) -> None:
         self.scheme_name = scheme_name
         self.description = description
+        self.auto_error = auto_error
         self.model = type(
             "HTTPBearer",
             (),
             {"__annotations__": {"scheme_name": str, "description": str}},
         )
 
-    async def __call__(self, request: Request) -> str:
+    async def __call__(self, request: Request) -> str | None:
         authorization = request.headers.get("Authorization")
         scheme, credentials = get_authorization_scheme_param(authorization)
         if not (authorization and scheme and credentials):
-            raise_unauthorized("Authorization header is missing or invalid.")
+            if self.auto_error:
+                raise_unauthorized("Authorization header is missing or invalid.")
+            return None
         if scheme.lower() != "bearer":
-            raise_unauthorized("Invalid authentication scheme.")
+            if self.auto_error:
+                raise_unauthorized("Invalid authentication scheme.")
+            return None
         return credentials
 
 
-http_bearer_custom = HTTPBearerCustom(
-    scheme_name="JWT Bearer",
-    description="Include JWT as Bearer in the Authorization header for authentication. Please input JWT token.",
+_BEARER_DESCRIPTION = "Include JWT as Bearer in the Authorization header for authentication. Please input JWT token."
+http_bearer_custom = HTTPBearerCustom(scheme_name="JWT Bearer", description=_BEARER_DESCRIPTION)
+http_bearer_custom_optional = HTTPBearerCustom(
+    scheme_name="JWT Bearer", description=_BEARER_DESCRIPTION, auto_error=False
 )
 password_bearer = OAuth2PasswordBearer(tokenUrl="/token")
+password_bearer_optional = OAuth2PasswordBearer(tokenUrl="/token", auto_error=False)
 
 
-def auth_depends_factory() -> Any:
+def auth_depends_factory(optional: bool = False) -> Any:
     """Inject authorization into each endpoint.
 
-    Use like `token: Optional[str] = auth_depends_factory`.
+    Use like `token: Optional[str] = auth_depends_factory()`. With optional=True the endpoint
+    accepts requests without a token when authentication is enabled; the token is then None.
     """
     auth_config = get_auth_config()
     if auth_config.auth_enabled:
-        if auth_config.idp_provider == "sapporo":
-            return Depends(password_bearer)
-        elif auth_config.external_config.client_mode == "confidential":
-            return Depends(password_bearer)
-        else:
-            return Depends(http_bearer_custom)
+        if auth_config.idp_provider == "sapporo" or auth_config.external_config.client_mode == "confidential":
+            return Depends(password_bearer_optional if optional else password_bearer)
+        return Depends(http_bearer_custom_optional if optional else http_bearer_custom)
 
     # do nothing
     return Depends(lambda: None)
@@ -177,7 +187,8 @@ def is_create_token_endpoint_enabled() -> None:
 async def create_access_token(username: str, password: str) -> str:
     auth_config = get_auth_config()
     if auth_config.idp_provider == "sapporo":
-        return spr_create_access_token(username, password)
+        # argon2 verification takes tens of milliseconds; keep it off the event loop
+        return await asyncio.to_thread(spr_create_access_token, username, password)
     return await external_create_access_token(username, password)
 
 
@@ -309,10 +320,9 @@ def spr_check_user(username: str, password: str) -> None:
             break
 
     if target_user is None:
-        # Perform a dummy hash verification to prevent timing attacks
-        # that could reveal whether a username exists
+        # Verify against a real hash so that an unknown username takes as long as a wrong password
         with contextlib.suppress(Exception):
-            _password_hasher.verify("$argon2id$v=19$m=65536,t=3,p=4$dummy$dummy", password)
+            _password_hasher.verify(_DUMMY_PASSWORD_HASH, password)
         LOGGER.warning("Authentication failed for user: %s", _mask_username(username))
         raise_invalid_credentials()
 

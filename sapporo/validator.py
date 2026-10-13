@@ -62,7 +62,7 @@ def validate_run_request(
     executable_wfs = create_executable_wfs()
     if len(executable_wfs.workflows) != 0 and wf_url not in executable_wfs.workflows:
         raise_bad_request(
-            f"Invalid workflow_url: {wf_url}. Sapporo is currently operating in the mode where only registered workflows can be executed. Please refer to GET /executable_workflows to see the list of executable workflows."
+            f"Invalid workflow_url: {wf_url}. Sapporo is currently operating in the mode where only registered workflows can be executed. Please refer to GET /executable-workflows to see the list of executable workflows."
         )
 
     try:

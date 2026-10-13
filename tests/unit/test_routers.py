@@ -876,3 +876,31 @@ class TestAuthCrossCutting:
         run_ids = {r["run_id"] for r in runs}
         assert rid1 in run_ids
         assert rid2 in run_ids
+
+
+# === GET /service-info: token is optional, cached service info is not mutated ===
+
+
+class TestServiceInfoAuth:
+    def test_with_auth_enabled_and_no_token_returns_200(self, auth_env: tuple[TestClient, Path]) -> None:
+        client, _ = auth_env
+
+        res = client.get("/service-info")
+
+        assert res.status_code == 200
+        assert "system_state_counts" in res.json()
+
+    def test_counts_do_not_leak_into_cached_service_info(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        from sapporo.factory import create_service_info
+
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        create_run_dir(tmp_path, "aabbccdd-0000-0000-0000-000000001501", state="COMPLETE")
+
+        from sapporo.database import init_db
+
+        init_db()
+        res = client.get("/service-info")
+
+        assert res.status_code == 200
+        assert res.json()["system_state_counts"]["COMPLETE"] == 1
+        assert create_service_info().system_state_counts == {}

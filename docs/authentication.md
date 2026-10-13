@@ -64,7 +64,7 @@ To enable authentication, set `auth_enabled` to `true` and configure the appropr
 - `sapporo_auth_config`:
   - `secret_key`: JWT signing key (must be strong, see [Secret Key Generation](#secret-key-generation))
   - `expires_delta_hours`: JWT expiration time in hours (default: 24, max: 168)
-  - `users`: List of users with `username` and `password_hash`
+  - `users`: List of users with `username` and `password_hash`. A username is 1 to 128 characters from letters, digits, `_`, `-`, `.` and `@`; the same rule applies to the username taken from an external IdP token
 - `external_config`:
   - `idp_url`: External IdP URL (must use HTTPS in production)
   - `jwt_audience`: Expected JWT audience claim
@@ -106,7 +106,7 @@ The external mode enforces the following security measures when verifying JWTs i
 - **JWKS key rotation**: When a JWT's `kid` header does not match any cached key, the JWKS is re-fetched from the IdP. If the key is still not found after refresh, the token is rejected.
 - **TTL-based caching**: OIDC Discovery metadata is cached for 1 hour. JWKS is cached for 5 minutes. This ensures timely pickup of key rotations while reducing load on the IdP.
 - **HTTP timeout**: All HTTP requests to the IdP use a 10-second timeout to prevent hanging.
-- **Retry with exponential backoff**: Transient HTTP errors when fetching metadata or JWKS are retried up to 3 times with exponential backoff (0.5s, 1.0s, 2.0s).
+- **Retry with exponential backoff**: Transient HTTP errors when fetching metadata or JWKS are retried: 3 attempts in total, with 0.5 s and then 1.0 s between them.
 
 ### Keycloak Development Setup
 
