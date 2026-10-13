@@ -9,7 +9,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from sapporo.config import AppConfig, get_config
+from sapporo.config import RUN_DIR_STRUCTURE, AppConfig, get_config
 from sapporo.database import (
     DATABASE_NAME,
     Run,
@@ -949,3 +949,113 @@ class TestSystemStateCountsFiltered:
         assert counts["RUNNING"] == 1
         assert counts["COMPLETE"] == 0
         assert counts["QUEUED"] == 0
+
+
+# === init_db: run directories that cannot be indexed ===
+
+
+def _indexed_run_ids() -> set[str]:
+    with get_session() as session:
+        from sqlmodel import select
+
+        return {r.run_id for r in session.exec(select(Run)).all()}
+
+
+def test_init_db_skips_run_without_start_time(mocker: "MockerFixture", tmp_path: Path) -> None:
+    config = AppConfig(run_dir=tmp_path)
+    mock_get_config(mocker, config)
+
+    broken = "aabbccdd-0000-0000-0000-0000000000f0"
+    healthy = "aabbccdd-0000-0000-0000-0000000000f1"
+    create_run_dir(tmp_path, broken)
+    create_run_dir(tmp_path, healthy)
+    tmp_path.joinpath(broken[:2], broken, RUN_DIR_STRUCTURE["start_time"]).unlink()
+
+    init_db()
+
+    assert _indexed_run_ids() == {healthy}
+
+
+def test_init_db_skips_run_with_invalid_start_time(mocker: "MockerFixture", tmp_path: Path) -> None:
+    config = AppConfig(run_dir=tmp_path)
+    mock_get_config(mocker, config)
+
+    broken = "aabbccdd-0000-0000-0000-0000000000f2"
+    healthy = "aabbccdd-0000-0000-0000-0000000000f3"
+    create_run_dir(tmp_path, broken, start_time="yesterday")
+    create_run_dir(tmp_path, healthy)
+
+    init_db()
+
+    assert _indexed_run_ids() == {healthy}
+
+
+def test_init_db_indexes_run_with_empty_state_as_unknown(mocker: "MockerFixture", tmp_path: Path) -> None:
+    config = AppConfig(run_dir=tmp_path)
+    mock_get_config(mocker, config)
+
+    rid = "aabbccdd-0000-0000-0000-0000000000f4"
+    create_run_dir(tmp_path, rid, state="")
+
+    init_db()
+
+    with get_session() as session:
+        from sqlmodel import select
+
+        run = session.exec(select(Run).where(Run.run_id == rid)).one()
+        assert run.state == State.UNKNOWN
+
+
+def test_init_db_incremental_sync_skips_new_run_without_start_time(mocker: "MockerFixture", tmp_path: Path) -> None:
+    config = AppConfig(run_dir=tmp_path)
+    mock_get_config(mocker, config)
+
+    healthy = "aabbccdd-0000-0000-0000-0000000000f5"
+    create_run_dir(tmp_path, healthy)
+    init_db()
+
+    broken = "aabbccdd-0000-0000-0000-0000000000f6"
+    create_run_dir(tmp_path, broken)
+    tmp_path.joinpath(broken[:2], broken, RUN_DIR_STRUCTURE["start_time"]).unlink()
+
+    init_db()
+
+    assert _indexed_run_ids() == {healthy}
+
+
+def test_init_db_incremental_sync_keeps_run_with_invalid_end_time(mocker: "MockerFixture", tmp_path: Path) -> None:
+    config = AppConfig(run_dir=tmp_path)
+    mock_get_config(mocker, config)
+
+    rid = "aabbccdd-0000-0000-0000-0000000000f7"
+    create_run_dir(tmp_path, rid, state="RUNNING")
+    init_db()
+
+    rd = tmp_path.joinpath(rid[:2], rid)
+    rd.joinpath(RUN_DIR_STRUCTURE["state"]).write_text("COMPLETE", encoding="utf-8")
+    rd.joinpath(RUN_DIR_STRUCTURE["end_time"]).write_text("not-a-time", encoding="utf-8")
+
+    init_db()
+
+    with get_session() as session:
+        from sqlmodel import select
+
+        run = session.exec(select(Run).where(Run.run_id == rid)).one()
+        assert run.state == State.RUNNING
+
+
+def test_add_run_db_without_start_time_raises_value_error(tmp_path: Path) -> None:
+    sys.argv = ["sapporo", "--run-dir", str(tmp_path)]
+    get_config.cache_clear()
+    init_db()
+
+    summary = RunSummary(
+        run_id="aabbccdd-0000-0000-0000-0000000000f8",
+        state=State.QUEUED,
+        start_time=None,
+        end_time=None,
+        tags={},
+    )
+
+    with pytest.raises(ValueError, match="start_time"):
+        add_run_db(summary)

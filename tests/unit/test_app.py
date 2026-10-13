@@ -416,3 +416,36 @@ class TestMain:
 
         _, kwargs = mock_uvicorn.call_args
         assert kwargs["reload"] is True
+
+
+# === _run_maintenance_task ===
+
+
+class TestRunMaintenanceTask:
+    @pytest.mark.asyncio
+    async def test_runs_the_function(self) -> None:
+        from sapporo.app import _run_maintenance_task
+
+        calls: list[int] = []
+
+        def record() -> None:
+            calls.append(1)
+
+        await _run_maintenance_task(record)
+
+        assert calls == [1]
+
+    @pytest.mark.asyncio
+    async def test_logs_and_swallows_exception(self, mocker: "MockerFixture") -> None:
+        from sapporo.app import _run_maintenance_task
+
+        def failing() -> None:
+            msg = "boom"
+            raise RuntimeError(msg)
+
+        mock_exception = mocker.patch("sapporo.app.LOGGER.exception")
+
+        await _run_maintenance_task(failing)
+
+        mock_exception.assert_called_once()
+        assert "failing" in str(mock_exception.call_args)

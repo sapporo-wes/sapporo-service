@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import logging.config
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -23,6 +23,17 @@ from sapporo.schemas import ErrorResponse
 from sapporo.utils import mask_sensitive
 
 LOGGER = logging.getLogger(__name__)
+
+
+async def _run_maintenance_task(func: Callable[[], None]) -> None:
+    """Run a blocking maintenance function in a worker thread.
+
+    Failures are logged instead of propagated, so that the periodic loop that calls this keeps running.
+    """
+    try:
+        await asyncio.to_thread(func)
+    except Exception:
+        LOGGER.exception("Background maintenance task failed: %s", func.__name__)
 
 
 def fix_error_handler(app: FastAPI) -> None:
@@ -167,13 +178,13 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     async def _reconciliation_loop() -> None:
         while True:
             await asyncio.sleep(snapshot_interval * 60)
-            await asyncio.to_thread(reconcile_runs)
+            await _run_maintenance_task(reconcile_runs)
 
     async def _db_sync_loop() -> None:
         while True:
             await asyncio.sleep(snapshot_interval * 60)
-            await asyncio.to_thread(init_db)
-            await asyncio.to_thread(remove_old_runs)
+            await _run_maintenance_task(init_db)
+            await _run_maintenance_task(remove_old_runs)
 
     tasks.add(asyncio.create_task(_reconciliation_loop()))
     tasks.add(asyncio.create_task(_db_sync_loop()))

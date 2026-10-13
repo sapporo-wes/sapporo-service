@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from subprocess import Popen
 from threading import Thread
+from typing import Any
 from urllib import parse
 
 import httpx
@@ -57,6 +58,18 @@ def _process_alive(pid: int) -> bool:
     return True
 
 
+_RECONCILE_SKIP_STATES = frozenset(
+    {
+        State.COMPLETE,
+        State.EXECUTOR_ERROR,
+        State.SYSTEM_ERROR,
+        State.CANCELED,
+        State.DELETED,
+        State.UNKNOWN,
+    }
+)
+
+
 def reconcile_runs() -> None:
     """Reconcile runs whose declared state does not match reality.
 
@@ -66,44 +79,47 @@ def reconcile_runs() -> None:
     - PID present + process alive -> skip (running normally)
     - PID present + process dead  -> SYSTEM_ERROR (reason: "process vanished")
     - PID absent                  -> SYSTEM_ERROR (reason: "no pid file")
+
+    A run whose directory cannot be processed is logged and skipped, so that one broken run does not
+    stop the reconciliation of the others.
     """
-    run_ids = glob_all_run_ids()
-    terminal_states = {
-        State.COMPLETE,
-        State.EXECUTOR_ERROR,
-        State.SYSTEM_ERROR,
-        State.CANCELED,
-        State.DELETED,
-        State.UNKNOWN,
-    }
-
     reconciled = 0
-    for run_id in run_ids:
-        state = read_state(run_id)
-        if state in terminal_states:
-            continue
-
-        pid: int | None = read_file(run_id, "pid")
-        if pid is not None and _process_alive(pid):
-            continue
-
-        reason = "process vanished" if pid is not None else "no pid file"
-        LOGGER.warning(
-            "Reconciling run: run_id=%s, previous_state=%s, reason=%s",
-            run_id,
-            state.value,
-            reason,
-        )
-        write_file(run_id, "state", State.SYSTEM_ERROR)
-        write_file(run_id, "end_time", now_str())
-        append_system_logs(
-            run_id,
-            f"Reconciled run (previous state: {state.value}, reason: {reason}). The process was no longer running.",
-        )
-        reconciled += 1
+    for run_id in glob_all_run_ids():
+        try:
+            if _reconcile_run(run_id):
+                reconciled += 1
+        except Exception as e:  # noqa: PERF203
+            LOGGER.warning("Skipping run that cannot be reconciled: run_id=%s, error=%s", run_id, e)
 
     if reconciled > 0:
         LOGGER.info("Reconciled %d run(s)", reconciled)
+
+
+def _reconcile_run(run_id: str) -> bool:
+    """Reconcile one run. Returns True when the run was marked as SYSTEM_ERROR."""
+    state = read_state(run_id)
+    if state in _RECONCILE_SKIP_STATES:
+        return False
+
+    pid: int | None = read_file(run_id, "pid")
+    if pid is not None and _process_alive(pid):
+        return False
+
+    reason = "process vanished" if pid is not None else "no pid file"
+    LOGGER.warning(
+        "Reconciling run: run_id=%s, previous_state=%s, reason=%s",
+        run_id,
+        state.value,
+        reason,
+    )
+    write_file(run_id, "state", State.SYSTEM_ERROR)
+    write_file(run_id, "end_time", now_str())
+    append_system_logs(
+        run_id,
+        f"Reconciled run (previous state: {state.value}, reason: {reason}). The process was no longer running.",
+    )
+
+    return True
 
 
 def prepare_run_dir(run_id: str, run_request: RunRequestForm, username: str | None) -> None:
@@ -275,7 +291,14 @@ async def post_run_task(run_id: str, run_request: RunRequestForm) -> None:
 
 
 def append_system_logs(run_id: str, log: str) -> None:
-    system_logs = read_file(run_id, "system_logs") or []
+    content = read_file(run_id, "system_logs")
+    if content is None:
+        system_logs: list[Any] = []
+    elif isinstance(content, list):
+        system_logs = content
+    else:
+        # system_logs.json is expected to hold a list; keep foreign content as the first entry.
+        system_logs = [str(content)]
     system_logs.append(log)
     write_file(run_id, "system_logs", system_logs)
 
@@ -413,14 +436,15 @@ def remove_old_runs() -> None:
     if not old_runs:
         return
 
+    failed = 0
     with ThreadPoolExecutor(max_workers=4) as executor:
         future_to_run_id = {executor.submit(delete_run_task, run.run_id): run.run_id for run in old_runs}
         for future in as_completed(future_to_run_id):
             run_id = future_to_run_id[future]
             try:
                 future.result()
-            except Exception as e:
-                msg = f"Failed to delete run {run_id}"
-                raise Exception(msg) from e
+            except Exception:
+                LOGGER.exception("Failed to delete old run: run_id=%s", run_id)
+                failed += 1
 
-    LOGGER.debug("Old runs removed: count=%d", len(old_runs))
+    LOGGER.debug("Old runs removed: count=%d, failed=%d", len(old_runs) - failed, failed)

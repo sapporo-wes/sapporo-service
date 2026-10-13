@@ -122,7 +122,7 @@ runs/
 | File | Description |
 |---|---|
 | `run_request.json` | Original run request (workflow URL, engine, parameters) |
-| `state.txt` | Current run state (e.g., `RUNNING`, `COMPLETE`) |
+| `state.txt` | Current run state (e.g., `RUNNING`, `COMPLETE`). Read as `UNKNOWN` when the file is missing or does not contain a valid state |
 | `exe/` | Execution directory (working directory for the workflow engine) |
 | `exe/workflow_params.json` | Workflow parameters |
 | `outputs/` | Output files produced by the workflow |
@@ -150,9 +150,13 @@ Detects runs stuck in `RUNNING`/`QUEUED` after a process restart and marks them 
 
 Runs in terminal states (`COMPLETE`, `EXECUTOR_ERROR`, `SYSTEM_ERROR`, `CANCELED`, `DELETED`) and `UNKNOWN` are skipped. For each reconciled run, `state.txt` is set to `SYSTEM_ERROR`, the current timestamp is written to `end_time.txt`, and the reason is logged to `system_logs.json`.
 
+A run whose files cannot be processed (for example a `system_logs.json` that is not a list) is logged and skipped. One broken run directory does not stop reconciliation or server startup.
+
 ## SQLite Index
 
 The SQLite database (`sapporo.db`) is an **index**, not a data store. It is rebuilt at a configurable interval (default: 30 minutes) by a background asyncio task that scans the run directories, and can be deleted at any time without data loss. It exists solely to make `GET /runs` (list all runs) fast. Individual run queries (`GET /runs/{run_id}`) always read from the filesystem.
+
+A run whose directory cannot be parsed (for example a missing `start_time.txt`) is logged and left out of the index. The run stays accessible through `GET /runs/{run_id}`. An error inside a background loop is logged and the loop continues.
 
 ## RO-Crate
 

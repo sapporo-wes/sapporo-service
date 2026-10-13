@@ -252,3 +252,60 @@ class TestResolveContentPath:
         path = resolve_content_path(rid, "state")
         assert path.name == "state.txt"
         assert rid in str(path)
+
+
+# === read_state / read_file: run directories that cannot be parsed ===
+
+
+class TestReadBrokenRunDir:
+    def test_read_state_with_invalid_content_returns_unknown(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        config = AppConfig(run_dir=tmp_path)
+        mock_get_config(mocker, config)
+
+        rid = "aabbccdd-0000-0000-0000-0000000000e0"
+        create_run_dir(tmp_path, rid, state="NOT_A_STATE")
+
+        assert read_state(rid) == State.UNKNOWN
+
+    def test_read_state_with_empty_file_returns_unknown(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        config = AppConfig(run_dir=tmp_path)
+        mock_get_config(mocker, config)
+
+        rid = "aabbccdd-0000-0000-0000-0000000000e1"
+        create_run_dir(tmp_path, rid, state="")
+
+        assert read_state(rid) == State.UNKNOWN
+
+    def test_read_state_with_binary_content_returns_unknown(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        config = AppConfig(run_dir=tmp_path)
+        mock_get_config(mocker, config)
+
+        rid = "aabbccdd-0000-0000-0000-0000000000e2"
+        create_run_dir(tmp_path, rid)
+        tmp_path.joinpath(rid[:2], rid, RUN_DIR_STRUCTURE["state"]).write_bytes(b"\xff\xfe\x00")
+
+        assert read_state(rid) == State.UNKNOWN
+
+    def test_read_run_request_with_invalid_json_returns_none(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        config = AppConfig(run_dir=tmp_path)
+        mock_get_config(mocker, config)
+
+        rid = "aabbccdd-0000-0000-0000-0000000000e3"
+        create_run_dir(tmp_path, rid)
+        tmp_path.joinpath(rid[:2], rid, RUN_DIR_STRUCTURE["run_request"]).write_text("{not json", encoding="utf-8")
+
+        assert read_file(rid, "run_request") is None
+
+    def test_read_run_request_missing_required_fields_returns_none(
+        self, mocker: "MockerFixture", tmp_path: Path
+    ) -> None:
+        config = AppConfig(run_dir=tmp_path)
+        mock_get_config(mocker, config)
+
+        rid = "aabbccdd-0000-0000-0000-0000000000e4"
+        create_run_dir(tmp_path, rid)
+        tmp_path.joinpath(rid[:2], rid, RUN_DIR_STRUCTURE["run_request"]).write_text(
+            json.dumps({"workflow_type": "CWL"}), encoding="utf-8"
+        )
+
+        assert read_file(rid, "run_request") is None

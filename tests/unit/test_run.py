@@ -1433,3 +1433,104 @@ async def test_post_run_task_failure_writes_exit_code(mocker: "MockerFixture", t
 
     assert read_state(run_id) == State.SYSTEM_ERROR
     assert read_file(run_id, "exit_code") == POST_RUN_TASK_FAILURE_EXIT_CODE
+
+
+# === reconcile_runs / append_system_logs / remove_old_runs: run directories that cannot be processed ===
+
+
+def test_reconcile_runs_skips_run_with_invalid_state_and_reconciles_others(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import read_state, reconcile_runs
+
+    broken = "aabbccdd-0000-0000-0000-0000000000d0"
+    stuck = "aabbccdd-0000-0000-0000-0000000000d1"
+    create_run_dir(tmp_path, broken, state="NOT_A_STATE")
+    create_run_dir(tmp_path, stuck, state="RUNNING")
+
+    reconcile_runs()
+
+    assert read_state(stuck) == State.SYSTEM_ERROR
+    assert tmp_path.joinpath(broken[:2], broken, "state.txt").read_text(encoding="utf-8") == "NOT_A_STATE"
+
+
+def test_reconcile_runs_tolerates_system_logs_that_is_not_a_list(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import read_file, read_state, reconcile_runs
+
+    rid = "aabbccdd-0000-0000-0000-0000000000d2"
+    create_run_dir(tmp_path, rid, state="RUNNING", system_logs_content='{"note": "not a list"}')
+
+    reconcile_runs()
+
+    assert read_state(rid) == State.SYSTEM_ERROR
+    logs = read_file(rid, "system_logs")
+    assert isinstance(logs, list)
+    assert len(logs) == 2
+    assert "Reconciled run" in logs[1]
+
+
+def test_reconcile_runs_continues_after_one_run_fails(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    import sapporo.run as run_module
+    from sapporo.run import read_state, reconcile_runs
+
+    failing = "aabbccdd-0000-0000-0000-0000000000d3"
+    other = "aabbccdd-0000-0000-0000-0000000000d4"
+    create_run_dir(tmp_path, failing, state="RUNNING")
+    create_run_dir(tmp_path, other, state="RUNNING")
+
+    original_append = run_module.append_system_logs
+
+    def flaky_append(run_id: str, log: str) -> None:
+        if run_id == failing:
+            msg = "Simulated disk failure"
+            raise OSError(msg)
+        original_append(run_id, log)
+
+    mocker.patch("sapporo.run.append_system_logs", side_effect=flaky_append)
+
+    reconcile_runs()
+
+    assert read_state(other) == State.SYSTEM_ERROR
+
+
+def test_append_system_logs_wraps_non_list_content(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import append_system_logs, read_file
+
+    rid = "aabbccdd-0000-0000-0000-0000000000d5"
+    create_run_dir(tmp_path, rid, system_logs_content='"plain text"')
+
+    append_system_logs(rid, "new entry")
+
+    assert read_file(rid, "system_logs") == ["plain text", "new entry"]
+
+
+def test_remove_old_runs_continues_when_one_delete_fails(mocker: "MockerFixture", tmp_path: Path) -> None:
+    config = AppConfig(run_dir=tmp_path, run_remove_older_than_days=7)
+    mock_get_config(mocker, config)
+    from sapporo.run import read_state, remove_old_runs, write_file
+
+    ids = ["aabbccdd-0000-0000-0000-0000000000d6", "aabbccdd-0000-0000-0000-0000000000d7"]
+    old_runs = []
+    for rid in ids:
+        create_run_dir(tmp_path, rid, state="COMPLETE")
+        run = MagicMock()
+        run.run_id = rid
+        old_runs.append(run)
+    mocker.patch("sapporo.database.list_old_runs_db", return_value=old_runs)
+
+    def failing_delete(run_id: str) -> None:
+        if run_id == ids[0]:
+            msg = "Simulated failure"
+            raise RuntimeError(msg)
+        write_file(run_id, "state", State.DELETED)
+
+    mocker.patch("sapporo.run.delete_run_task", side_effect=failing_delete)
+
+    remove_old_runs()
+
+    assert read_state(ids[1]) == State.DELETED
+    assert read_state(ids[0]) == State.COMPLETE

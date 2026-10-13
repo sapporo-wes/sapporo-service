@@ -5,13 +5,18 @@ run.py, factory.py, and database.py.
 """
 
 import json
+import logging
 import shlex
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
 from sapporo.config import RUN_DIR_STRUCTURE, RunDirStructureKeys, get_config
 from sapporo.schemas import RunRequest, State
 from sapporo.utils import sapporo_version
+
+LOGGER = logging.getLogger(__name__)
 
 
 def resolve_run_dir(run_id: str) -> Path:
@@ -54,7 +59,11 @@ def read_file(run_id: str, key: RunDirStructureKeys) -> Any:
         content = f.read().strip()
         # Special handling for specific keys
         if key == "run_request":
-            return RunRequest.model_validate_json(content)
+            try:
+                return RunRequest.model_validate_json(content)
+            except ValidationError as e:
+                LOGGER.warning("Ignoring run_request.json that cannot be parsed: run_id=%s, error=%s", run_id, e)
+                return None
         if key == "cmd":
             return shlex.split(content)
         if key in ["start_time", "end_time", "stdout", "stderr", "username"]:
@@ -74,11 +83,15 @@ def read_file(run_id: str, key: RunDirStructureKeys) -> Any:
 
 
 def read_state(run_id: str) -> State:
+    """Read state.txt. A missing file or a value that is not a State is reported as UNKNOWN."""
     try:
         with resolve_content_path(run_id, "state").open(mode="r", encoding="utf-8") as f:
             return State(f.read().strip())
     except FileNotFoundError:
-        return State("UNKNOWN")
+        return State.UNKNOWN
+    except ValueError as e:
+        LOGGER.warning("Treating state.txt that cannot be parsed as UNKNOWN: run_id=%s, error=%s", run_id, e)
+        return State.UNKNOWN
 
 
 def glob_all_run_ids() -> list[str]:

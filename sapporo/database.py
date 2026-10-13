@@ -102,20 +102,47 @@ def db_runs_to_run_summaries(runs: list[Run]) -> list[RunSummary]:
 # === CRUD func ===
 
 
+def _run_summary_to_db_run(run_summary: RunSummary, username: str | None) -> Run:
+    """Convert a run summary into an index row.
+
+    The index orders runs by start_time, so a run without a parsable start_time cannot be indexed.
+    """
+    if not run_summary.start_time:
+        msg = f"start_time is missing: run_id={run_summary.run_id}"
+        raise ValueError(msg)
+
+    return Run(
+        run_id=run_summary.run_id,
+        username=username,
+        state=run_summary.state or State.UNKNOWN,
+        start_time=time_str_to_dt(run_summary.start_time),
+        end_time=time_str_to_dt(run_summary.end_time) if run_summary.end_time else None,
+        tags=json.dumps(run_summary.tags),
+    )
+
+
+def _db_run_from_disk(run_id: str) -> Run | None:
+    """Build an index row from a run directory.
+
+    Returns None and logs a warning when the run directory cannot be parsed, so that one broken run
+    does not stop the index from being built.
+    """
+    try:
+        run_summary = create_run_summary(run_id)
+        username: str | None = read_file(run_id, "username")
+        return _run_summary_to_db_run(run_summary, username)
+    except Exception as e:
+        LOGGER.warning("Skipping run that cannot be indexed: run_id=%s, error=%s", run_id, e)
+        return None
+
+
 def _full_rebuild(session: Session, disk_run_ids: set[str]) -> None:
     """Full rebuild: index all runs from disk."""
     count = 0
     for run_id in disk_run_ids:
-        run_summary = create_run_summary(run_id)
-        username: str | None = read_file(run_id, "username")
-        run = Run(
-            run_id=run_summary.run_id,
-            username=username,
-            state=run_summary.state,
-            start_time=run_summary.start_time and time_str_to_dt(run_summary.start_time),
-            end_time=run_summary.end_time and time_str_to_dt(run_summary.end_time),
-            tags=json.dumps(run_summary.tags),
-        )
+        run = _db_run_from_disk(run_id)
+        if run is None:
+            continue
         session.add(run)
         count += 1
     session.commit()
@@ -132,16 +159,9 @@ def _incremental_sync(session: Session, disk_run_ids: set[str]) -> None:
 
     added = 0
     for run_id in disk_run_ids - db_run_ids:
-        run_summary = create_run_summary(run_id)
-        username: str | None = read_file(run_id, "username")
-        run = Run(
-            run_id=run_summary.run_id,
-            username=username,
-            state=run_summary.state,
-            start_time=run_summary.start_time and time_str_to_dt(run_summary.start_time),
-            end_time=run_summary.end_time and time_str_to_dt(run_summary.end_time),
-            tags=json.dumps(run_summary.tags),
-        )
+        run = _db_run_from_disk(run_id)
+        if run is None:
+            continue
         session.add(run)
         added += 1
 
@@ -151,9 +171,14 @@ def _incremental_sync(session: Session, disk_run_ids: set[str]) -> None:
             continue
         if db_run.state in terminal_states:
             continue
-        run_summary = create_run_summary(run_id)
+        try:
+            run_summary = create_run_summary(run_id)
+            end_time = time_str_to_dt(run_summary.end_time) if run_summary.end_time else None
+        except Exception as e:
+            LOGGER.warning("Skipping run that cannot be synced: run_id=%s, error=%s", run_id, e)
+            continue
         db_run.state = run_summary.state or State.UNKNOWN
-        db_run.end_time = time_str_to_dt(run_summary.end_time) if run_summary.end_time else None
+        db_run.end_time = end_time
         session.add(db_run)
         updated += 1
 
@@ -199,14 +224,7 @@ def add_run_db(
 
     Called at POST /runs. Since it is called after generating a uuid (run_id), id conflicts are unlikely to occur.
     """
-    run = Run(
-        run_id=run_summary.run_id,
-        username=username,
-        state=run_summary.state or State.UNKNOWN,
-        start_time=run_summary.start_time and time_str_to_dt(run_summary.start_time),
-        end_time=run_summary.end_time and time_str_to_dt(run_summary.end_time),
-        tags=json.dumps(run_summary.tags),
-    )
+    run = _run_summary_to_db_run(run_summary, username)
     with get_session() as session:
         session.add(run)
         session.commit()
