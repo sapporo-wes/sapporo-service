@@ -58,7 +58,8 @@ function generate_ro_crate() {{
 """
 
 # A fake docker CLI: "run" records a container id, writes the engine PID and ignores SIGTERM like an
-# engine that does not stop on it; "inspect" reports the working directory; "kill" stops the engine.
+# engine that does not stop on it; "inspect" reports the working directory; "stop" records its
+# arguments and stops the engine.
 FAKE_DOCKER = """#!/usr/bin/env bash
 set -u
 dir="${FAKE_DOCKER_DIR}"
@@ -80,8 +81,8 @@ run)
 inspect)
     echo "${FAKE_DOCKER_WORKDIR}"
     ;;
-kill)
-    echo "$@" >>"${dir}/kill.log"
+stop)
+    echo "$@" >>"${dir}/stop.log"
     kill -KILL "$(cat "${dir}/engine.pid")" 2>/dev/null || true
     ;;
 *)
@@ -157,8 +158,11 @@ class RunSh:
         state: str = "QUEUED",
         grace_seconds: int = 30,
         fake_docker_workdir: str | None = None,
+        before_start: Callable[[Path], None] | None = None,
     ) -> None:
         self.run_dir = _prepare_run_dir(tmp_path, engine, state)
+        if before_start is not None:
+            before_start(self.run_dir)
         self.fake_docker_dir = tmp_path / "fake-docker"
         self.fake_docker_dir.mkdir(exist_ok=True)
         fake_docker = self.fake_docker_dir / "docker"
@@ -209,9 +213,13 @@ def run_sh(tmp_path: Path) -> Iterator[Callable[..., RunSh]]:
     started: list[RunSh] = []
 
     def _start(
-        engine: str, state: str = "QUEUED", grace_seconds: int = 30, fake_docker_workdir: str | None = None
+        engine: str,
+        state: str = "QUEUED",
+        grace_seconds: int = 30,
+        fake_docker_workdir: str | None = None,
+        before_start: Callable[[Path], None] | None = None,
     ) -> RunSh:
-        instance = RunSh(tmp_path, engine, state, grace_seconds, fake_docker_workdir)
+        instance = RunSh(tmp_path, engine, state, grace_seconds, fake_docker_workdir, before_start)
         started.append(instance)
         return instance
 
@@ -312,7 +320,7 @@ def test_run_sh_canceled_before_start_does_not_run_engine(run_sh: Callable[..., 
     assert not (run.run_dir / ENGINE_PID_FILE).exists()
 
 
-def test_run_sh_cancel_kills_docker_engine_container_by_id(run_sh: Callable[..., RunSh]) -> None:
+def test_run_sh_cancel_stops_docker_engine_container_by_id_with_the_grace_period(run_sh: Callable[..., RunSh]) -> None:
     run = run_sh("fake_docker", grace_seconds=5)
     engine_pid = run.wait_for_docker_engine()
     assert (run.run_dir / "engine.cid").read_text(encoding="utf-8").strip() == "fakecontainerid"
@@ -322,9 +330,14 @@ def test_run_sh_cancel_kills_docker_engine_container_by_id(run_sh: Callable[...,
     run.process.send_signal(signal.SIGUSR1)
 
     assert run.wait() == 138
-    assert time.monotonic() - started < 4, "the container was not killed; cancel waited for the grace period"
+    assert time.monotonic() - started < 4, "the container was not stopped; cancel waited for the grace period"
     assert not _alive(engine_pid)
-    assert (run.fake_docker_dir / "kill.log").read_text(encoding="utf-8").split() == ["kill", "fakecontainerid"]
+    assert (run.fake_docker_dir / "stop.log").read_text(encoding="utf-8").split() == [
+        "stop",
+        "-t",
+        "5",
+        "fakecontainerid",
+    ]
     assert _read(run.run_dir, "state") == "CANCELED"
 
 
@@ -336,5 +349,36 @@ def test_run_sh_cancel_ignores_container_id_not_started_for_this_run(run_sh: Cal
     run.process.send_signal(signal.SIGUSR1)
 
     assert run.wait() == 138
-    assert not (run.fake_docker_dir / "kill.log").exists()
+    assert not (run.fake_docker_dir / "stop.log").exists()
     assert _read(run.run_dir, "state") == "CANCELED"
+
+
+def test_run_sh_writes_its_own_pid_after_setting_traps(run_sh: Callable[..., RunSh]) -> None:
+    run = run_sh("fake_sleep")
+    run.wait_for_engine()
+
+    assert _read(run.run_dir, "pid") == str(run.process.pid)
+
+    (run.run_dir / RUN_DIR_STRUCTURE["state"]).write_text("CANCELING", encoding="utf-8")
+    run.process.send_signal(signal.SIGUSR1)
+    assert run.wait() == 138
+
+
+def test_run_sh_replaces_a_symlinked_control_file_instead_of_writing_through_it(
+    run_sh: Callable[..., RunSh], tmp_path: Path
+) -> None:
+    target = tmp_path / "target.txt"
+    target.write_text("QUEUED", encoding="utf-8")
+
+    def link_state(run_dir: Path) -> None:
+        state = run_dir / RUN_DIR_STRUCTURE["state"]
+        state.unlink()
+        state.symlink_to(target)
+
+    run = run_sh("fake_ok", before_start=link_state)
+
+    assert run.wait() == 0
+    state = run.run_dir / RUN_DIR_STRUCTURE["state"]
+    assert not state.is_symlink()
+    assert _read(run.run_dir, "state") == "COMPLETE"
+    assert target.read_text(encoding="utf-8") == "QUEUED"

@@ -63,13 +63,15 @@ Override the default `run.sh` location using `--run-sh` or `SAPPORO_RUN_SH`. See
 `run.sh` runs the workflow function as a background job in its own process group (`set -m`) and waits for it, so that the parent process stays free to handle signals. `POST /runs/{run_id}/cancel` writes `CANCELING` to `state.txt` and sends `SIGUSR1` to the `run.sh` process. The signal handler then:
 
 1. Calls `cancel()`, which runs `cancel_docker_engine()`, then the engine-specific hook `cancel_<engine>()` if that function is defined, and then `stop_run_wf()`
-2. `cancel_docker_engine()` kills the engine container: the bundled `run_<engine>()` functions pass `--cidfile` to `docker run`, and the recorded id is used only if that container was started for this run's `exe/` directory
-3. `stop_run_wf()` sends `SIGTERM` to the process group of the background job, waits up to `--cancel-grace-seconds` (default 30 seconds), and then sends `SIGKILL` to the group
+2. `cancel_docker_engine()` stops the engine container with `docker stop`: the bundled `run_<engine>()` functions pass `--cidfile` to `docker run`, and the recorded id is used only if that container was started for this run's `exe/` directory. The container receives `SIGTERM` and has `--cancel-grace-seconds` (default 30 seconds) to stop the containers that it started for workflow steps before it receives `SIGKILL`
+3. `stop_run_wf()` sends `SIGTERM` to the process group of the background job, waits up to `--cancel-grace-seconds`, and then sends `SIGKILL` to the group. When the engine container has already stopped, the `docker run` client in the group has ended as well, so this step returns at once
 4. Writes exit code `138` and the `CANCELED` state
 
-The process group contains the engine process and everything it started on this host. An attached `docker run`, `podman run` or `srun` forwards `SIGTERM` to what it runs, but an engine inside a container does not always exit on it, and the container outlives the `docker run` client; this is why the bundled engines also kill the container by id. Work that lives elsewhere, such as a Slurm job submitted with `sbatch` or containers that the engine itself started through the Docker socket for workflow steps, is not reached. Put that cleanup into `cancel_<engine>()`.
+The process group contains the engine process and everything it started on this host. An attached `docker run`, `podman run` or `srun` forwards `SIGTERM` to what it runs, but an engine inside a container does not always exit on it, and the container outlives the `docker run` client; this is why the bundled engines also stop the container by id. Containers that the engine itself started through the Docker socket for workflow steps are reached only through the engine: `docker stop` delivers `SIGTERM` to the engine, and the engine has to stop its step containers before it exits. The bundled `run_cwltool()` and `run_cromwell()` therefore override the image entrypoint, because the entrypoint scripts of these images run the engine as a child process without `exec`, and `SIGTERM` would stop at the shell. With the bundled `run.sh`, cwltool, nextflow and cromwell stop their step containers when a run is canceled. toil stops its worker process but leaves the container that the worker started running. ep3 and streamflow do not act on `SIGTERM`, so their engine containers are killed after the grace period and their step containers keep running. `tests/integration/test_cancel.py` checks this for every engine. Work that lives elsewhere, such as a Slurm job submitted with `sbatch`, is not reached. Put that cleanup into `cancel_<engine>()`.
 
 Once the parent process has written `CANCELING` or `SYSTEM_ERROR`, the background job does not write a terminal state anymore. A workflow that ends after the cancel therefore cannot turn the run back into `COMPLETE` or `EXECUTOR_ERROR`. If `state.txt` already says `CANCELING` when `run.sh` starts, it writes `CANCELED` without starting the engine.
+
+`run.sh` writes `run.pid` right after it has set its signal handlers. A cancel that finds no `run.pid` writes `CANCELING` and sends no signal, and `run.sh` picks the state up before it starts the workflow. A cancel that finds `run.pid` can send `SIGUSR1` safely, because the handler is already in place.
 
 A run in `INITIALIZING` has no `run.sh` process yet: the service is still downloading its attachments. A cancel in this phase writes `CANCELING`, the download stops before the next attachment, and the run becomes `CANCELED` with exit code `138` without starting `run.sh`. A delete in this phase removes the run directory contents in the same way, and whatever the download wrote after the deletion is removed again when the download stops.
 
@@ -92,7 +94,7 @@ To add a new workflow engine, define a `run_<engine>()` function in `run.sh` tha
 1. Build a `docker run` command that mounts the Docker socket and run directory
 2. Pass the command array to `_write_and_run()`, which writes the command to `${cmd}`, runs it with stdout/stderr redirected to `${stdout}` and `${stderr}`, and calls `executor_error $?` on non-zero exit
 
-Pass `--cidfile "${engine_cid}"` to `docker run` so that `cancel_docker_engine()` can kill the container. If cancel needs more than that (for example `scancel` for a Slurm job, or stopping containers the engine started for its steps), define `cancel_<engine>()`. `cancel()` calls it before stopping the process group.
+Pass `--cidfile "${engine_cid}"` to `docker run` so that `cancel_docker_engine()` can stop the container. Start the engine so that it receives the `SIGTERM` of `docker stop`: when the image entrypoint is a shell script that does not `exec` the engine, pass `--entrypoint` to run the engine directly. Otherwise the engine cannot stop the containers it started for workflow steps. If cancel needs more than that (for example `scancel` for a Slurm job), define `cancel_<engine>()`. `cancel()` calls it before stopping the process group.
 
 For a complete example, see the [StreamFlow addition PR](https://github.com/sapporo-wes/sapporo-service/pull/29).
 
@@ -147,7 +149,7 @@ runs/
 | `stdout.log` / `stderr.log` | Workflow engine stdout/stderr |
 | `start_time.txt` / `end_time.txt` | ISO 8601 timestamps |
 | `exit_code.txt` | Process exit code |
-| `run.pid` | PID of the `run.sh` subprocess. A value of 1 or less is ignored |
+| `run.pid` | PID of the `run.sh` process, written by `run.sh` after it has set its signal handlers. A value of 1 or less is ignored |
 | `runtime_info.json` | Runtime metadata |
 | `system_logs.json` | System-level logs |
 | `workflow_engine_params.txt` | Engine-specific parameters |
@@ -182,7 +184,7 @@ Detects runs stuck in `RUNNING`/`QUEUED` after a process restart and marks them 
 
 Runs in terminal states (`COMPLETE`, `EXECUTOR_ERROR`, `SYSTEM_ERROR`, `CANCELED`, `DELETED`) and `UNKNOWN` are skipped. For each reconciled run, `state.txt` is set to `SYSTEM_ERROR`, the current timestamp is written to `end_time.txt`, and the reason is logged to `system_logs.json`.
 
-`INITIALIZING` runs whose attachments this process is still downloading have no `run.pid` yet and are skipped by the periodic reconciliation. At startup, every `INITIALIZING` run is reconciled, because no download survives a restart.
+Runs that this process is still preparing are skipped by the periodic reconciliation: their attachments are downloading, or `run.sh` was started but has not written `run.pid` yet. At startup, every such run is reconciled, because no preparation survives a restart.
 
 A run whose files cannot be processed (for example a `system_logs.json` that is not a list) is logged and skipped. One broken run directory does not stop reconciliation or server startup.
 

@@ -8,7 +8,7 @@ set -m
 # Main function to run the workflow
 function run_wf() {
     check_canceling
-    echo "RUNNING" >"${state}"
+    _write_control_file "${state}" "RUNNING"
 
     # Call the appropriate function based on the workflow engine
     local function_name="run_${wf_engine}"
@@ -22,9 +22,7 @@ function run_wf() {
     upload
     # A signal handler in the parent process may have taken over the outcome while the engine ran
     _owns_outcome || exit 0
-    date -u +"%Y-%m-%dT%H:%M:%S" >"${end_time}"
-    echo 0 >"${exit_code}"
-    echo "COMPLETE" >"${state}"
+    _write_outcome 0 "COMPLETE"
     generate_ro_crate
     exit 0
 }
@@ -58,6 +56,9 @@ function run_cwltool() {
         -v "${run_dir}:${run_dir}"
         "${extra_docker_args[@]+"${extra_docker_args[@]}"}"
         "-w=${exe_dir}"
+        # The image's entrypoint script runs cwltool as a child without exec, so SIGTERM would stop at the
+        # shell and cwltool could not stop the containers it started for workflow steps
+        --entrypoint cwltool
         "${container}"
         --outdir "${outputs_dir}")
     _append_engine_params cmd_arr
@@ -123,13 +124,16 @@ function run_cromwell() {
         -v "${run_dir}:${run_dir}"
         "${extra_docker_args[@]+"${extra_docker_args[@]}"}"
         "-w=${exe_dir}"
+        # The image's entrypoint is a shell that runs java as a child without exec, so SIGTERM would stop at
+        # the shell. Cromwell in run mode aborts its jobs on SIGTERM when java receives it.
+        --entrypoint java
         "${container}"
-        run)
+        --add-opens=java.base/sun.security.util=ALL-UNNAMED -jar /app/cromwell.jar run)
     _append_engine_params cmd_arr
     cmd_arr+=("${wf_url}" -i "${wf_params}" -m "${exe_dir}/metadata.json")
     _write_and_run cmd_arr
 
-    # Copy WDL outputs from Cromwell metadata
+    # Copy WDL outputs from Cromwell metadata, including the members of Array and struct outputs
     if [[ ! -f "${exe_dir}/metadata.json" ]]; then
         echo "Warning: metadata.json not found" >>"${stderr}"
     else
@@ -137,7 +141,7 @@ function run_cromwell() {
             if [[ -n "${output_file}" && -f "${output_file}" ]]; then
                 cp "${output_file}" "${outputs_dir}/" || true
             fi
-        done < <(jq -r '.outputs | to_entries[] | .value // empty' "${exe_dir}/metadata.json" 2>>"${stderr}")
+        done < <(jq -r '.outputs | .. | strings' "${exe_dir}/metadata.json" 2>>"${stderr}")
     fi
 }
 
@@ -228,7 +232,7 @@ function run_streamflow() {
 
 function cancel() {
     # Edit this function for environment-specific cancellation procedures.
-    # cancel_docker_engine kills the engine container that the bundled run_<engine>() functions
+    # cancel_docker_engine stops the engine container that the bundled run_<engine>() functions
     # start. stop_run_wf then sends SIGTERM to the process group of run_wf (the engine process and
     # everything it started on this host) and SIGKILL after the grace period. Work that lives
     # elsewhere, such as a Slurm job or containers that the engine itself started for workflow
@@ -254,7 +258,8 @@ function cancel_docker_engine() {
     local workdir
     workdir=$(docker inspect -f '{{.Config.WorkingDir}}' "${container_id}" 2>/dev/null || true)
     if [[ "${workdir}" == "${exe_dir}" ]]; then
-        docker kill "${container_id}" >/dev/null 2>&1 || true
+        # SIGTERM first, so that the engine can stop the containers it started for workflow steps
+        docker stop -t "${cancel_grace_seconds}" "${container_id}" >/dev/null 2>&1 || true
     fi
 }
 
@@ -312,8 +317,18 @@ function generate_outputs_list() {
 
 function generate_ro_crate() {
     sapporo-cli generate-ro-crate "${run_dir}" 2>>"${stderr}" \
-        || echo '{"@error": "RO-Crate generation failed. Check stderr.log for details."}' >"${ro_crate}"
+        || _write_control_file "${ro_crate}" '{"@error": "RO-Crate generation failed. Check stderr.log for details."}'
     # If you want to upload ro-crate-metadata.json, write the process here.
+}
+
+function _write_control_file() {
+    # Write $2 to the control file $1. The run directory is writable from inside the engine container,
+    # so a symlink left in place of a control file is removed instead of being written through.
+    local path=$1
+    if [[ -L "${path}" ]]; then
+        rm -f -- "${path}"
+    fi
+    printf '%s\n' "$2" >"${path}"
 }
 
 function _current_state() {
@@ -331,9 +346,9 @@ function _owns_outcome() {
 function _write_outcome() {
     local code=$1
     local new_state=$2
-    echo "${code}" >"${exit_code}"
-    date -u +"%Y-%m-%dT%H:%M:%S" >"${end_time}"
-    echo "${new_state}" >"${state}"
+    _write_control_file "${exit_code}" "${code}"
+    _write_control_file "${end_time}" "$(date -u +"%Y-%m-%dT%H:%M:%S")"
+    _write_control_file "${state}" "${new_state}"
 }
 
 function stop_run_wf() {
@@ -380,7 +395,7 @@ function kill_by_system() {
     *) original_exit_code=1 ;;
     esac
     if _owns_outcome; then
-        echo "SYSTEM_ERROR" >"${state}"
+        _write_control_file "${state}" "SYSTEM_ERROR"
         cancel
         _write_outcome "${original_exit_code}" "SYSTEM_ERROR"
     fi
@@ -393,7 +408,7 @@ function cancel_by_request() {
     if ! _owns_outcome && [[ "$(_current_state)" != "CANCELING" ]]; then
         exit "${original_exit_code}"
     fi
-    echo "CANCELING" >"${state}"
+    _write_control_file "${state}" "CANCELING"
     cancel
     _write_outcome "${original_exit_code}" "CANCELED"
     exit "${original_exit_code}"
@@ -413,6 +428,10 @@ trap 'kill_by_system SIGINT' INT
 trap 'kill_by_system SIGQUIT' QUIT
 trap 'kill_by_system SIGTERM' TERM
 trap 'cancel_by_request' USR1
+
+# The pid is written after the traps are set, so that a cancel that finds run.pid can send SIGUSR1
+# safely. A cancel that comes earlier leaves CANCELING in state.txt, which check_canceling picks up.
+_write_control_file "${run_dir}/run.pid" "$$"
 
 # Run the workflow as a background job so that this process stays free to handle signals
 run_wf </dev/null &

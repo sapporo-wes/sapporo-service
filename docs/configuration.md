@@ -74,7 +74,7 @@ SAPPORO_EXTRA_DOCKER_ARGS="-v /data:/data"
 SAPPORO_EXTRA_DOCKER_ARGS="-v /data:/data -v /ref:/ref"
 ```
 
-`--cancel-grace-seconds` is passed to `run.sh` as `SAPPORO_CANCEL_GRACE_SECONDS`. When a run is canceled or `run.sh` is shut down, the engine receives `SIGTERM` and has this many seconds to exit before it receives `SIGKILL`. See [Architecture - Cancellation](architecture.md#cancellation).
+`--cancel-grace-seconds` is passed to `run.sh` as `SAPPORO_CANCEL_GRACE_SECONDS`. When a run is canceled or `run.sh` is shut down, the engine container is stopped with `docker stop` and the process group of the engine receives `SIGTERM`. The engine has this many seconds to stop the containers it started for workflow steps and to exit before it receives `SIGKILL`. See [Architecture - Cancellation](architecture.md#cancellation).
 
 Priority: CLI arguments > Environment variables > Default values.
 
@@ -118,12 +118,12 @@ the following:
 | Engine | Workflow Type | Container Image | Notes |
 |---|---|---|---|
 | cwltool | CWL | `quay.io/commonwl/cwltool:3.3.20260925135507` | |
-| toil | CWL | `quay.io/ucsc_cgl/toil:9.5.0` | |
-| ep3 | CWL | `ghcr.io/tom-tan/ep3:v1.7.0` | |
+| toil | CWL | `quay.io/ucsc_cgl/toil:9.5.0` | A cancel does not stop the containers that toil started for workflow steps |
+| ep3 | CWL | `ghcr.io/tom-tan/ep3:v1.7.0` | A cancel does not stop the containers that ep3 started for workflow steps |
 | cromwell | WDL | `ghcr.io/sapporo-wes/cromwell-with-docker:92` | CWL support was removed in Cromwell 85 |
 | nextflow | NFL | `nextflow/nextflow:26.10.0` | |
 | snakemake | SMK | `snakemake/snakemake:v9.27.0` | |
-| streamflow | CWL | `alphaunito/streamflow:0.2.0rc3` | Pre-release; uses cwl-runner interface |
+| streamflow | CWL | `alphaunito/streamflow:0.2.0rc3` | Pre-release; uses cwl-runner interface. A cancel does not stop the containers that StreamFlow started for workflow steps |
 
 ## Output File Download
 

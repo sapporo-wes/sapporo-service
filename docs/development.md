@@ -105,7 +105,7 @@ workflow engine:
 | `test_streamflow.py` | streamflow | CWL |
 | `test_ro_crate.py` | all of the above | (multi-engine RO-Crate validation) |
 
-`test_cancel.py`, `test_delete.py`, `test_auth.py` and `test_auth_external.py` cover the run lifecycle and authentication with cwltool.
+`test_cancel.py` covers cancellation, including that every engine with Docker socket access stops its step containers. `test_delete.py`, `test_auth.py` and `test_auth_external.py` cover deletion and authentication with cwltool.
 
 Run integration tests inside the development container:
 

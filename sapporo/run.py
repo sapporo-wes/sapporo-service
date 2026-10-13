@@ -95,9 +95,12 @@ def _run_sh_alive(run_id: str, pid: int) -> bool:
 # Same value that run.sh writes for a canceled run
 CANCELED_EXIT_CODE = 138
 
-# Runs whose attachments this process is still downloading. They have no run.sh process yet, so
-# reconcile_runs must not treat them as vanished.
-_INITIALIZING_RUNS: set[str] = set()
+# Runs that this process is preparing: their attachments are downloading, or run.sh was started but
+# has not written run.pid yet. reconcile_runs must not treat them as vanished.
+_PREPARING_RUNS: set[str] = set()
+
+# How long post_run_task waits for run.sh to write run.pid before it stops guarding the run
+RUN_PID_WAIT_SECONDS = 5.0
 
 _PREPARATION_ABORT_STATES = frozenset({State.CANCELING, State.DELETING, State.DELETED})
 
@@ -153,7 +156,7 @@ def _reconcile_run(run_id: str) -> bool:
     state = read_state(run_id)
     if state in _RECONCILE_SKIP_STATES:
         return False
-    if state == State.INITIALIZING and run_id in _INITIALIZING_RUNS:
+    if run_id in _PREPARING_RUNS:
         return False
 
     pid: int | None = read_file(run_id, "pid")
@@ -342,7 +345,8 @@ async def download_wf_attachment(run_id: str, run_request: RunRequestForm) -> No
             raise Exception(msg) from e
 
 
-def fork_run(run_id: str) -> None:
+def fork_run(run_id: str) -> "Popen[str]":
+    """Start run.sh for the run. run.sh writes run.pid itself, after it has set its signal traps."""
     _abort_preparation_if_requested(run_id)
     run_dir = resolve_run_dir(run_id)
     stdout = resolve_content_path(run_id, "stdout")
@@ -353,12 +357,22 @@ def fork_run(run_id: str) -> None:
     write_file(run_id, "state", State.QUEUED)
     with stdout.open(mode="w", encoding="utf-8") as f_stdout, stderr.open(mode="w", encoding="utf-8") as f_stderr:
         process = Popen(cmd, cwd=str(run_dir), env=env, encoding="utf-8", stdout=f_stdout, stderr=f_stderr)
-    if process.pid is not None:
-        write_file(run_id, "pid", process.pid)
     # Reap the child process in a background thread to prevent zombie processes
     reaper = Thread(target=process.wait, daemon=True)
     reaper.start()
     LOGGER.debug("Run forked: run_id=%s, pid=%d", run_id, process.pid or -1)
+    return process
+
+
+async def _wait_for_run_pid(run_id: str, process: "Popen[str]") -> None:
+    """Wait until run.sh has written run.pid or has exited, so that reconcile_runs can judge the run."""
+    pid_path = resolve_content_path(run_id, "pid")
+    deadline = time.monotonic() + RUN_PID_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        if pid_path.exists() or process.poll() is not None:
+            return
+        await asyncio.sleep(0.05)
+    LOGGER.warning("run.sh of run %s has not written run.pid within %.0f seconds", run_id, RUN_PID_WAIT_SECONDS)
 
 
 # Reported as the exit code when the run fails before run.sh is ever started, so that the run log
@@ -368,10 +382,11 @@ POST_RUN_TASK_FAILURE_EXIT_CODE = 1
 
 async def post_run_task(run_id: str, run_request: RunRequestForm) -> None:
     """Run in the background after issuing a run_id in POST /runs."""
-    _INITIALIZING_RUNS.add(run_id)
+    _PREPARING_RUNS.add(run_id)
     try:
         await download_wf_attachment(run_id, run_request)
-        fork_run(run_id)
+        process = fork_run(run_id)
+        await _wait_for_run_pid(run_id, process)
     except RunPreparationAbortedError:
         _settle_aborted_preparation(run_id)
     except Exception as e:
@@ -385,7 +400,7 @@ async def post_run_task(run_id: str, run_request: RunRequestForm) -> None:
         error_msg = "".join(traceback.TracebackException.from_exception(e).format())
         append_system_logs(run_id, error_msg)
     finally:
-        _INITIALIZING_RUNS.discard(run_id)
+        _PREPARING_RUNS.discard(run_id)
 
 
 def _settle_aborted_preparation(run_id: str) -> None:
@@ -455,7 +470,8 @@ def cancel_run_task(run_id: str) -> None:
         write_file(run_id, "state", State.CANCELING)
         pid: int | None = read_file(run_id, "pid")
         if pid is None:
-            write_file(run_id, "state", State.UNKNOWN)
+            # run.sh has not set its traps and written run.pid yet; it reads CANCELING before it starts the workflow
+            LOGGER.info("Run %s has no run.pid yet; run.sh ends it as CANCELED on start", run_id)
         elif not _run_sh_alive(run_id, pid):
             # run.sh is gone without a terminal state; reconcile_runs settles the run later
             LOGGER.warning("run.sh (pid=%d) of run %s is not running, nothing to cancel", pid, run_id)

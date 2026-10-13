@@ -47,13 +47,8 @@ class TestEp3HelloWorkflow:
 
 
 class TestEp3TrimmingAndQcWorkflow:
-    """Trimmomatic + FastQC CWL workflow tests (Docker image pull required).
+    """Trimmomatic + FastQC CWL workflow tests (Docker image pull required)."""
 
-    ep3 does not support DockerRequirement, so these multi-step workflows
-    that depend on Docker images (trimmomatic, fastqc) are expected to fail.
-    """
-
-    @pytest.mark.xfail(reason="ep3 does not support DockerRequirement", strict=False)
     def test_trimming_and_qc_completes(self, sapporo_client: httpx.Client) -> None:
         """Submit trimming_and_qc workflow with local sub-workflows."""
         run_id = submit_workflow(
@@ -80,7 +75,6 @@ class TestEp3TrimmingAndQcWorkflow:
         assert log["outputs"] is not None
         assert len(log["outputs"]) >= 6
 
-    @pytest.mark.xfail(reason="ep3 does not support DockerRequirement", strict=False)
     def test_trimming_and_qc_packed_completes(self, sapporo_client: httpx.Client) -> None:
         """Submit packed CWL version (single file, no sub-workflow files)."""
         run_id = submit_workflow(

@@ -463,7 +463,7 @@ def test_fork_run_sets_state_to_queued(mocker: "MockerFixture", tmp_path: Path) 
     assert read_state(run_id) == State.QUEUED
 
 
-def test_fork_run_writes_pid_file(mocker: "MockerFixture", tmp_path: Path) -> None:
+def test_fork_run_leaves_run_pid_to_run_sh(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
     from sapporo.run import fork_run, read_file
 
@@ -474,22 +474,7 @@ def test_fork_run_writes_pid_file(mocker: "MockerFixture", tmp_path: Path) -> No
     mock_process.pid = 12345
     mocker.patch("sapporo.run.Popen", return_value=mock_process)
 
-    fork_run(run_id)
-    assert read_file(run_id, "pid") == 12345
-
-
-def test_fork_run_does_not_write_pid_when_none(mocker: "MockerFixture", tmp_path: Path) -> None:
-    _setup_config(mocker, tmp_path)
-    from sapporo.run import fork_run, read_file
-
-    run_id = "aabbccdd-0000-0000-0000-000000000033"
-    create_run_dir(tmp_path, run_id)
-
-    mock_process = MagicMock()
-    mock_process.pid = None
-    mocker.patch("sapporo.run.Popen", return_value=mock_process)
-
-    fork_run(run_id)
+    assert fork_run(run_id) is mock_process
     assert read_file(run_id, "pid") is None
 
 
@@ -761,16 +746,19 @@ def test_cancel_run_task_running_sends_sigusr1(mocker: "MockerFixture", tmp_path
     mock_kill.assert_called_once_with(88888, signal.SIGUSR1)
 
 
-def test_cancel_run_task_no_pid_sets_unknown(mocker: "MockerFixture", tmp_path: Path) -> None:
+def test_cancel_run_task_no_pid_leaves_canceling_for_run_sh_to_pick_up(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
     from sapporo.run import cancel_run_task, read_state
 
     run_id = "aabbccdd-0000-0000-0000-000000000073"
-    create_run_dir(tmp_path, run_id, state="RUNNING")
-    # No pid file
+    create_run_dir(tmp_path, run_id, state="QUEUED")
+    # run.sh has not written run.pid yet
+    mock_kill = mocker.patch("sapporo.run.os.kill")
 
     cancel_run_task(run_id)
-    assert read_state(run_id) == State.UNKNOWN
+
+    mock_kill.assert_not_called()
+    assert read_state(run_id) == State.CANCELING
 
 
 def test_cancel_run_task_complete_does_nothing(mocker: "MockerFixture", tmp_path: Path) -> None:
@@ -1439,72 +1427,6 @@ def test_fork_run_passes_cancel_grace_seconds_to_run_sh(mocker: "MockerFixture",
 # === cancel / delete while attachments are downloading (INITIALIZING) ===
 
 
-def _publish_symlinked_dirs(tmp_path: Path, run_id: str) -> None:
-    """Add outputs/published -> exe/work (inside the run) and outputs/leak -> tmp_path/secret (outside)."""
-    from sapporo.run import resolve_content_path
-
-    outputs_dir = resolve_content_path(run_id, "outputs_dir")
-    work = resolve_content_path(run_id, "exe_dir") / "work"
-    work.mkdir()
-    (work / "a.txt").write_text("a", encoding="utf-8")
-    (outputs_dir / "published").symlink_to(work)
-    secret_dir = tmp_path / "secret"
-    secret_dir.mkdir()
-    (secret_dir / "s.txt").write_text("s", encoding="utf-8")
-    (outputs_dir / "leak").symlink_to(secret_dir)
-
-
-def test_dump_outputs_list_follows_symlinked_directory_only_inside_run_dir(
-    mocker: "MockerFixture", tmp_path: Path
-) -> None:
-    _setup_config(mocker, tmp_path)
-    from sapporo.run import dump_outputs_list, read_file, resolve_run_dir
-
-    run_id = "aabbccdd-0000-0000-0000-000000000f23"
-    create_run_dir(tmp_path, run_id, output_files={"result.txt": "hello"})
-    _publish_symlinked_dirs(tmp_path, run_id)
-
-    dump_outputs_list(resolve_run_dir(run_id))
-
-    names = {o["file_name"] for o in read_file(run_id, "outputs")}
-    assert names == {"result.txt", "published/a.txt"}
-
-
-def test_outputs_zip_stream_follows_symlinked_directory_only_inside_run_dir(
-    mocker: "MockerFixture", tmp_path: Path
-) -> None:
-    _setup_config(mocker, tmp_path)
-    from sapporo.run import outputs_zip_stream
-
-    run_id = "aabbccdd-0000-0000-0000-000000000f24"
-    create_run_dir(tmp_path, run_id, output_files={"result.txt": "hello"})
-    _publish_symlinked_dirs(tmp_path, run_id)
-
-    stream, content_length = outputs_zip_stream(run_id)
-    data = b"".join(stream)
-
-    assert content_length == len(data)
-    with zipfile.ZipFile(BytesIO(data)) as zf:
-        names = {name.split("/", 1)[1] for name in zf.namelist()}
-    assert names == {"result.txt", "published/a.txt"}
-
-
-def test_dump_outputs_list_rejects_symlinked_runtime_info(mocker: "MockerFixture", tmp_path: Path) -> None:
-    _setup_config(mocker, tmp_path)
-    from sapporo.run import dump_outputs_list, resolve_content_path, resolve_run_dir
-
-    run_id = "aabbccdd-0000-0000-0000-000000000f25"
-    create_run_dir(tmp_path, run_id)
-    other = tmp_path / "other.json"
-    other.write_text(json.dumps({"run_id": run_id, "base_url": "http://evil"}), encoding="utf-8")
-    runtime_info = resolve_content_path(run_id, "runtime_info")
-    runtime_info.unlink()
-    runtime_info.symlink_to(other)
-
-    with pytest.raises(TypeError):
-        dump_outputs_list(resolve_run_dir(run_id))
-
-
 def test_fork_run_canceling_does_not_start_run_sh(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
     from sapporo.run import RunPreparationAbortedError, fork_run
@@ -1600,7 +1522,7 @@ async def test_post_run_task_registers_run_while_preparing(mocker: "MockerFixtur
     seen_during_download: list[bool] = []
 
     async def record(run_id: str, _req: object) -> None:
-        seen_during_download.append(run_id in run_module._INITIALIZING_RUNS)
+        seen_during_download.append(run_id in run_module._PREPARING_RUNS)
 
     mocker.patch("sapporo.run.download_wf_attachment", side_effect=record)
     mocker.patch("sapporo.run.fork_run")
@@ -1608,7 +1530,7 @@ async def test_post_run_task_registers_run_while_preparing(mocker: "MockerFixtur
     await post_run_task(run_id, make_run_request_form())
 
     assert seen_during_download == [True]
-    assert run_id not in run_module._INITIALIZING_RUNS
+    assert run_id not in run_module._PREPARING_RUNS
 
 
 def test_reconcile_runs_skips_initializing_run_prepared_by_this_process(
@@ -1621,11 +1543,11 @@ def test_reconcile_runs_skips_initializing_run_prepared_by_this_process(
     run_id = "aabbccdd-0000-0000-0000-000000000f06"
     create_run_dir(tmp_path, run_id, state="INITIALIZING")
 
-    run_module._INITIALIZING_RUNS.add(run_id)
+    run_module._PREPARING_RUNS.add(run_id)
     try:
         reconcile_runs()
     finally:
-        run_module._INITIALIZING_RUNS.discard(run_id)
+        run_module._PREPARING_RUNS.discard(run_id)
 
     assert read_state(run_id) == State.INITIALIZING
 
@@ -1726,6 +1648,72 @@ def test_resolve_output_file_rejects_traversal_and_outside_symlink(mocker: "Mock
         with pytest.raises(HTTPException) as exc_info:
             resolve_output_file(run_id, bad)
         assert exc_info.value.status_code == 400, bad
+
+
+def _publish_symlinked_dirs(tmp_path: Path, run_id: str) -> None:
+    """Add outputs/published -> exe/work (inside the run) and outputs/leak -> tmp_path/secret (outside)."""
+    from sapporo.run import resolve_content_path
+
+    outputs_dir = resolve_content_path(run_id, "outputs_dir")
+    work = resolve_content_path(run_id, "exe_dir") / "work"
+    work.mkdir()
+    (work / "a.txt").write_text("a", encoding="utf-8")
+    (outputs_dir / "published").symlink_to(work)
+    secret_dir = tmp_path / "secret"
+    secret_dir.mkdir()
+    (secret_dir / "s.txt").write_text("s", encoding="utf-8")
+    (outputs_dir / "leak").symlink_to(secret_dir)
+
+
+def test_dump_outputs_list_follows_symlinked_directory_only_inside_run_dir(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import dump_outputs_list, read_file, resolve_run_dir
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f23"
+    create_run_dir(tmp_path, run_id, output_files={"result.txt": "hello"})
+    _publish_symlinked_dirs(tmp_path, run_id)
+
+    dump_outputs_list(resolve_run_dir(run_id))
+
+    names = {o["file_name"] for o in read_file(run_id, "outputs")}
+    assert names == {"result.txt", "published/a.txt"}
+
+
+def test_outputs_zip_stream_follows_symlinked_directory_only_inside_run_dir(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import outputs_zip_stream
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f24"
+    create_run_dir(tmp_path, run_id, output_files={"result.txt": "hello"})
+    _publish_symlinked_dirs(tmp_path, run_id)
+
+    stream, content_length = outputs_zip_stream(run_id)
+    data = b"".join(stream)
+
+    assert content_length == len(data)
+    with zipfile.ZipFile(BytesIO(data)) as zf:
+        names = {name.split("/", 1)[1] for name in zf.namelist()}
+    assert names == {"result.txt", "published/a.txt"}
+
+
+def test_dump_outputs_list_rejects_symlinked_runtime_info(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import dump_outputs_list, resolve_content_path, resolve_run_dir
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f25"
+    create_run_dir(tmp_path, run_id)
+    other = tmp_path / "other.json"
+    other.write_text(json.dumps({"run_id": run_id, "base_url": "http://evil"}), encoding="utf-8")
+    runtime_info = resolve_content_path(run_id, "runtime_info")
+    runtime_info.unlink()
+    runtime_info.symlink_to(other)
+
+    with pytest.raises(TypeError):
+        dump_outputs_list(resolve_run_dir(run_id))
 
 
 # === download_wf_attachment (httpx.MockTransport) ===
@@ -1976,3 +1964,90 @@ async def test_download_wf_attachment_stops_at_the_next_chunk_after_cancel(
     assert len(requests) == 1
     assert (resolve_content_path(run_id, "exe_dir") / "first.cwl").read_bytes() == b""
     assert not (resolve_content_path(run_id, "exe_dir") / "second.cwl").exists()
+
+
+# === run.pid written by run.sh ===
+
+
+def test_reconcile_runs_skips_queued_run_without_pid_that_this_process_is_starting(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    import sapporo.run as run_module
+    from sapporo.run import read_state, reconcile_runs
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f30"
+    create_run_dir(tmp_path, run_id, state="QUEUED")
+
+    run_module._PREPARING_RUNS.add(run_id)
+    try:
+        reconcile_runs()
+    finally:
+        run_module._PREPARING_RUNS.discard(run_id)
+
+    assert read_state(run_id) == State.QUEUED
+
+
+@pytest.mark.asyncio
+async def test_post_run_task_guards_the_run_until_run_sh_writes_run_pid(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    import sapporo.run as run_module
+    from sapporo.run import post_run_task, resolve_content_path
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f31"
+    create_run_dir(tmp_path, run_id, state="INITIALIZING")
+    guarded_when_pid_appeared: list[bool] = []
+
+    def start_and_write_pid(run_id: str) -> Any:
+        guarded_when_pid_appeared.append(run_id in run_module._PREPARING_RUNS)
+        resolve_content_path(run_id, "pid").write_text("4242", encoding="utf-8")
+        process = MagicMock()
+        process.poll.return_value = None
+        return process
+
+    mocker.patch("sapporo.run.download_wf_attachment", new=AsyncMock())
+    mocker.patch("sapporo.run.fork_run", side_effect=start_and_write_pid)
+
+    await post_run_task(run_id, make_run_request_form())
+
+    assert guarded_when_pid_appeared == [True]
+    assert run_id not in run_module._PREPARING_RUNS
+
+
+@pytest.mark.asyncio
+async def test_wait_for_run_pid_returns_when_run_sh_exits_without_pid(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    from sapporo.run import _wait_for_run_pid
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f32"
+    create_run_dir(tmp_path, run_id, state="QUEUED")
+    process = MagicMock()
+    process.poll.return_value = 1
+
+    started = time.monotonic()
+    await _wait_for_run_pid(run_id, process)
+
+    assert time.monotonic() - started < 1
+
+
+@pytest.mark.asyncio
+async def test_wait_for_run_pid_gives_up_with_a_warning(
+    mocker: "MockerFixture", tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    _setup_config(mocker, tmp_path)
+    import logging
+
+    from sapporo.run import _wait_for_run_pid
+
+    run_id = "aabbccdd-0000-0000-0000-000000000f33"
+    create_run_dir(tmp_path, run_id, state="QUEUED")
+    mocker.patch("sapporo.run.RUN_PID_WAIT_SECONDS", 0.2)
+    process = MagicMock()
+    process.poll.return_value = None
+
+    with caplog.at_level(logging.WARNING, logger="sapporo.run"):
+        await _wait_for_run_pid(run_id, process)
+
+    assert "run.pid" in caplog.text
