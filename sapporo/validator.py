@@ -2,6 +2,7 @@ import json
 import re
 
 from fastapi import UploadFile
+from pydantic import ValidationError
 
 from sapporo.config import get_config
 from sapporo.exceptions import raise_bad_request, raise_forbidden, raise_not_found
@@ -64,18 +65,21 @@ def validate_run_request(
             f"Invalid workflow_url: {wf_url}. Sapporo is currently operating in the mode where only registered workflows can be executed. Please refer to GET /executable_workflows to see the list of executable workflows."
         )
 
-    return RunRequestForm(
-        workflow_params=_wf_params,
-        workflow_type=wf_type,
-        workflow_type_version=wf_type_version,
-        tags=_tags,
-        workflow_engine=wf_engine,
-        workflow_engine_version=wf_engine_version,
-        workflow_engine_parameters=wf_engine_parameters,
-        workflow_url=wf_url,
-        workflow_attachment=wf_attachment,
-        workflow_attachment_obj=_wf_attachment_obj,
-    )
+    try:
+        return RunRequestForm(
+            workflow_params=_wf_params,
+            workflow_type=wf_type,
+            workflow_type_version=wf_type_version,
+            tags=_tags,
+            workflow_engine=wf_engine,
+            workflow_engine_version=wf_engine_version,
+            workflow_engine_parameters=wf_engine_parameters,
+            workflow_url=wf_url,
+            workflow_attachment=wf_attachment,
+            workflow_attachment_obj=_wf_attachment_obj,
+        )
+    except ValidationError as e:
+        raise_bad_request(f"Invalid run request: {e.errors(include_url=False)}")
 
 
 def validate_wf_type_and_version(

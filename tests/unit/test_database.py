@@ -1168,3 +1168,21 @@ def test_list_old_runs_db_excludes_deleted_runs(tmp_path: Path) -> None:
     old_runs = list_old_runs_db(older_than_days=1)
 
     assert {run.run_id for run in old_runs} == {"old-complete"}
+
+
+# === tag filter: keys containing a dot ===
+
+
+def test_list_runs_db_tag_filter_matches_key_containing_dot(tmp_path: Path) -> None:
+    sys.argv = ["sapporo", "--run-dir", str(tmp_path)]
+    get_config.cache_clear()
+    init_db()
+    now = datetime(2024, 1, 1, tzinfo=UTC)
+    with get_session() as session:
+        session.add(Run(run_id="dotted", state=State.COMPLETE, start_time=now, tags=json.dumps({"org.key": "v"})))
+        session.add(Run(run_id="other", state=State.COMPLETE, start_time=now, tags=json.dumps({"org": {"key": "v"}})))
+        session.commit()
+
+    runs, _ = list_runs_db(page_size=10, tags=["org.key:v"])
+
+    assert [run.run_id for run in runs] == ["dotted"]

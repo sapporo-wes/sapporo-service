@@ -19,6 +19,7 @@ import httpx
 from zipstream import ZipStream
 
 from sapporo.config import RUN_DIR_STRUCTURE, get_config
+from sapporo.exceptions import raise_bad_request
 from sapporo.factory import create_service_info
 from sapporo.run_io import (
     dump_runtime_info,
@@ -220,9 +221,13 @@ def write_wf_attachment(run_id: str, run_request: RunRequestForm) -> None:
     for file in run_request.workflow_attachment:
         if file.filename:
             file_path = exe_dir.joinpath(secure_filepath(file.filename)).resolve()
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            with file_path.open(mode="wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
+            try:
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                with file_path.open(mode="wb") as buffer:
+                    shutil.copyfileobj(file.file, buffer)
+            except OSError as e:
+                # For example a file and a directory with the same name in one request
+                raise_bad_request(f"Cannot write workflow attachment {file.filename!r}: {e.strerror}")
 
 
 # A single deadline cannot serve both purposes: an unreachable host has to fail fast, while a large

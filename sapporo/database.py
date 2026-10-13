@@ -341,7 +341,8 @@ def _build_filter_query(
             if key and value:
                 if not tag_key_pattern.match(key):
                     raise_bad_request(f"Invalid tag key: {key}")
-                query = query.where(func.json_extract(Run.tags, f"$.{key}") == value)
+                # The key is quoted so that a dot in it is not read as a JSON path separator
+                query = query.where(func.json_extract(Run.tags, f'$."{key}"') == value)
     return query
 
 

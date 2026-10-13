@@ -325,3 +325,29 @@ class TestGlobAllRunIdsDeletedRuns:
         rd.joinpath(RUN_DIR_STRUCTURE["state"]).write_text("DELETED", encoding="utf-8")
 
         assert glob_all_run_ids() == [rid]
+
+
+# === read_file: engine output that is not clean UTF-8 or shell syntax ===
+
+
+class TestReadFileToleratesEngineOutput:
+    def test_stdout_with_invalid_utf8_is_read_with_replacement(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        config = AppConfig(run_dir=tmp_path)
+        mock_get_config(mocker, config)
+
+        rid = "aabbccdd-0000-0000-0000-0000000000e6"
+        create_run_dir(tmp_path, rid)
+        tmp_path.joinpath(rid[:2], rid, RUN_DIR_STRUCTURE["stdout"]).write_bytes(b"ok \xff\xfe end")
+
+        assert read_file(rid, "stdout") == "ok \ufffd\ufffd end"
+
+    def test_cmd_with_unbalanced_quote_falls_back_to_whitespace_split(
+        self, mocker: "MockerFixture", tmp_path: Path
+    ) -> None:
+        config = AppConfig(run_dir=tmp_path)
+        mock_get_config(mocker, config)
+
+        rid = "aabbccdd-0000-0000-0000-0000000000e7"
+        create_run_dir(tmp_path, rid, cmd="docker run --name it's wf.cwl")
+
+        assert read_file(rid, "cmd") == ["docker", "run", "--name", "it's", "wf.cwl"]

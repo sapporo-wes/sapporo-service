@@ -55,7 +55,8 @@ def read_file(run_id: str, key: RunDirStructureKeys) -> Any:
     if file_path.exists() is False:
         return None
 
-    with file_path.open(mode="r", encoding="utf-8") as f:
+    # Engine logs are not guaranteed to be UTF-8; unreadable bytes are replaced instead of failing the request
+    with file_path.open(mode="r", encoding="utf-8", errors="replace") as f:
         content = f.read().strip()
         # Special handling for specific keys
         if key == "run_request":
@@ -65,7 +66,11 @@ def read_file(run_id: str, key: RunDirStructureKeys) -> Any:
                 LOGGER.warning("Ignoring run_request.json that cannot be parsed: run_id=%s, error=%s", run_id, e)
                 return None
         if key == "cmd":
-            return shlex.split(content)
+            try:
+                return shlex.split(content)
+            except ValueError:
+                # Unbalanced quotes in an engine parameter; keep the command readable anyway
+                return content.split()
         if key in ["start_time", "end_time", "stdout", "stderr", "username"]:
             return content
         if key == "exit_code":

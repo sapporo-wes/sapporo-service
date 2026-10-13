@@ -1,9 +1,11 @@
 import json
+import shutil
 from typing import Literal, cast
 from uuid import uuid4
 
-from fastapi import APIRouter, BackgroundTasks, Form, Query, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from pydantic import ValidationError
 
 from sapporo.auth import (
     MeResponse,
@@ -35,6 +37,7 @@ from sapporo.run import (
     post_run_task,
     prepare_run_dir,
     resolve_content_path,
+    resolve_run_dir,
     ro_crate_zip_stream,
 )
 from sapporo.schemas import (
@@ -44,6 +47,7 @@ from sapporo.schemas import (
     RunId,
     RunListResponse,
     RunLog,
+    RunRequestForm,
     RunRequestJson,
     RunStatus,
     ServiceInfo,
@@ -243,10 +247,32 @@ async def run_workflow(
     username = await resolve_username(token)
     run_id = str(uuid4())
 
+    try:
+        run_request = await _prepare_run(request, run_id, username)
+    except HTTPException:
+        # A rejected request must not leave a half-written run directory behind
+        shutil.rmtree(resolve_run_dir(run_id), ignore_errors=True)
+        raise
+
+    add_run_db(create_run_summary(run_id), username)
+    background_tasks.add_task(post_run_task, run_id, run_request)
+    return RunId(run_id=run_id)
+
+
+async def _prepare_run(request: Request, run_id: str, username: str | None) -> RunRequestForm:
+    """Validate the request body (JSON or multipart form) and prepare the run directory."""
     content_type = request.headers.get("content-type", "")
     if "application/json" in content_type:
-        body = await request.json()
-        json_req = RunRequestJson(**body)
+        try:
+            body = await request.json()
+        except json.JSONDecodeError:
+            raise_bad_request("Invalid JSON body.")
+        if not isinstance(body, dict):
+            raise_bad_request("JSON body must be an object.")
+        try:
+            json_req = RunRequestJson.model_validate(body)
+        except ValidationError as e:
+            raise_bad_request(f"Invalid request body: {e.errors(include_url=False)}")
         run_request = validate_run_request(
             json.dumps(json_req.workflow_params) if json_req.workflow_params is not None else None,
             json_req.workflow_type,
@@ -264,27 +290,23 @@ async def run_workflow(
             else None,
         )
         prepare_run_dir(run_id, run_request, username)
-    else:
-        async with request.form() as form:
-            run_request = validate_run_request(
-                str(form.get("workflow_params")) if form.get("workflow_params") is not None else None,
-                str(form.get("workflow_type", "")),
-                str(form.get("workflow_type_version")) if form.get("workflow_type_version") is not None else None,
-                str(form.get("tags")) if form.get("tags") is not None else None,
-                str(form.get("workflow_engine", "")),
-                str(form.get("workflow_engine_version")) if form.get("workflow_engine_version") is not None else None,
-                str(form.get("workflow_engine_parameters"))
-                if form.get("workflow_engine_parameters") is not None
-                else None,
-                str(form.get("workflow_url")) if form.get("workflow_url") is not None else None,
-                cast("list[UploadFile]", form.getlist("workflow_attachment")),
-                str(form.get("workflow_attachment_obj")) if form.get("workflow_attachment_obj") is not None else None,
-            )
-            prepare_run_dir(run_id, run_request, username)
+        return run_request
 
-    add_run_db(create_run_summary(run_id), username)
-    background_tasks.add_task(post_run_task, run_id, run_request)
-    return RunId(run_id=run_id)
+    async with request.form() as form:
+        run_request = validate_run_request(
+            str(form.get("workflow_params")) if form.get("workflow_params") is not None else None,
+            str(form.get("workflow_type", "")),
+            str(form.get("workflow_type_version")) if form.get("workflow_type_version") is not None else None,
+            str(form.get("tags")) if form.get("tags") is not None else None,
+            str(form.get("workflow_engine", "")),
+            str(form.get("workflow_engine_version")) if form.get("workflow_engine_version") is not None else None,
+            str(form.get("workflow_engine_parameters")) if form.get("workflow_engine_parameters") is not None else None,
+            str(form.get("workflow_url")) if form.get("workflow_url") is not None else None,
+            cast("list[UploadFile]", form.getlist("workflow_attachment")),
+            str(form.get("workflow_attachment_obj")) if form.get("workflow_attachment_obj") is not None else None,
+        )
+        prepare_run_dir(run_id, run_request, username)
+        return run_request
 
 
 @router.get(
@@ -505,6 +527,8 @@ async def get_run_outputs_list(
     username = await resolve_username(token)
     validate_run_id(run_id, username)
     if download:
+        if not resolve_content_path(run_id, "outputs_dir").is_dir():
+            raise_not_found("Outputs of run", run_id)
         sanitized_name = str(secure_filepath(name)) if name else f"sapporo_{run_id}_outputs"
         stream, content_length = outputs_zip_stream(run_id, sanitized_name)
         return StreamingResponse(
@@ -542,7 +566,7 @@ async def get_run_outputs(
     file_path = outputs_dir.joinpath(secure_filepath(path)).resolve()
     if not file_path.is_relative_to(outputs_dir):
         raise_bad_request(f"Invalid file path: {path!r}")
-    if not file_path.exists():
+    if not file_path.is_file():
         raise_not_found("File", path)
     return FileResponse(file_path)
 

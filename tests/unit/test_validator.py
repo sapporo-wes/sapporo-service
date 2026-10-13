@@ -1,6 +1,6 @@
 import contextlib
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from fastapi import HTTPException
@@ -652,3 +652,40 @@ def test_validate_wf_engine_param_token_rejects_dangerous_values(dangerous_value
 def test_validate_wf_engine_param_token_always_accepts_or_rejects(value: str) -> None:
     with contextlib.suppress(HTTPException):
         validate_wf_engine_param_token(value)
+
+
+# === validate_run_request: values with the wrong shape ===
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("wf_params", "[1]"),
+        ("tags", '{"a": 1}'),
+        ("wf_engine_parameters", '{"--cores": 1}'),
+        ("wf_attachment_obj", "{}"),
+    ],
+)
+def test_validate_run_request_wrong_shape_returns_400(field: str, value: str) -> None:
+    from fastapi import HTTPException
+
+    from sapporo.validator import validate_run_request
+
+    kwargs: dict[str, Any] = {
+        "wf_params": None,
+        "wf_type": "CWL",
+        "wf_type_version": "v1.0",
+        "tags": None,
+        "wf_engine": "cwltool",
+        "wf_engine_version": None,
+        "wf_engine_parameters": None,
+        "wf_url": "https://example.com/wf.cwl",
+        "wf_attachment": [],
+        "wf_attachment_obj": None,
+    }
+    kwargs[field] = value
+
+    with pytest.raises(HTTPException) as exc_info:
+        validate_run_request(**kwargs)
+
+    assert exc_info.value.status_code == 400

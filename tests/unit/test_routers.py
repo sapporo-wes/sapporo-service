@@ -346,37 +346,68 @@ class TestRunWorkflow:
         body = res.json()
         assert "run_id" in body
 
-    def test_json_body_without_workflow_url_raises_validation_error(
+    def test_json_body_without_workflow_url_returns_400(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        res = client.post(
+            "/runs",
+            json={
+                "workflow_type": "CWL",
+                "workflow_type_version": "v1.0",
+                "workflow_engine": "cwltool",
+            },
+        )
+        assert res.status_code == 400
+        assert "workflow_url" in res.json()["msg"]
+
+    def test_json_body_without_workflow_type_version_returns_400(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        res = client.post(
+            "/runs",
+            json={
+                "workflow_type": "CWL",
+                "workflow_engine": "cwltool",
+                "workflow_url": "https://example.com/wf.cwl",
+            },
+        )
+        assert res.status_code == 400
+        assert "workflow_type_version" in res.json()["msg"]
+
+    def test_malformed_json_body_returns_400(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        res = client.post("/runs", content=b"{not json", headers={"content-type": "application/json"})
+        assert res.status_code == 400
+
+    def test_json_body_that_is_a_list_returns_400(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        res = client.post("/runs", json=[1, 2])
+        assert res.status_code == 400
+
+    def test_json_body_with_list_workflow_params_returns_400(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        res = _post_run_json(client, workflow_params=[1])
+        assert res.status_code == 400
+
+    def test_form_tags_with_non_string_values_returns_400(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        res = _post_run_form(client, tags='{"a": 1}')
+        assert res.status_code == 400
+
+    def test_attachments_with_conflicting_names_return_400_and_leave_no_run_dir(
         self, mocker: "MockerFixture", tmp_path: Path
     ) -> None:
-        from pydantic import ValidationError
-
         client = _client_with_mock_run_tasks(mocker, tmp_path)
-        with pytest.raises(ValidationError, match="workflow_url"):
-            client.post(
-                "/runs",
-                json={
-                    "workflow_type": "CWL",
-                    "workflow_type_version": "v1.0",
-                    "workflow_engine": "cwltool",
-                },
-            )
-
-    def test_json_body_without_workflow_type_version_raises_validation_error(
-        self, mocker: "MockerFixture", tmp_path: Path
-    ) -> None:
-        from pydantic import ValidationError
-
-        client = _client_with_mock_run_tasks(mocker, tmp_path)
-        with pytest.raises(ValidationError, match="workflow_type_version"):
-            client.post(
-                "/runs",
-                json={
-                    "workflow_type": "CWL",
-                    "workflow_engine": "cwltool",
-                    "workflow_url": "https://example.com/wf.cwl",
-                },
-            )
+        res = client.post(
+            "/runs",
+            data={
+                "workflow_type": "CWL",
+                "workflow_type_version": "v1.0",
+                "workflow_engine": "cwltool",
+                "workflow_url": "https://example.com/wf.cwl",
+            },
+            files=[("workflow_attachment", ("a", b"file")), ("workflow_attachment", ("a/b", b"nested"))],
+        )
+        assert res.status_code == 400
+        assert list(tmp_path.glob("*/*/")) == []
 
     def test_invalid_json_params_returns_400(self, mocker: "MockerFixture", tmp_path: Path) -> None:
         """Verify that invalid JSON in workflow_params returns 400.
@@ -600,6 +631,30 @@ class TestGetRunOutputs:
         create_run_dir(tmp_path, run_id)
 
         res = client.get(f"/runs/{run_id}/outputs/nonexistent.txt")
+        assert res.status_code == 404
+
+    def test_directory_path_returns_404(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        run_id = "aabbccdd-0000-0000-0000-000000001406"
+        rd = create_run_dir(tmp_path, run_id)
+
+        from sapporo.config import RUN_DIR_STRUCTURE
+
+        (rd / RUN_DIR_STRUCTURE["outputs_dir"] / "subdir").mkdir()
+
+        res = client.get(f"/runs/{run_id}/outputs/subdir")
+        assert res.status_code == 404
+
+    def test_download_without_outputs_dir_returns_404(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        run_id = "aabbccdd-0000-0000-0000-000000001407"
+        rd = create_run_dir(tmp_path, run_id)
+
+        from sapporo.config import RUN_DIR_STRUCTURE
+
+        (rd / RUN_DIR_STRUCTURE["outputs_dir"]).rmdir()
+
+        res = client.get(f"/runs/{run_id}/outputs", params={"download": "true"})
         assert res.status_code == 404
 
     def test_symlink_outside_outputs_dir_returns_400(self, mocker: "MockerFixture", tmp_path: Path) -> None:
