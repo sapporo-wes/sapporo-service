@@ -161,13 +161,6 @@ ignore = [
     "FAST002", # Non-annotated dependency (existing pattern)
     "ARG001",  # Unused function argument (unimplemented endpoints)
 
-    # Security (false positives / intentional)
-    "S104", # Hardcoded bind all interfaces (server)
-    "S105", # Hardcoded password string (field names)
-    "S108", # Hardcoded temp file
-    "S110", # Try-except-pass (intentional)
-    "S603", # Subprocess without shell (intentional)
-
     # Miscellaneous
     "N815",   # Mixed case variable in class scope (Pydantic)
     "RUF001", # Ambiguous unicode character (intentional test data)
@@ -191,7 +184,11 @@ ignore = [
     "PT006",   # Wrong type for parametrize names
     "PT011",   # Pytest raises too broad
     "S101",    # Use of assert
+    "S104",    # Bind address 0.0.0.0 in configuration test data
+    "S105",    # Hardcoded password in tests (test data)
     "S106",    # Hardcoded password in tests (test data)
+    "S108",    # Fixed /tmp paths in test data
+    "S603",    # Subprocess with fixed arguments (run.sh and docker in tests)
     "S607",    # Partial executable path in subprocess (test fixtures)
     "SLF001",  # Private member access
     "T201",    # Print for debugging output

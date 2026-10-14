@@ -1,8 +1,14 @@
-FROM python:3.13-slim-bookworm
+# Stages:
+#   base:    OS packages, the Docker CLI and the runtime environment shared by the other stages
+#   dev:     the development image built by compose.dev.yml, with the tests extra and the dev group
+#   build:   installs sapporo and its runtime dependencies into /app/.venv
+#   release: the published image (the default target); /app/.venv on top of base, without uv
 
-COPY --from=ghcr.io/astral-sh/uv:0.13.0 /uv /uvx /bin/
+# The Docker CLI is a static binary, so it runs on the Debian base below
+FROM docker:29.9.0-cli AS docker-cli
 
-ARG TARGETARCH
+FROM python:3.13-slim-trixie AS base
+
 ARG VERSION=0.0.0.dev0
 
 LABEL org.opencontainers.image.authors="Bioinformatics and DDBJ Center <tazro.ohta@chiba-u.jp>"
@@ -15,24 +21,29 @@ LABEL org.opencontainers.image.licenses="Apache2.0"
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ca-certificates \
-    curl \
     jq \
-    libmagic1 && \
+    libmagic1t64 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Docker CLI (multi-architecture)
-RUN DOCKER_ARCH=$(case "${TARGETARCH}" in \
-    amd64) echo "x86_64" ;; \
-    arm64) echo "aarch64" ;; \
-    *) echo "x86_64" ;; \
-    esac) && \
-    curl -fsSL -o /tmp/docker.tgz "https://download.docker.com/linux/static/stable/${DOCKER_ARCH}/docker-29.9.0.tgz" && \
-    tar -xzf /tmp/docker.tgz -C /tmp && \
-    mv /tmp/docker/docker /usr/local/bin/docker && \
-    rm -rf /tmp/docker /tmp/docker.tgz
+COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
 
 WORKDIR /app
+
+# Writable home for arbitrary UID (dev containers use user: UID:GID).
+ENV HOME=/home/app
+RUN mkdir -p /home/app && chmod 777 /home/app
+
+ENV PATH="/app/.venv/bin:${PATH}"
+
+ENTRYPOINT []
+CMD ["sapporo"]
+
+FROM base AS dev
+
+ARG VERSION=0.0.0.dev0
+
+COPY --from=ghcr.io/astral-sh/uv:0.13.0 /uv /uvx /bin/
 
 COPY pyproject.toml uv.lock README.md ./
 RUN mkdir -p sapporo
@@ -47,11 +58,19 @@ COPY . .
 # Install the project with version injected from the build arg.
 RUN SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION} uv sync --frozen --all-extras
 
-# Writable home for arbitrary UID (dev containers use user: UID:GID).
-ENV HOME=/home/app
-RUN mkdir -p /home/app && chmod 777 /home/app
+FROM base AS build
 
-ENV PATH="/app/.venv/bin:${PATH}"
+ARG VERSION=0.0.0.dev0
 
-ENTRYPOINT []
-CMD ["sapporo"]
+COPY --from=ghcr.io/astral-sh/uv:0.13.0 /uv /uvx /bin/
+
+# Only /app/.venv leaves this stage, so the cache of uv and the source tree stay out of the release image
+COPY pyproject.toml uv.lock README.md ./
+RUN uv sync --frozen --no-dev --no-install-project
+
+COPY sapporo ./sapporo
+RUN SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION} uv sync --frozen --no-dev --no-editable
+
+FROM base AS release
+
+COPY --from=build /app/.venv /app/.venv

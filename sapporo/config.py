@@ -47,7 +47,8 @@ SAPPORO_WES_SPEC_VERSION = "2.1.0"
 
 
 def _default_host() -> str:
-    return "0.0.0.0" if inside_docker() else "127.0.0.1"
+    # Inside a container the port is reachable only where the container publishes it
+    return "0.0.0.0" if inside_docker() else "127.0.0.1"  # noqa: S104
 
 
 def _pkg_path(name: str) -> Path:

@@ -7,7 +7,7 @@ import shutil
 import signal
 import time
 import traceback
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path, PurePosixPath
 from subprocess import Popen
@@ -41,7 +41,18 @@ __all__ = [
     "write_file",
 ]
 from sapporo.schemas import RunRequestForm, State
-from sapporo.utils import now_str, secure_filepath, user_agent, validate_url_not_metadata_service
+from sapporo.utils import (
+    inside_run_dir,
+    now_str,
+    open_run_file,
+    open_run_file_for_write,
+    read_run_dir_file,
+    resolve_within_run,
+    secure_filepath,
+    user_agent,
+    validate_url_not_metadata_service,
+    walk_within_run,
+)
 from sapporo.validator import validate_wf_engine_param_token
 
 LOGGER = logging.getLogger(__name__)
@@ -86,9 +97,12 @@ def _run_sh_alive(run_id: str, pid: int) -> bool:
 # Same value that run.sh writes for a canceled run
 CANCELED_EXIT_CODE = 138
 
-# Runs whose attachments this process is still downloading. They have no run.sh process yet, so
-# reconcile_runs must not treat them as vanished.
-_INITIALIZING_RUNS: set[str] = set()
+# Runs that this process is preparing: their attachments are downloading, or run.sh was started but
+# has not written run.pid yet. reconcile_runs must not treat them as vanished.
+_PREPARING_RUNS: set[str] = set()
+
+# How long post_run_task waits for run.sh to write run.pid before it stops guarding the run
+RUN_PID_WAIT_SECONDS = 5.0
 
 _PREPARATION_ABORT_STATES = frozenset({State.CANCELING, State.DELETING, State.DELETED})
 
@@ -144,7 +158,7 @@ def _reconcile_run(run_id: str) -> bool:
     state = read_state(run_id)
     if state in _RECONCILE_SKIP_STATES:
         return False
-    if state == State.INITIALIZING and run_id in _INITIALIZING_RUNS:
+    if run_id in _PREPARING_RUNS:
         return False
 
     pid: int | None = read_file(run_id, "pid")
@@ -239,37 +253,71 @@ ATTACHMENT_TIMEOUT = httpx.Timeout(connect=10.0, read=60.0, write=60.0, pool=10.
 ATTACHMENT_MAX_ATTEMPTS = 3
 ATTACHMENT_RETRY_BACKOFF_SECONDS = 1.0
 ATTACHMENT_RETRY_STATUS_CODES = frozenset({408, 425, 429, 500, 502, 503, 504})
+ATTACHMENT_MAX_REDIRECTS = 5
+ATTACHMENT_CHUNK_SIZE = 1024 * 1024
 
 
-async def _get_wf_attachment(client: httpx.AsyncClient, url: str) -> httpx.Response:
-    """GET a workflow attachment, retrying transient failures with exponential backoff."""
-    last_error: Exception
-    for attempt in range(1, ATTACHMENT_MAX_ATTEMPTS + 1):
-        try:
-            res = await client.get(
-                url, timeout=ATTACHMENT_TIMEOUT, follow_redirects=True, headers={"User-Agent": user_agent()}
-            )
+async def _stream_to_file(
+    client: httpx.AsyncClient, url: str, file_path: Path, check_abort: Callable[[], None]
+) -> None:
+    """GET url into file_path in chunks, following redirects one hop at a time.
+
+    Every hop is checked against the metadata service addresses before it is requested, so a
+    redirect cannot lead to an address that the first URL was not allowed to point to. check_abort
+    is called before every chunk is written.
+    """
+    for _ in range(ATTACHMENT_MAX_REDIRECTS + 1):
+        # The check resolves the hostname, which blocks, so it runs off the event loop
+        await asyncio.to_thread(validate_url_not_metadata_service, url)
+        async with client.stream(
+            "GET", url, timeout=ATTACHMENT_TIMEOUT, follow_redirects=False, headers={"User-Agent": user_agent()}
+        ) as res:
+            if res.is_redirect:
+                url = str(res.url.join(res.headers["location"]))
+                continue
+            if res.is_error:
+                await res.aread()
             res.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code not in ATTACHMENT_RETRY_STATUS_CODES:
-                raise
-            last_error = e
-        except httpx.TransportError as e:
-            last_error = e
-        else:
-            return res
+            with file_path.open(mode="wb") as f:
+                async for chunk in res.aiter_bytes(ATTACHMENT_CHUNK_SIZE):
+                    check_abort()
+                    f.write(chunk)
+            return
+    msg = f"More than {ATTACHMENT_MAX_REDIRECTS} redirects while downloading {url}"
+    raise httpx.TooManyRedirects(msg)
 
-        if attempt < ATTACHMENT_MAX_ATTEMPTS:
-            backoff = ATTACHMENT_RETRY_BACKOFF_SECONDS * (2 ** (attempt - 1))
-            LOGGER.warning(
-                "Retrying workflow attachment download: url=%s, attempt=%d/%d, backoff=%.1fs, error=%s",
-                url,
-                attempt,
-                ATTACHMENT_MAX_ATTEMPTS,
-                backoff,
-                last_error,
-            )
-            await asyncio.sleep(backoff)
+
+async def download_url(url: str, file_path: Path, check_abort: Callable[[], None] = lambda: None) -> None:
+    """Download url into file_path, retrying transient failures with exponential backoff.
+
+    The body is written in chunks, so a large file does not stay in memory and the download can be
+    abandoned between chunks. A retry starts the file again.
+    """
+    last_error: Exception
+    async with httpx.AsyncClient() as client:
+        for attempt in range(1, ATTACHMENT_MAX_ATTEMPTS + 1):
+            try:
+                await _stream_to_file(client, url, file_path, check_abort)
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code not in ATTACHMENT_RETRY_STATUS_CODES:
+                    raise
+                last_error = e
+            except httpx.TransportError as e:
+                last_error = e
+            else:
+                return
+
+            if attempt < ATTACHMENT_MAX_ATTEMPTS:
+                backoff = ATTACHMENT_RETRY_BACKOFF_SECONDS * (2 ** (attempt - 1))
+                LOGGER.warning(
+                    "Retrying download: url=%s, attempt=%d/%d, backoff=%.1fs, error=%s",
+                    url,
+                    attempt,
+                    ATTACHMENT_MAX_ATTEMPTS,
+                    backoff,
+                    last_error,
+                )
+                await asyncio.sleep(backoff)
 
     raise last_error
 
@@ -278,33 +326,27 @@ async def download_wf_attachment(run_id: str, run_request: RunRequestForm) -> No
     exe_dir = resolve_content_path(run_id, "exe_dir")
     for obj in run_request.workflow_attachment_obj:
         _abort_preparation_if_requested(run_id)
-        name = obj.file_name
         url = obj.file_url
-        parsed_url = parse.urlparse(url)
-        if parsed_url.scheme in ["http", "https"]:
-            try:
-                validate_url_not_metadata_service(url)
-            except ValueError as e:
-                msg = f"Blocked download of workflow attachment {obj}: {e}"
-                raise Exception(msg) from e
-            file_path = exe_dir.joinpath(secure_filepath(name)).resolve()
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            try:
-                async with httpx.AsyncClient() as client:
-                    res = await _get_wf_attachment(client, url)
-                    with file_path.open(mode="wb") as f:
-                        f.write(res.content)
-            except httpx.HTTPStatusError as e:
-                # Because it is a background task, raise Exception instead of HTTPException
-                msg = f"Failed to download workflow attachment {obj}: {e.response.status_code} {e.response.text}"
-                raise Exception(msg) from e
-            except Exception as e:
-                # Because it is a background task, raise Exception instead of HTTPException
-                msg = f"Failed to download workflow attachment {obj}: {e}"
-                raise Exception(msg) from e
+        file_path = exe_dir.joinpath(secure_filepath(obj.file_name)).resolve()
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        # Because it is a background task, raise Exception instead of HTTPException
+        try:
+            await download_url(url, file_path, lambda: _abort_preparation_if_requested(run_id))
+        except RunPreparationAbortedError:
+            raise
+        except ValueError as e:
+            msg = f"Blocked download of workflow attachment {obj}: {e}"
+            raise Exception(msg) from e
+        except httpx.HTTPStatusError as e:
+            msg = f"Failed to download workflow attachment {obj}: {e.response.status_code} {e.response.text}"
+            raise Exception(msg) from e
+        except Exception as e:
+            msg = f"Failed to download workflow attachment {obj}: {e}"
+            raise Exception(msg) from e
 
 
-def fork_run(run_id: str) -> None:
+def fork_run(run_id: str) -> "Popen[str]":
+    """Start run.sh for the run. run.sh writes run.pid itself, after it has set its signal traps."""
     _abort_preparation_if_requested(run_id)
     run_dir = resolve_run_dir(run_id)
     stdout = resolve_content_path(run_id, "stdout")
@@ -314,13 +356,24 @@ def fork_run(run_id: str) -> None:
     env["SAPPORO_CANCEL_GRACE_SECONDS"] = str(get_config().cancel_grace_seconds)
     write_file(run_id, "state", State.QUEUED)
     with stdout.open(mode="w", encoding="utf-8") as f_stdout, stderr.open(mode="w", encoding="utf-8") as f_stderr:
-        process = Popen(cmd, cwd=str(run_dir), env=env, encoding="utf-8", stdout=f_stdout, stderr=f_stderr)
-    if process.pid is not None:
-        write_file(run_id, "pid", process.pid)
+        # The configured run.sh with the run directory as its only argument, without a shell
+        process = Popen(cmd, cwd=str(run_dir), env=env, encoding="utf-8", stdout=f_stdout, stderr=f_stderr)  # noqa: S603
     # Reap the child process in a background thread to prevent zombie processes
     reaper = Thread(target=process.wait, daemon=True)
     reaper.start()
     LOGGER.debug("Run forked: run_id=%s, pid=%d", run_id, process.pid or -1)
+    return process
+
+
+async def _wait_for_run_pid(run_id: str, process: "Popen[str]") -> None:
+    """Wait until run.sh has written run.pid or has exited, so that reconcile_runs can judge the run."""
+    pid_path = resolve_content_path(run_id, "pid")
+    deadline = time.monotonic() + RUN_PID_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        if pid_path.exists() or process.poll() is not None:
+            return
+        await asyncio.sleep(0.05)
+    LOGGER.warning("run.sh of run %s has not written run.pid within %.0f seconds", run_id, RUN_PID_WAIT_SECONDS)
 
 
 # Reported as the exit code when the run fails before run.sh is ever started, so that the run log
@@ -330,10 +383,11 @@ POST_RUN_TASK_FAILURE_EXIT_CODE = 1
 
 async def post_run_task(run_id: str, run_request: RunRequestForm) -> None:
     """Run in the background after issuing a run_id in POST /runs."""
-    _INITIALIZING_RUNS.add(run_id)
+    _PREPARING_RUNS.add(run_id)
     try:
         await download_wf_attachment(run_id, run_request)
-        fork_run(run_id)
+        process = fork_run(run_id)
+        await _wait_for_run_pid(run_id, process)
     except RunPreparationAbortedError:
         _settle_aborted_preparation(run_id)
     except Exception as e:
@@ -347,7 +401,7 @@ async def post_run_task(run_id: str, run_request: RunRequestForm) -> None:
         error_msg = "".join(traceback.TracebackException.from_exception(e).format())
         append_system_logs(run_id, error_msg)
     finally:
-        _INITIALIZING_RUNS.discard(run_id)
+        _PREPARING_RUNS.discard(run_id)
 
 
 def _settle_aborted_preparation(run_id: str) -> None:
@@ -379,26 +433,29 @@ def append_system_logs(run_id: str, log: str) -> None:
 # Called from run.sh
 def dump_outputs_list(run_dir: str | Path) -> None:
     run_dir = Path(run_dir).resolve()
-    with run_dir.joinpath(RUN_DIR_STRUCTURE["runtime_info"]).open(mode="r", encoding="utf-8") as f:
-        runtime_info = json.load(f)
+    runtime_info = read_run_dir_file(run_dir, "runtime_info")
+    if not isinstance(runtime_info, dict):
+        msg = f"runtime_info.json is missing or is not a JSON object in {run_dir}"
+        raise TypeError(msg)
     run_id = runtime_info.get("run_id", run_dir.name)
     base_url = runtime_info["base_url"]
     outputs_dir = run_dir.joinpath(RUN_DIR_STRUCTURE["outputs_dir"])
-    output_files = sorted(list_files(outputs_dir))
+    output_files = sorted(list_files(outputs_dir, run_dir))
     outputs = []
     for file in output_files:
         file_name = str(file.relative_to(outputs_dir))
         # The URL must round-trip names with spaces, "+" and other reserved characters
         file_url = f"{base_url}/runs/{run_id}/outputs/{parse.quote(file_name)}"
         outputs.append({"file_name": file_name, "file_url": file_url})
-    with run_dir.joinpath(RUN_DIR_STRUCTURE["outputs"]).open(mode="w", encoding="utf-8") as f:
+    with open_run_file_for_write(run_dir.joinpath(RUN_DIR_STRUCTURE["outputs"])) as f:
         json.dump(outputs, f, indent=2)
 
 
-def list_files(dir_: Path) -> Iterable[Path]:
-    for root, _, files in os.walk(dir_):
-        for file in files:
-            yield Path(root).joinpath(file)
+def list_files(dir_: Path, run_dir: Path) -> Iterable[Path]:
+    """Files under dir_, following symlinks only inside the run directory."""
+    for current, _, files in walk_within_run(dir_, run_dir):
+        for name in files:
+            yield current / name
 
 
 def cancel_run_task(run_id: str) -> None:
@@ -414,7 +471,8 @@ def cancel_run_task(run_id: str) -> None:
         write_file(run_id, "state", State.CANCELING)
         pid: int | None = read_file(run_id, "pid")
         if pid is None:
-            write_file(run_id, "state", State.UNKNOWN)
+            # run.sh has not set its traps and written run.pid yet; it reads CANCELING before it starts the workflow
+            LOGGER.info("Run %s has no run.pid yet; run.sh ends it as CANCELED on start", run_id)
         elif not _run_sh_alive(run_id, pid):
             # run.sh is gone without a terminal state; reconcile_runs settles the run later
             LOGGER.warning("run.sh (pid=%d) of run %s is not running, nothing to cancel", pid, run_id)
@@ -491,16 +549,6 @@ def _sync_run_db(run_id: str) -> None:
         LOGGER.warning("Could not update the run index after deleting run %s: %s", run_id, e)
 
 
-def _inside_run_dir(path: Path, run_dir: Path) -> bool:
-    """Whether the file that path refers to (symlinks followed) lies inside the run directory."""
-    try:
-        real_path = path.resolve(strict=True)
-    except (OSError, RuntimeError):
-        return False
-
-    return real_path.is_relative_to(run_dir)
-
-
 def resolve_output_file(run_id: str, path: str) -> Path:
     """Map a requested output path to the file to serve.
 
@@ -514,7 +562,7 @@ def resolve_output_file(run_id: str, path: str) -> Path:
     file_path = resolve_content_path(run_id, "outputs_dir").joinpath(*parts)
     if not file_path.exists() and not file_path.is_symlink():
         raise_not_found("File", path)
-    if not _inside_run_dir(file_path, resolve_run_dir(run_id)):
+    if not inside_run_dir(file_path, resolve_run_dir(run_id)):
         raise_bad_request(f"Invalid file path: {path!r}")
     if not file_path.is_file():
         raise_not_found("File", path)
@@ -522,34 +570,99 @@ def resolve_output_file(run_id: str, path: str) -> Path:
     return file_path
 
 
-def _zip_stream_within_run(root: Path, arcname: str, run_dir: Path) -> tuple[Iterable[bytes], int]:
-    """Zip a directory tree, leaving out files whose target lies outside the run directory."""
-    zs = ZipStream(sized=True)
-    for current, dirs, files in os.walk(root):
-        current_path = Path(current)
-        current_arcname = Path(arcname) / current_path.relative_to(root)
+def _add_tree_within_run(zs: ZipStream, root: Path, arcname: PurePosixPath, run_dir: Path) -> None:
+    """Add a directory tree to zs, leaving out files whose target lies outside the run directory."""
+    for current_path, dirs, files in walk_within_run(root, run_dir):
+        current_arcname = arcname / current_path.relative_to(root).as_posix()
         if not dirs and not files:
             zs.add_path(current_path, arcname=str(current_arcname), recurse=False)
         for name in files:
-            file_path = current_path / name
-            if not _inside_run_dir(file_path, run_dir):
-                LOGGER.warning("Leaving %s out of the archive: it points outside the run directory", file_path)
-                continue
-            zs.add_path(file_path, arcname=str(current_arcname / name))
-
-    return iter(zs), len(zs)
+            zs.add_path(current_path / name, arcname=str(current_arcname / name))
 
 
 def outputs_zip_stream(run_id: str, name: str | None = None) -> tuple[Iterable[bytes], int]:
     outputs_dir = resolve_content_path(run_id, "outputs_dir")
     base_dir_name = name or f"sapporo_{run_id}_outputs"
-    return _zip_stream_within_run(outputs_dir, base_dir_name, resolve_run_dir(run_id))
+    zs = ZipStream(sized=True)
+    _add_tree_within_run(zs, outputs_dir, PurePosixPath(base_dir_name), resolve_run_dir(run_id))
+    return iter(zs), len(zs)
+
+
+_DATA_ENTITY_TYPES = frozenset({"File", "Dataset"})
+
+
+def _data_entity_path(entity_id: str) -> PurePosixPath | None:
+    """Return the path in the run directory that the @id of a data entity names.
+
+    None for an id that is not a path in the run directory: a URL, a fragment, the root dataset, an
+    absolute path, or a path that climbs out with "..". The ids of ro-crate-py are percent-encoded.
+    """
+    if entity_id.startswith("#") or parse.urlsplit(entity_id).scheme:
+        return None
+    path = PurePosixPath(parse.unquote(entity_id))
+    if path.is_absolute() or not path.parts or any(part == ".." or "\0" in part for part in path.parts):
+        return None
+    return path
+
+
+def _ro_crate_data_entity_paths(run_dir: Path) -> list[PurePosixPath]:
+    """Return the paths of the files and directories that ro-crate-metadata.json lists as data entities."""
+    f = open_run_file(run_dir.joinpath(RUN_DIR_STRUCTURE["ro_crate"]))
+    if f is None:
+        return []
+    with f:
+        try:
+            crate = json.load(f)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return []
+    graph = crate.get("@graph") if isinstance(crate, dict) else None
+    if not isinstance(graph, list):
+        return []
+
+    paths: list[PurePosixPath] = []
+    for entity in graph:
+        if not isinstance(entity, dict):
+            continue
+        types = entity.get("@type")
+        type_names = {types} if isinstance(types, str) else set(types) if isinstance(types, list) else set()
+        entity_id = entity.get("@id")
+        if not (_DATA_ENTITY_TYPES & type_names) or not isinstance(entity_id, str):
+            continue
+        path = _data_entity_path(entity_id)
+        if path is not None:
+            paths.append(path)
+    return paths
 
 
 def ro_crate_zip_stream(run_id: str) -> tuple[Iterable[bytes], int]:
+    """Zip the crate: ro-crate-metadata.json, README.md and the data entities that the crate lists.
+
+    Control files that the crate does not list, such as run.pid and username.txt, stay out. A file
+    directly under the run directory is a control file and is added only as a regular file, while a
+    path below it follows the rule of outputs/: a symlink is followed when its target lies inside
+    the run directory.
+    """
     run_dir = resolve_run_dir(run_id)
-    base_dir_name = f"sapporo_{run_id}_ro_crate"
-    return _zip_stream_within_run(run_dir, base_dir_name, run_dir)
+    base_dir = PurePosixPath(f"sapporo_{run_id}_ro_crate")
+    zs = ZipStream(sized=True)
+    added: set[PurePosixPath] = set()
+    candidates = [PurePosixPath(RUN_DIR_STRUCTURE["ro_crate"]), PurePosixPath("README.md")]
+    for rel_path in [*candidates, *_ro_crate_data_entity_paths(run_dir)]:
+        if rel_path in added:
+            continue
+        added.add(rel_path)
+        path = run_dir.joinpath(*rel_path.parts)
+        if len(rel_path.parts) == 1 and path.is_symlink():
+            continue
+        real_path = resolve_within_run(path, run_dir)
+        if real_path is None:
+            continue
+        if real_path.is_dir():
+            _add_tree_within_run(zs, path, base_dir / rel_path, run_dir)
+        elif real_path.is_file():
+            zs.add_path(path, arcname=str(base_dir / rel_path))
+
+    return iter(zs), len(zs)
 
 
 def bulk_delete_run_tasks(run_ids: list[str]) -> None:

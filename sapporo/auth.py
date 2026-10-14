@@ -180,6 +180,8 @@ def auth_depends_factory(optional: bool = False) -> Any:
 
 def is_create_token_endpoint_enabled() -> None:
     auth_config = get_auth_config()
+    if not auth_config.auth_enabled:
+        raise_bad_request("Authentication is not enabled.")
     if auth_config.idp_provider == "external" and auth_config.external_config.client_mode == "public":
         raise_bad_request("Token creation is not allowed for public client mode.")
 
@@ -370,14 +372,14 @@ def clear_external_auth_caches() -> None:
         _jwks_cache.clear()
 
 
-def _is_insecure_idp_allowed() -> bool:
+def is_insecure_idp_allowed() -> bool:
     """Check if insecure (HTTP) IdP connections are allowed via environment variable."""
     return os.environ.get("SAPPORO_ALLOW_INSECURE_IDP", "").lower() in ("true", "1", "yes")
 
 
 def _validate_https_url(url: str, context: str) -> None:
     """Validate that a URL uses HTTPS protocol unless insecure connections are explicitly allowed."""
-    if not _is_insecure_idp_allowed() and not url.startswith("https://"):
+    if not is_insecure_idp_allowed() and not url.startswith("https://"):
         raise_bad_request(
             f"{context} must use HTTPS for security. "
             f"Got: {url}. "

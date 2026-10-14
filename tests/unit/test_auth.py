@@ -16,13 +16,13 @@ from sapporo.auth import (
     MAX_JWT_EXPIRES_HOURS,
     SAPPORO_AUDIENCE,
     SAPPORO_SIGNATURE_ALGORITHM,
-    _is_insecure_idp_allowed,
     _mask_username,
     _validate_https_url,
     clear_external_auth_caches,
     external_decode_token,
     fetch_endpoint_metadata,
     fetch_jwks,
+    is_insecure_idp_allowed,
     sanitize_username,
     spr_check_user,
     spr_create_access_token,
@@ -292,7 +292,7 @@ def test_spr_decode_token_with_wrong_audience_raises_401(mocker: "MockerFixture"
     assert exc_info.value.status_code == 401
 
 
-# === _validate_https_url / _is_insecure_idp_allowed ===
+# === _validate_https_url / is_insecure_idp_allowed ===
 
 
 def test_validate_https_url_with_https_succeeds() -> None:
@@ -305,23 +305,23 @@ def test_validate_https_url_with_http_raises_400() -> None:
     assert exc_info.value.status_code == 400
 
 
-def test_is_insecure_idp_allowed_default_is_false() -> None:
-    assert not _is_insecure_idp_allowed()
+def testis_insecure_idp_allowed_default_is_false() -> None:
+    assert not is_insecure_idp_allowed()
 
 
-def test_is_insecure_idp_allowed_with_env_true() -> None:
+def testis_insecure_idp_allowed_with_env_true() -> None:
     os.environ["SAPPORO_ALLOW_INSECURE_IDP"] = "true"
-    assert _is_insecure_idp_allowed()
+    assert is_insecure_idp_allowed()
 
 
-def test_is_insecure_idp_allowed_with_env_one() -> None:
+def testis_insecure_idp_allowed_with_env_one() -> None:
     os.environ["SAPPORO_ALLOW_INSECURE_IDP"] = "1"
-    assert _is_insecure_idp_allowed()
+    assert is_insecure_idp_allowed()
 
 
-def test_is_insecure_idp_allowed_with_env_yes() -> None:
+def testis_insecure_idp_allowed_with_env_yes() -> None:
     os.environ["SAPPORO_ALLOW_INSECURE_IDP"] = "yes"
-    assert _is_insecure_idp_allowed()
+    assert is_insecure_idp_allowed()
 
 
 def test_validate_https_url_with_insecure_allowed_accepts_http() -> None:

@@ -9,3 +9,6 @@
 !sapporo-wes-spec-2.0.0.yml
 !tests
 !uv.lock
+
+# Bytecode written on the host by the bind-mounted dev container
+**/__pycache__

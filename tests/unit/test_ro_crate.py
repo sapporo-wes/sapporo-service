@@ -2181,3 +2181,102 @@ class TestOutputSymlinks:
         assert "outputs/result.txt" in ids
         assert "outputs/published.txt" in ids
         assert "outputs/leak.txt" not in ids
+
+
+class TestRunDirSymlinks:
+    def test_symlinked_output_directory_inside_run_dir_is_included(
+        self, tmp_path: Path, mocker: "MockerFixture"
+    ) -> None:
+        from sapporo.config import RUN_DIR_STRUCTURE
+
+        rd = create_run_dir(
+            tmp_path,
+            RUN_ID,
+            exit_code="0",
+            end_time="2024-01-01T00:10:00",
+            wf_params="{}",
+            output_files={"result.txt": "hello"},
+            outputs_json=[],
+        )
+        outputs_dir = rd / RUN_DIR_STRUCTURE["outputs_dir"]
+        work = rd / RUN_DIR_STRUCTURE["exe_dir"] / "work"
+        work.mkdir()
+        (work / "a.txt").write_text("a", encoding="utf-8")
+        (outputs_dir / "published").symlink_to(work)
+        secret_dir = tmp_path / "secret"
+        secret_dir.mkdir()
+        (secret_dir / "s.txt").write_text("s", encoding="utf-8")
+        (outputs_dir / "leak").symlink_to(secret_dir)
+        mocker.patch("sapporo.ro_crate.shutil.which", return_value=None)
+
+        jsonld = generate_ro_crate_metadata(rd)
+
+        ids = {e["@id"] for e in jsonld["@graph"]}
+        assert "outputs/published/a.txt" in ids
+        assert "outputs/leak/s.txt" not in ids
+
+    def test_symlinked_log_file_is_left_out(self, tmp_path: Path, mocker: "MockerFixture") -> None:
+        from sapporo.config import RUN_DIR_STRUCTURE
+
+        rd = create_run_dir(
+            tmp_path,
+            RUN_ID,
+            exit_code="0",
+            end_time="2024-01-01T00:10:00",
+            wf_params="{}",
+            stdout_content="real",
+            stderr_content="err",
+            outputs_json=[],
+        )
+        secret = tmp_path / "secret.txt"
+        secret.write_text("secret", encoding="utf-8")
+        stdout = rd / RUN_DIR_STRUCTURE["stdout"]
+        stdout.unlink()
+        stdout.symlink_to(secret)
+        mocker.patch("sapporo.ro_crate.shutil.which", return_value=None)
+
+        jsonld = generate_ro_crate_metadata(rd)
+
+        ids = {e["@id"] for e in jsonld["@graph"]}
+        assert "stdout.log" not in ids
+        assert "stderr.log" in ids
+
+    def test_attachment_entity_uses_the_sanitized_name(self, tmp_path: Path, mocker: "MockerFixture") -> None:
+        from sapporo.config import RUN_DIR_STRUCTURE
+
+        request: dict[str, Any] = {
+            "workflow_params": "{}",
+            "workflow_type": "CWL",
+            "workflow_type_version": "v1.0",
+            "tags": {},
+            "workflow_engine": "cwltool",
+            "workflow_engine_version": None,
+            "workflow_engine_parameters": None,
+            "workflow_url": "https://example.com/wf.cwl",
+            "workflow_attachment": [
+                {
+                    "filename": "../evil.txt",
+                    "size": 4,
+                    "headers": {"content-type": "application/octet-stream"},
+                    "content_type": "application/octet-stream",
+                }
+            ],
+            "workflow_attachment_obj": [],
+        }
+        rd = create_run_dir(
+            tmp_path,
+            RUN_ID,
+            run_request_dict=request,
+            exit_code="0",
+            end_time="2024-01-01T00:10:00",
+            wf_params="{}",
+            outputs_json=[],
+        )
+        (rd / RUN_DIR_STRUCTURE["exe_dir"] / "evil.txt").write_text("evil", encoding="utf-8")
+        mocker.patch("sapporo.ro_crate.shutil.which", return_value=None)
+
+        jsonld = generate_ro_crate_metadata(rd)
+
+        ids = {e["@id"] for e in jsonld["@graph"]}
+        assert "exe/evil.txt" in ids
+        assert all(".." not in entity_id for entity_id in ids)

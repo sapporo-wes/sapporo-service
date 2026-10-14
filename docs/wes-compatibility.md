@@ -156,6 +156,8 @@ Optional field containing a JSON array of `FileObject` to download remote files:
 ]
 ```
 
+`file_url` must use `http` or `https`. `POST /runs` returns 400 for any other scheme.
+
 ### Unimplemented Endpoints
 
 | Endpoint | WES 1.1.0 operation | sapporo status |
@@ -194,6 +196,7 @@ Optional field containing a JSON array of `FileObject` to download remote files:
 | `GET /runs` snapshot mode | Returns live state by default (`latest=true`); with `latest=false` returns the snapshot that is aggregated periodically |
 | `GET /runs/{run_id}` live state | Always reads the run directory and returns the latest state |
 | `system_state_counts` user scoping | When authenticated, counts only the authenticated user's runs |
+| `run_log.stdout` / `run_log.stderr` content | WES defines these fields as URLs. sapporo returns the content of `stdout.log` and `stderr.log` instead, so `GET /runs/{run_id}` carries the whole log |
 
 ## sapporo 2.0.0 -> sapporo 2.1.0
 

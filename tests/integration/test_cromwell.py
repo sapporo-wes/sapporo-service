@@ -64,3 +64,24 @@ class TestCromwellErrorCases:
 
         log = get_run_log(sapporo_client, run_id)
         assert log["run_log"]["exit_code"] != 0
+
+
+class TestCromwellArrayOutputs:
+    def test_scatter_outputs_are_copied(self, sapporo_client: httpx.Client) -> None:
+        """Every member of an Array[File] output ends up in outputs/."""
+        run_id = submit_workflow(
+            sapporo_client,
+            wf_type="WDL",
+            wf_type_version="1.0",
+            wf_engine="cromwell",
+            wf_url="scatter.wdl",
+            params_file=WDL_DIR / "scatter_params.json",
+            attachments=[WDL_DIR / "scatter.wdl"],
+        )
+
+        state = wait_for_completion(sapporo_client, run_id)
+        assert state == "COMPLETE"
+
+        log = get_run_log(sapporo_client, run_id)
+        names = {output["file_name"] for output in log["outputs"]}
+        assert {"out_1.txt", "out_2.txt", "out_3.txt"} <= names

@@ -1,5 +1,7 @@
+import logging
+import os
 import socket
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -12,11 +14,14 @@ from sapporo.utils import (
     dt_to_time_str,
     mask_sensitive,
     now_str,
+    open_run_file,
+    open_run_file_for_write,
     sapporo_version,
     secure_filepath,
     tail_file,
     time_str_to_dt,
     validate_url_not_metadata_service,
+    walk_within_run,
 )
 
 # === now_str ===
@@ -47,6 +52,29 @@ def test_time_str_to_dt_parses_rfc3339_with_z() -> None:
     assert dt.minute == 30
     assert dt.second == 0
     assert dt.tzinfo is not None
+
+
+def test_time_str_to_dt_reads_time_without_offset_as_utc() -> None:
+    assert time_str_to_dt("2026-10-13T12:38:14") == datetime(2026, 10, 13, 12, 38, 14, tzinfo=UTC)
+
+
+def test_time_str_to_dt_keeps_explicit_offset() -> None:
+    dt = time_str_to_dt("2026-10-13T21:38:14+09:00")
+    assert dt.utcoffset() == timedelta(hours=9)
+    assert dt == datetime(2026, 10, 13, 12, 38, 14, tzinfo=UTC)
+
+
+@given(
+    st.datetimes(
+        min_value=datetime(2000, 1, 1),  # noqa: DTZ001 (hypothesis requires naive min_value)
+        max_value=datetime(2099, 12, 31),  # noqa: DTZ001 (hypothesis requires naive max_value)
+    )
+)
+def test_time_str_to_dt_always_returns_aware_utc_for_naive_time(dt: datetime) -> None:
+    result = time_str_to_dt(dt.isoformat(timespec="seconds"))
+    assert result.tzinfo is not None
+    assert result.utcoffset() == timedelta(0)
+    assert result.replace(tzinfo=None) == dt.replace(microsecond=0)
 
 
 def test_dt_to_time_str_formats_utc_with_z() -> None:
@@ -292,6 +320,35 @@ def test_validate_url_link_local_ip_is_blocked(url: str) -> None:
         validate_url_not_metadata_service(url)
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://[fd00:ec2::254]/latest/meta-data/",
+        "http://100.100.100.200/latest/meta-data/",
+        "http://[::ffff:169.254.169.254]/latest/meta-data/",
+    ],
+)
+def test_validate_url_other_metadata_service_addresses_are_blocked(url: str) -> None:
+    with pytest.raises(ValueError, match="metadata service"):
+        validate_url_not_metadata_service(url)
+
+
+def test_validate_url_ip_literal_is_checked_without_dns() -> None:
+    with patch("sapporo.utils.socket.getaddrinfo", side_effect=AssertionError("DNS must not be used")):
+        validate_url_not_metadata_service("http://10.0.0.1/file.txt")
+
+
+def test_validate_url_dns_result_with_scope_id_is_checked() -> None:
+    fake_addrinfo = [
+        (socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("fe80::1%eth0", 0, 0, 2)),
+    ]
+    with (
+        patch("sapporo.utils.socket.getaddrinfo", return_value=fake_addrinfo),
+        pytest.raises(ValueError, match="link-local"),
+    ):
+        validate_url_not_metadata_service("http://evil.example.com/steal")
+
+
 def test_validate_url_dns_rebinding_to_link_local_is_blocked() -> None:
     fake_addrinfo = [
         (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.169.254", 0)),
@@ -319,3 +376,121 @@ def test_validate_url_non_http_scheme_is_blocked(url: str) -> None:
 def test_validate_url_dns_resolution_failure_passes() -> None:
     with patch("sapporo.utils.socket.getaddrinfo", side_effect=socket.gaierror("DNS failed")):
         validate_url_not_metadata_service("http://nonexistent.example.com/file.txt")
+
+
+# === open_run_file / open_run_file_for_write ===
+
+
+def test_open_run_file_reads_regular_file(tmp_path: Path) -> None:
+    path = tmp_path / "state.txt"
+    path.write_text("RUNNING", encoding="utf-8")
+
+    f = open_run_file(path)
+
+    assert f is not None
+    with f:
+        assert f.read() == "RUNNING"
+
+
+def test_open_run_file_with_missing_file_returns_none(tmp_path: Path) -> None:
+    assert open_run_file(tmp_path / "missing.txt") is None
+
+
+def test_open_run_file_with_symlink_returns_none_and_warns(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    secret = tmp_path / "secret.txt"
+    secret.write_text("secret", encoding="utf-8")
+    link = tmp_path / "stdout.log"
+    link.symlink_to(secret)
+
+    with caplog.at_level(logging.WARNING, logger="sapporo.utils"):
+        assert open_run_file(link) is None
+
+    assert "stdout.log" in caplog.text
+
+
+def test_open_run_file_with_directory_returns_none(tmp_path: Path) -> None:
+    assert open_run_file(tmp_path) is None
+
+
+def test_open_run_file_with_fifo_returns_none_without_blocking(tmp_path: Path) -> None:
+    fifo = tmp_path / "stderr.log"
+    os.mkfifo(fifo)
+
+    assert open_run_file(fifo) is None
+
+
+def test_open_run_file_for_write_replaces_symlink_and_keeps_target(tmp_path: Path) -> None:
+    target = tmp_path / "target.txt"
+    target.write_text("original", encoding="utf-8")
+    link = tmp_path / "state.txt"
+    link.symlink_to(target)
+
+    with open_run_file_for_write(link) as f:
+        f.write("COMPLETE")
+
+    assert not link.is_symlink()
+    assert link.read_text(encoding="utf-8") == "COMPLETE"
+    assert target.read_text(encoding="utf-8") == "original"
+
+
+def test_open_run_file_for_write_creates_and_truncates_regular_file(tmp_path: Path) -> None:
+    path = tmp_path / "state.txt"
+
+    with open_run_file_for_write(path) as f:
+        f.write("QUEUED")
+    with open_run_file_for_write(path) as f:
+        f.write("RUNNING")
+
+    assert path.read_text(encoding="utf-8") == "RUNNING"
+
+
+# === walk_within_run ===
+
+
+def _walked_files(root: Path, run_dir: Path) -> set[str]:
+    return {
+        str((current / name).relative_to(root))
+        for current, _, files in walk_within_run(root, run_dir)
+        for name in files
+    }
+
+
+def test_walk_within_run_follows_symlinked_directory_inside_run_dir(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    outputs = run_dir / "outputs"
+    work = run_dir / "exe" / "work"
+    work.mkdir(parents=True)
+    outputs.mkdir()
+    (work / "a.txt").write_text("a", encoding="utf-8")
+    (outputs / "published").symlink_to(work)
+
+    assert _walked_files(outputs, run_dir) == {"published/a.txt"}
+
+
+def test_walk_within_run_leaves_out_symlinked_directory_and_file_outside_run_dir(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    outputs = run_dir / "outputs"
+    outputs.mkdir(parents=True)
+    (outputs / "ok.txt").write_text("ok", encoding="utf-8")
+    secret_dir = tmp_path / "secret"
+    secret_dir.mkdir()
+    (secret_dir / "s.txt").write_text("s", encoding="utf-8")
+    (outputs / "leak_dir").symlink_to(secret_dir)
+    (outputs / "leak.txt").symlink_to(secret_dir / "s.txt")
+
+    assert _walked_files(outputs, run_dir) == {"ok.txt"}
+
+
+def test_walk_within_run_visits_a_symlink_loop_once(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    outputs = run_dir / "outputs"
+    sub = outputs / "sub"
+    sub.mkdir(parents=True)
+    (sub / "b.txt").write_text("b", encoding="utf-8")
+    (sub / "loop").symlink_to(outputs)
+
+    assert _walked_files(outputs, run_dir) == {"sub/b.txt"}
+
+
+def test_walk_within_run_with_missing_root_yields_nothing(tmp_path: Path) -> None:
+    assert list(walk_within_run(tmp_path / "missing", tmp_path)) == []

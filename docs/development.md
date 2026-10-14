@@ -13,7 +13,7 @@ docker compose -f compose.dev.yml exec app bash
 
 The development compose file:
 
-- Builds from the local Dockerfile
+- Builds the `dev` target of the local Dockerfile, which adds the `tests` extra and the `dev` dependency group to the runtime dependencies. The default target is the image that CI publishes, and it contains only the runtime dependencies
 - Mounts the source tree at `/app`
 - Uses a named volume for `.venv` (avoids host/container venv conflicts)
 - Runs `sleep infinity` so you can exec into the container and start the service manually
@@ -105,7 +105,7 @@ workflow engine:
 | `test_streamflow.py` | streamflow | CWL |
 | `test_ro_crate.py` | all of the above | (multi-engine RO-Crate validation) |
 
-`test_cancel.py`, `test_delete.py`, `test_auth.py` and `test_auth_external.py` cover the run lifecycle and authentication with cwltool.
+`test_cancel.py` covers cancellation, including that every engine with Docker socket access stops its step containers. `test_delete.py`, `test_auth.py` and `test_auth_external.py` cover deletion and authentication with cwltool.
 
 Run integration tests inside the development container:
 

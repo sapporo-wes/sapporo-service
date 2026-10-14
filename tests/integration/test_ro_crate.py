@@ -192,6 +192,8 @@ class TestRoCrateForCompleteRun:
         with zipfile.ZipFile(io.BytesIO(res.content)) as zf:
             names = zf.namelist()
             assert any("ro-crate-metadata.json" in n for n in names)
+            # Control files that the crate does not list stay out of the ZIP
+            assert not any(n.endswith(("/run.pid", "/run_request.json", "/state.txt", "/exit_code.txt")) for n in names)
 
     @pytest.mark.slow
     def test_roc_validator_required_pass_complete(self, sapporo_client: httpx.Client, tmp_path: Path) -> None:

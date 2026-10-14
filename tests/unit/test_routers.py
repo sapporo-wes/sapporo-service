@@ -372,6 +372,22 @@ class TestRunWorkflow:
         assert res.status_code == 400
         assert "workflow_type_version" in res.json()["msg"]
 
+    def test_json_body_with_ftp_attachment_obj_url_returns_400(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        res = _post_run_json(
+            client, workflow_attachment_obj=[{"file_name": "a.txt", "file_url": "ftp://example.com/a.txt"}]
+        )
+        assert res.status_code == 400
+        assert "file_url" in res.json()["msg"]
+
+    def test_form_with_file_attachment_obj_url_returns_400(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        res = _post_run_form(
+            client, workflow_attachment_obj=json.dumps([{"file_name": "a.txt", "file_url": "file:///etc/hostname"}])
+        )
+        assert res.status_code == 400
+        assert "file_url" in res.json()["msg"]
+
     def test_malformed_json_body_returns_400(self, mocker: "MockerFixture", tmp_path: Path) -> None:
         client = _client_with_mock_run_tasks(mocker, tmp_path)
         res = client.post("/runs", content=b"{not json", headers={"content-type": "application/json"})
@@ -424,6 +440,24 @@ class TestRunWorkflow:
 
 
 class TestGetRunLog:
+    def test_symlinked_log_is_returned_as_null(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        from sapporo.config import RUN_DIR_STRUCTURE
+
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        run_id = "aabbccdd-0000-0000-0000-000000000703"
+        rd = create_run_dir(tmp_path, run_id, stdout_content="real", stderr_content="err")
+        secret = tmp_path / "secret.txt"
+        secret.write_text("secret", encoding="utf-8")
+        stdout = rd / RUN_DIR_STRUCTURE["stdout"]
+        stdout.unlink()
+        stdout.symlink_to(secret)
+
+        res = client.get(f"/runs/{run_id}")
+
+        assert res.status_code == 200
+        assert res.json()["run_log"]["stdout"] is None
+        assert res.json()["run_log"]["stderr"] == "err"
+
     def test_existing_run_returns_200(self, mocker: "MockerFixture", tmp_path: Path) -> None:
         client = _client_with_mock_run_tasks(mocker, tmp_path)
         run_id = "aabbccdd-0000-0000-0000-000000000701"
@@ -576,6 +610,55 @@ class TestListExecutableWorkflows:
         res = client.get("/executable-workflows")
         body = res.json()
         assert body["workflows"] == ["https://example.com/custom.cwl"]
+
+
+class TestRunWorkflowAllowlist:
+    def _allowlist_client(self, mocker: "MockerFixture", tmp_path: Path) -> Any:
+        from unittest.mock import AsyncMock
+
+        from sapporo.config import AppConfig
+
+        ew_path = tmp_path / "ew.json"
+        ew_path.write_text(json.dumps({"workflows": ["https://example.com/wf.cwl"]}), encoding="utf-8")
+        mocker.patch("sapporo.routers.post_run_task", new=AsyncMock())
+        return create_test_client(
+            mocker, tmp_path, app_config=AppConfig(run_dir=tmp_path, executable_workflows=ew_path)
+        )
+
+    def test_engine_parameters_are_rejected(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        client = self._allowlist_client(mocker, tmp_path)
+
+        res = client.post(
+            "/runs",
+            json={
+                "workflow_type": "CWL",
+                "workflow_type_version": "v1.0",
+                "workflow_engine": "cwltool",
+                "workflow_url": "https://example.com/wf.cwl",
+                "workflow_engine_parameters": {"--debug": "true"},
+            },
+        )
+
+        assert res.status_code == 400
+        assert "workflow_engine_parameters" in res.text
+
+    def test_registered_workflow_without_engine_parameters_is_accepted(
+        self, mocker: "MockerFixture", tmp_path: Path
+    ) -> None:
+        client = self._allowlist_client(mocker, tmp_path)
+
+        res = client.post(
+            "/runs",
+            json={
+                "workflow_type": "CWL",
+                "workflow_type_version": "v1.0",
+                "workflow_engine": "cwltool",
+                "workflow_url": "https://example.com/wf.cwl",
+            },
+        )
+
+        assert res.status_code == 200
+        assert "run_id" in res.json()
 
 
 # === GET /runs/{run_id}/outputs ===
@@ -820,6 +903,22 @@ class TestAuthEndpoints:
         client = _client_with_mock_run_tasks(mocker, tmp_path)
         res = client.get("/me")
         assert res.status_code == 400
+
+    def test_create_token_without_auth_returns_400_even_with_valid_credentials(
+        self, mocker: "MockerFixture", tmp_path: Path
+    ) -> None:
+        from sapporo.config import AppConfig
+
+        auth_dict = default_auth_config_dict()
+        auth_dict["auth_enabled"] = False
+        config = AppConfig(run_dir=tmp_path, auth_config=write_auth_config(tmp_path, auth_dict))
+        client = create_test_client(mocker, tmp_path, app_config=config)
+        res = client.post(
+            "/token",
+            data={"username": "test-user", "password": "sapporo-test-password"},
+        )
+        assert res.status_code == 400
+        assert res.json()["msg"] == "Authentication is not enabled."
 
 
 # === Auth cross-cutting tests ===
