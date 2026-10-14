@@ -44,8 +44,10 @@ from sapporo.schemas import RunRequestForm, State
 from sapporo.utils import (
     inside_run_dir,
     now_str,
+    open_run_file,
     open_run_file_for_write,
     read_run_dir_file,
+    resolve_within_run,
     secure_filepath,
     user_agent,
     validate_url_not_metadata_service,
@@ -325,8 +327,6 @@ async def download_wf_attachment(run_id: str, run_request: RunRequestForm) -> No
     for obj in run_request.workflow_attachment_obj:
         _abort_preparation_if_requested(run_id)
         url = obj.file_url
-        if parse.urlparse(url).scheme not in ["http", "https"]:
-            continue
         file_path = exe_dir.joinpath(secure_filepath(obj.file_name)).resolve()
         file_path.parent.mkdir(parents=True, exist_ok=True)
         # Because it is a background task, raise Exception instead of HTTPException
@@ -569,29 +569,99 @@ def resolve_output_file(run_id: str, path: str) -> Path:
     return file_path
 
 
-def _zip_stream_within_run(root: Path, arcname: str, run_dir: Path) -> tuple[Iterable[bytes], int]:
-    """Zip a directory tree, leaving out files whose target lies outside the run directory."""
-    zs = ZipStream(sized=True)
+def _add_tree_within_run(zs: ZipStream, root: Path, arcname: PurePosixPath, run_dir: Path) -> None:
+    """Add a directory tree to zs, leaving out files whose target lies outside the run directory."""
     for current_path, dirs, files in walk_within_run(root, run_dir):
-        current_arcname = Path(arcname) / current_path.relative_to(root)
+        current_arcname = arcname / current_path.relative_to(root).as_posix()
         if not dirs and not files:
             zs.add_path(current_path, arcname=str(current_arcname), recurse=False)
         for name in files:
             zs.add_path(current_path / name, arcname=str(current_arcname / name))
 
-    return iter(zs), len(zs)
-
 
 def outputs_zip_stream(run_id: str, name: str | None = None) -> tuple[Iterable[bytes], int]:
     outputs_dir = resolve_content_path(run_id, "outputs_dir")
     base_dir_name = name or f"sapporo_{run_id}_outputs"
-    return _zip_stream_within_run(outputs_dir, base_dir_name, resolve_run_dir(run_id))
+    zs = ZipStream(sized=True)
+    _add_tree_within_run(zs, outputs_dir, PurePosixPath(base_dir_name), resolve_run_dir(run_id))
+    return iter(zs), len(zs)
+
+
+_DATA_ENTITY_TYPES = frozenset({"File", "Dataset"})
+
+
+def _data_entity_path(entity_id: str) -> PurePosixPath | None:
+    """Return the path in the run directory that the @id of a data entity names.
+
+    None for an id that is not a path in the run directory: a URL, a fragment, the root dataset, an
+    absolute path, or a path that climbs out with "..". The ids of ro-crate-py are percent-encoded.
+    """
+    if entity_id.startswith("#") or parse.urlsplit(entity_id).scheme:
+        return None
+    path = PurePosixPath(parse.unquote(entity_id))
+    if path.is_absolute() or not path.parts or any(part == ".." or "\0" in part for part in path.parts):
+        return None
+    return path
+
+
+def _ro_crate_data_entity_paths(run_dir: Path) -> list[PurePosixPath]:
+    """Return the paths of the files and directories that ro-crate-metadata.json lists as data entities."""
+    f = open_run_file(run_dir.joinpath(RUN_DIR_STRUCTURE["ro_crate"]))
+    if f is None:
+        return []
+    with f:
+        try:
+            crate = json.load(f)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return []
+    graph = crate.get("@graph") if isinstance(crate, dict) else None
+    if not isinstance(graph, list):
+        return []
+
+    paths: list[PurePosixPath] = []
+    for entity in graph:
+        if not isinstance(entity, dict):
+            continue
+        types = entity.get("@type")
+        type_names = {types} if isinstance(types, str) else set(types) if isinstance(types, list) else set()
+        entity_id = entity.get("@id")
+        if not (_DATA_ENTITY_TYPES & type_names) or not isinstance(entity_id, str):
+            continue
+        path = _data_entity_path(entity_id)
+        if path is not None:
+            paths.append(path)
+    return paths
 
 
 def ro_crate_zip_stream(run_id: str) -> tuple[Iterable[bytes], int]:
+    """Zip the crate: ro-crate-metadata.json, README.md and the data entities that the crate lists.
+
+    Control files that the crate does not list, such as run.pid and username.txt, stay out. A file
+    directly under the run directory is a control file and is added only as a regular file, while a
+    path below it follows the rule of outputs/: a symlink is followed when its target lies inside
+    the run directory.
+    """
     run_dir = resolve_run_dir(run_id)
-    base_dir_name = f"sapporo_{run_id}_ro_crate"
-    return _zip_stream_within_run(run_dir, base_dir_name, run_dir)
+    base_dir = PurePosixPath(f"sapporo_{run_id}_ro_crate")
+    zs = ZipStream(sized=True)
+    added: set[PurePosixPath] = set()
+    candidates = [PurePosixPath(RUN_DIR_STRUCTURE["ro_crate"]), PurePosixPath("README.md")]
+    for rel_path in [*candidates, *_ro_crate_data_entity_paths(run_dir)]:
+        if rel_path in added:
+            continue
+        added.add(rel_path)
+        path = run_dir.joinpath(*rel_path.parts)
+        if len(rel_path.parts) == 1 and path.is_symlink():
+            continue
+        real_path = resolve_within_run(path, run_dir)
+        if real_path is None:
+            continue
+        if real_path.is_dir():
+            _add_tree_within_run(zs, path, base_dir / rel_path, run_dir)
+        elif real_path.is_file():
+            zs.add_path(path, arcname=str(base_dir / rel_path))
+
+    return iter(zs), len(zs)
 
 
 def bulk_delete_run_tasks(run_ids: list[str]) -> None:

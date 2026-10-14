@@ -372,6 +372,22 @@ class TestRunWorkflow:
         assert res.status_code == 400
         assert "workflow_type_version" in res.json()["msg"]
 
+    def test_json_body_with_ftp_attachment_obj_url_returns_400(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        res = _post_run_json(
+            client, workflow_attachment_obj=[{"file_name": "a.txt", "file_url": "ftp://example.com/a.txt"}]
+        )
+        assert res.status_code == 400
+        assert "file_url" in res.json()["msg"]
+
+    def test_form_with_file_attachment_obj_url_returns_400(self, mocker: "MockerFixture", tmp_path: Path) -> None:
+        client = _client_with_mock_run_tasks(mocker, tmp_path)
+        res = _post_run_form(
+            client, workflow_attachment_obj=json.dumps([{"file_name": "a.txt", "file_url": "file:///etc/hostname"}])
+        )
+        assert res.status_code == 400
+        assert "file_url" in res.json()["msg"]
+
     def test_malformed_json_body_returns_400(self, mocker: "MockerFixture", tmp_path: Path) -> None:
         client = _client_with_mock_run_tasks(mocker, tmp_path)
         res = client.post("/runs", content=b"{not json", headers={"content-type": "application/json"})
@@ -887,6 +903,22 @@ class TestAuthEndpoints:
         client = _client_with_mock_run_tasks(mocker, tmp_path)
         res = client.get("/me")
         assert res.status_code == 400
+
+    def test_create_token_without_auth_returns_400_even_with_valid_credentials(
+        self, mocker: "MockerFixture", tmp_path: Path
+    ) -> None:
+        from sapporo.config import AppConfig
+
+        auth_dict = default_auth_config_dict()
+        auth_dict["auth_enabled"] = False
+        config = AppConfig(run_dir=tmp_path, auth_config=write_auth_config(tmp_path, auth_dict))
+        client = create_test_client(mocker, tmp_path, app_config=config)
+        res = client.post(
+            "/token",
+            data={"username": "test-user", "password": "sapporo-test-password"},
+        )
+        assert res.status_code == 400
+        assert res.json()["msg"] == "Authentication is not enabled."
 
 
 # === Auth cross-cutting tests ===

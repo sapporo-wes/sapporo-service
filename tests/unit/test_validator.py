@@ -1,4 +1,5 @@
 import contextlib
+import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -19,6 +20,7 @@ from sapporo.schemas import (
     WorkflowTypeVersion,
 )
 from sapporo.validator import (
+    is_safe_wf_engine_param_token,
     validate_run_id,
     validate_run_request,
     validate_wf_engine_param_token,
@@ -286,6 +288,59 @@ def test_validate_run_request_with_json_strings_parses_correctly(mocker: "Mocker
     assert len(result.workflow_attachment_obj) == 1
     assert result.workflow_attachment_obj[0].file_name == "test.txt"
     assert result.workflow_attachment_obj[0].file_url == "https://example.com/test.txt"
+
+
+@pytest.mark.parametrize(
+    "file_url",
+    ["ftp://example.com/a.txt", "file:///etc/hostname", "s3://bucket/a.txt", "/abs/a.txt", "a.txt", ""],
+)
+def test_validate_run_request_rejects_attachment_obj_url_that_is_not_http(
+    mocker: "MockerFixture", file_url: str
+) -> None:
+    mocker.patch("sapporo.validator.create_service_info", return_value=_make_service_info())
+    mocker.patch("sapporo.validator.create_executable_wfs", return_value=ExecutableWorkflows(workflows=[]))
+
+    with pytest.raises(HTTPException) as exc_info:
+        validate_run_request(
+            wf_params=None,
+            wf_type="CWL",
+            wf_type_version="v1.0",
+            tags=None,
+            wf_engine="cwltool",
+            wf_engine_version=None,
+            wf_engine_parameters=None,
+            wf_url="https://example.com/wf.cwl",
+            wf_attachment=[],
+            wf_attachment_obj=json.dumps(
+                [
+                    {"file_name": "ok.txt", "file_url": "https://example.com/ok.txt"},
+                    {"file_name": "a.txt", "file_url": file_url},
+                ]
+            ),
+        )
+    assert exc_info.value.status_code == 400
+    assert "file_url" in str(exc_info.value.detail)
+
+
+@pytest.mark.parametrize("file_url", ["http://example.com/a.txt", "https://example.com/a.txt", "HTTPS://example.com/a"])
+def test_validate_run_request_accepts_http_and_https_attachment_obj_url(mocker: "MockerFixture", file_url: str) -> None:
+    mocker.patch("sapporo.validator.create_service_info", return_value=_make_service_info())
+    mocker.patch("sapporo.validator.create_executable_wfs", return_value=ExecutableWorkflows(workflows=[]))
+
+    result = validate_run_request(
+        wf_params=None,
+        wf_type="CWL",
+        wf_type_version="v1.0",
+        tags=None,
+        wf_engine="cwltool",
+        wf_engine_version=None,
+        wf_engine_parameters=None,
+        wf_url="https://example.com/wf.cwl",
+        wf_attachment=[],
+        wf_attachment_obj=json.dumps([{"file_name": "a.txt", "file_url": file_url}]),
+    )
+
+    assert result.workflow_attachment_obj[0].file_url == file_url
 
 
 def test_validate_run_request_with_empty_executable_wfs_allows_any_url(mocker: "MockerFixture") -> None:
@@ -705,6 +760,17 @@ def test_validate_wf_engine_param_token_rejects_dangerous_values(dangerous_value
 def test_validate_wf_engine_param_token_always_accepts_or_rejects(value: str) -> None:
     with contextlib.suppress(HTTPException):
         validate_wf_engine_param_token(value)
+
+
+@given(st.text(alphabet=st.sampled_from(";|&$`(){}!\n\r\x00 -_=/.,:'\"~@+aZ09")))
+def test_is_safe_wf_engine_param_token_agrees_with_validate(value: str) -> None:
+    try:
+        validate_wf_engine_param_token(value)
+    except HTTPException:
+        rejected = True
+    else:
+        rejected = False
+    assert is_safe_wf_engine_param_token(value) is not rejected
 
 
 # === validate_run_request: values with the wrong shape ===

@@ -411,7 +411,7 @@ def test_write_wf_attachment_skips_empty_filename(mocker: "MockerFixture", tmp_p
 
 
 @pytest.mark.asyncio
-async def test_download_wf_attachment_skips_non_http_scheme(mocker: "MockerFixture", tmp_path: Path) -> None:
+async def test_download_wf_attachment_fails_on_non_http_scheme(mocker: "MockerFixture", tmp_path: Path) -> None:
     _setup_config(mocker, tmp_path)
     from sapporo.run import download_wf_attachment, resolve_content_path
 
@@ -421,7 +421,8 @@ async def test_download_wf_attachment_skips_non_http_scheme(mocker: "MockerFixtu
     req = make_run_request_form(
         workflow_attachment_obj=[{"file_name": "local.txt", "file_url": "ftp://example.com/local.txt"}]
     )
-    await download_wf_attachment(run_id, req)
+    with pytest.raises(Exception, match="URL scheme must be http or https"):
+        await download_wf_attachment(run_id, req)
 
     written = resolve_content_path(run_id, "exe_dir") / "local.txt"
     assert not written.exists()
@@ -1615,6 +1616,174 @@ def test_outputs_zip_stream_skips_symlink_outside_run_dir_and_keeps_one_inside(
     assert "result.txt" in names
     assert "published.txt" in names
     assert "leak.txt" not in names
+
+
+# === ro_crate_zip_stream ===
+
+
+def _write_crate(run_dir: Path, entities: list[dict[str, Any]]) -> None:
+    graph = [
+        {"@id": "ro-crate-metadata.json", "@type": "CreativeWork", "about": {"@id": "./"}},
+        {"@id": "./", "@type": "Dataset"},
+        *entities,
+    ]
+    crate = {"@context": "https://w3id.org/ro/crate/1.1/context", "@graph": graph}
+    run_dir.joinpath("ro-crate-metadata.json").write_text(json.dumps(crate), encoding="utf-8")
+
+
+def _ro_crate_zip_names(run_id: str) -> set[str]:
+    from sapporo.run import ro_crate_zip_stream
+
+    stream, content_length = ro_crate_zip_stream(run_id)
+    data = b"".join(stream)
+    assert content_length == len(data)
+    prefix = f"sapporo_{run_id}_ro_crate/"
+    with zipfile.ZipFile(BytesIO(data)) as zf:
+        names = zf.namelist()
+    assert all(name.startswith(prefix) for name in names)
+    return {name.removeprefix(prefix) for name in names}
+
+
+def test_ro_crate_zip_stream_contains_only_metadata_readme_and_listed_files(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    run_id = "aabbccdd-0000-0000-0000-000000000f40"
+    rd = create_run_dir(
+        tmp_path,
+        run_id,
+        username="alice",
+        stdout_content="out",
+        cmd="docker run",
+        output_files={"a.txt": "a", "b.txt": "b"},
+    )
+    rd.joinpath("run.pid").write_text("123", encoding="utf-8")
+    rd.joinpath("README.md").write_text("# crate", encoding="utf-8")
+    rd.joinpath("exe", "wf.cwl").write_text("cwlVersion: v1.2", encoding="utf-8")
+    _write_crate(
+        rd,
+        [
+            {"@id": "outputs/a.txt", "@type": "File"},
+            {"@id": "exe/wf.cwl", "@type": ["File", "SoftwareSourceCode", "ComputationalWorkflow"]},
+            {"@id": "stdout.log", "@type": "File"},
+            {"@id": "#agent-alice", "@type": "Person"},
+        ],
+    )
+
+    assert _ro_crate_zip_names(run_id) == {
+        "ro-crate-metadata.json",
+        "README.md",
+        "outputs/a.txt",
+        "exe/wf.cwl",
+        "stdout.log",
+    }
+
+
+def test_ro_crate_zip_stream_decodes_percent_encoded_ids(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    run_id = "aabbccdd-0000-0000-0000-000000000f41"
+    rd = create_run_dir(tmp_path, run_id, output_files={"my report (1).html": "<p/>"})
+    _write_crate(rd, [{"@id": "outputs/my%20report%20%281%29.html", "@type": "File"}])
+
+    assert "outputs/my report (1).html" in _ro_crate_zip_names(run_id)
+
+
+@pytest.mark.parametrize(
+    "entity_id",
+    [
+        "../secret.txt",
+        "/etc/hostname",
+        "outputs/../state.txt",
+        "https://example.com/state.txt",
+        "file:///etc/hostname",
+        "#state.txt",
+        "./",
+        "",
+    ],
+)
+def test_ro_crate_zip_stream_skips_ids_that_are_not_paths_in_the_run(
+    mocker: "MockerFixture", tmp_path: Path, entity_id: str
+) -> None:
+    _setup_config(mocker, tmp_path)
+    run_id = "aabbccdd-0000-0000-0000-000000000f42"
+    rd = create_run_dir(tmp_path, run_id)
+    rd.parent.joinpath("secret.txt").write_text("secret", encoding="utf-8")
+    _write_crate(rd, [{"@id": entity_id, "@type": "File"}])
+
+    assert _ro_crate_zip_names(run_id) == {"ro-crate-metadata.json"}
+
+
+def test_ro_crate_zip_stream_follows_symlinks_below_the_run_dir_only_inside_it(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    run_id = "aabbccdd-0000-0000-0000-000000000f43"
+    rd = create_run_dir(tmp_path, run_id)
+    secret = tmp_path / "secret.txt"
+    secret.write_text("secret", encoding="utf-8")
+    rd.joinpath("outputs", "leak.txt").symlink_to(secret)
+    work_file = rd.joinpath("exe", "work.txt")
+    work_file.write_text("work", encoding="utf-8")
+    rd.joinpath("outputs", "published.txt").symlink_to(work_file)
+    _write_crate(
+        rd,
+        [{"@id": "outputs/leak.txt", "@type": "File"}, {"@id": "outputs/published.txt", "@type": "File"}],
+    )
+
+    assert _ro_crate_zip_names(run_id) == {"ro-crate-metadata.json", "outputs/published.txt"}
+
+
+def test_ro_crate_zip_stream_skips_symlinks_directly_under_the_run_dir(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    run_id = "aabbccdd-0000-0000-0000-000000000f44"
+    rd = create_run_dir(tmp_path, run_id, username="alice")
+    rd.joinpath("run.pid").write_text("123", encoding="utf-8")
+    rd.joinpath("README.md").symlink_to(rd.joinpath("username.txt"))
+    rd.joinpath("stdout.log").unlink(missing_ok=True)
+    rd.joinpath("stdout.log").symlink_to(rd.joinpath("run.pid"))
+    _write_crate(rd, [{"@id": "stdout.log", "@type": "File"}])
+
+    assert _ro_crate_zip_names(run_id) == {"ro-crate-metadata.json"}
+
+
+def test_ro_crate_zip_stream_adds_the_tree_of_a_dataset(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    run_id = "aabbccdd-0000-0000-0000-000000000f45"
+    rd = create_run_dir(tmp_path, run_id, output_files={"sub/x.txt": "x", "sub/y/z.txt": "z", "other.txt": "o"})
+    _write_crate(rd, [{"@id": "outputs/sub/", "@type": "Dataset"}])
+
+    assert _ro_crate_zip_names(run_id) == {"ro-crate-metadata.json", "outputs/sub/x.txt", "outputs/sub/y/z.txt"}
+
+
+def test_ro_crate_zip_stream_without_crate_is_empty(mocker: "MockerFixture", tmp_path: Path) -> None:
+    _setup_config(mocker, tmp_path)
+    run_id = "aabbccdd-0000-0000-0000-000000000f46"
+    create_run_dir(tmp_path, run_id, state="RUNNING", output_files={"a.txt": "a"})
+
+    assert _ro_crate_zip_names(run_id) == set()
+
+
+def test_ro_crate_zip_stream_with_failed_generation_contains_only_the_error(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    _setup_config(mocker, tmp_path)
+    run_id = "aabbccdd-0000-0000-0000-000000000f47"
+    rd = create_run_dir(tmp_path, run_id, output_files={"a.txt": "a"})
+    rd.joinpath("ro-crate-metadata.json").write_text('{"@error": "RO-Crate generation failed."}', encoding="utf-8")
+
+    assert _ro_crate_zip_names(run_id) == {"ro-crate-metadata.json"}
+
+
+@given(st.text())
+def test_data_entity_path_is_none_or_a_relative_path_that_stays_below(entity_id: str) -> None:
+    from sapporo.run import _data_entity_path
+
+    path = _data_entity_path(entity_id)
+    if path is not None:
+        assert not path.is_absolute()
+        assert path.parts
+        assert ".." not in path.parts
+        assert all("\0" not in part for part in path.parts)
 
 
 def test_dump_outputs_list_percent_encodes_file_url(mocker: "MockerFixture", tmp_path: Path) -> None:

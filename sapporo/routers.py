@@ -634,6 +634,8 @@ This endpoint supports both authentication modes:
   Passwords are verified using Argon2 hash comparison.
 - **External IdP mode (confidential client)**: Forwards credentials to the external IdP's token endpoint.
 
+When authentication is disabled, this endpoint returns 400.
+
 The returned JWT token should be included in subsequent requests using the `Authorization: Bearer <token>` header.
 
 **Security notes:**

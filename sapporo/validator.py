@@ -1,5 +1,6 @@
 import json
 import re
+from urllib.parse import urlsplit
 
 from fastapi import UploadFile
 from pydantic import ValidationError
@@ -14,9 +15,14 @@ _UUID_PATTERN = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0
 _SHELL_DANGEROUS_RE = re.compile(r"[;|&$`(){}\!\n\r\x00]")
 
 
+def is_safe_wf_engine_param_token(value: str) -> bool:
+    """Whether a workflow engine parameter token is free of shell-dangerous characters."""
+    return _SHELL_DANGEROUS_RE.search(value) is None
+
+
 def validate_wf_engine_param_token(value: str) -> None:
     """Reject workflow engine parameter tokens containing shell-dangerous characters."""
-    if _SHELL_DANGEROUS_RE.search(value):
+    if not is_safe_wf_engine_param_token(value):
         raise_bad_request(f"workflow_engine_parameters contains forbidden characters: {value!r}")
 
 
@@ -72,7 +78,7 @@ def validate_run_request(
             )
 
     try:
-        return RunRequestForm(
+        run_request = RunRequestForm(
             workflow_params=_wf_params,
             workflow_type=wf_type,
             workflow_type_version=wf_type_version,
@@ -86,6 +92,16 @@ def validate_run_request(
         )
     except ValidationError as e:
         raise_bad_request(f"Invalid run request: {e.errors(include_url=False)}")
+
+    # sapporo downloads only http and https URLs. Checked here rather than in the schema, so that a
+    # stored run_request.json of an older run still loads.
+    for obj in run_request.workflow_attachment_obj:
+        if urlsplit(obj.file_url).scheme not in ("http", "https"):
+            raise_bad_request(
+                f"Invalid file_url in workflow_attachment_obj: {obj.file_url!r}. The URL must use http or https."
+            )
+
+    return run_request
 
 
 def validate_wf_type_and_version(

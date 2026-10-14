@@ -13,14 +13,15 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
 
-from sapporo.auth import get_auth_config
+from sapporo.auth import get_auth_config, is_insecure_idp_allowed
 from sapporo.config import PKG_DIR, add_openapi_info, get_config, logging_config
 from sapporo.database import init_db
 from sapporo.factory import create_executable_wfs, create_service_info
 from sapporo.routers import router
 from sapporo.run import reconcile_runs, remove_old_runs
-from sapporo.schemas import ErrorResponse
+from sapporo.schemas import ErrorResponse, ServiceInfo
 from sapporo.utils import mask_sensitive
+from sapporo.validator import is_safe_wf_engine_param_token
 
 LOGGER = logging.getLogger(__name__)
 
@@ -86,6 +87,20 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+def _validate_default_wf_engine_params(service_info: ServiceInfo) -> None:
+    """Refuse default engine parameters that a request could not send.
+
+    run.sh receives the defaults in the same way as workflow_engine_parameters of a request, so the
+    same characters are refused.
+    """
+    for wf_engine, params in service_info.default_workflow_engine_parameters.items():
+        for param in params:
+            for value in (param.name, param.default_value):
+                if value is not None and not is_safe_wf_engine_param_token(value):
+                    msg = f"default_workflow_engine_parameters of {wf_engine} contains forbidden characters: {value!r}"
+                    raise ValueError(msg)
+
+
 def init_app_state() -> None:
     """Perform validation, initialize the cache, and log the configuration contents.
 
@@ -100,6 +115,7 @@ def init_app_state() -> None:
         raise FileNotFoundError(msg)
     try:
         service_info = create_service_info()  # Cache and validate
+        _validate_default_wf_engine_params(service_info)
     except Exception as e:
         msg = f"Service info file is invalid: {service_info_path}"
         raise ValueError(msg) from e
@@ -147,22 +163,22 @@ def init_app_state() -> None:
                 min_secret_key_length = 32
                 is_weak = secret_key in weak_keys or len(secret_key) < min_secret_key_length
                 if is_weak:
-                    warning_msg = (
-                        "Weak secret_key detected in auth_config.json, "
-                        "generate a strong key using: sapporo-cli generate-secret"
+                    # Refused in debug mode too: anyone who knows the bundled key could sign tokens
+                    msg = (
+                        "Weak secret_key is not allowed in auth_config.json. "
+                        "Generate a strong secret key using: sapporo-cli generate-secret"
                     )
-                    LOGGER.warning(warning_msg)
-                    if not get_config().debug:
-                        msg = (
-                            "Weak secret_key is not allowed in production mode. "
-                            "Generate a strong secret key using: sapporo-cli generate-secret"
-                        )
-                        raise ValueError(msg)
+                    raise ValueError(msg)
     except Exception as e:
         msg = f"Auth config file is invalid: {auth_config_path}"
         raise ValueError(msg) from e
     masked = mask_sensitive(auth_config.model_dump(), {"secret_key", "password_hash", "client_secret"})
     LOGGER.info("Auth config: %s", masked)
+    if is_insecure_idp_allowed():
+        LOGGER.warning(
+            "SAPPORO_ALLOW_INSECURE_IDP is set, so connections to the external identity provider may use HTTP. "
+            "Use this setting only for development."
+        )
 
     LOGGER.info("App state initialized")
 

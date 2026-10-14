@@ -58,6 +58,8 @@ The built-in default (`sapporo/auth_config.json`) ships with authentication disa
 
 To enable authentication, set `auth_enabled` to `true` and configure the appropriate mode. Override the location using `--auth-config` or `SAPPORO_AUTH_CONFIG`.
 
+sapporo reads `auth_config.json` once at startup. To apply a change, such as a new user or a new `secret_key`, restart sapporo.
+
 ### Configuration Fields
 
 - `auth_enabled`: Enable/disable authentication
@@ -94,6 +96,10 @@ curl -X GET -H "Authorization: Bearer $TOKEN" localhost:1122/me
 curl -X GET -H "Authorization: Bearer $TOKEN" localhost:1122/runs
 ```
 
+`POST /token` issues a token only while authentication is enabled. It returns 400 when authentication is disabled, and in external mode with a public client.
+
+A token stays valid until it expires, because sapporo cannot revoke a single token. To invalidate all tokens at once, change `secret_key` and restart sapporo. Keep `expires_delta_hours` short, so that a leaked token can be used only for a short time.
+
 ## External Mode
 
 In external mode, integrate with an IdP like Keycloak. Users authenticate with the IdP, which issues JWTs that the sapporo-service verifies.
@@ -108,6 +114,8 @@ The external mode enforces the following security measures when verifying JWTs i
 - **TTL-based caching**: OIDC Discovery metadata is cached for 1 hour. JWKS is cached for 5 minutes. This ensures timely pickup of key rotations while reducing load on the IdP.
 - **HTTP timeout**: All HTTP requests to the IdP use a 10-second timeout to prevent hanging.
 - **Retry with exponential backoff**: Transient HTTP errors when fetching metadata or JWKS are retried: 3 attempts in total, with 0.5 s and then 1.0 s between them.
+
+sapporo verifies only the signature and the expiry of a token. A token that the IdP has revoked therefore stays valid in sapporo until it expires. Keep the access token lifespan of the IdP short.
 
 ### Keycloak Development Setup
 
@@ -214,7 +222,7 @@ sapporo-cli generate-secret
 # Output: Secret key: <43-character secure random string>
 ```
 
-In production mode (non-debug), weak secret keys are rejected. Always use a generated secret key in production deployments.
+When authentication is enabled in sapporo mode, sapporo refuses to start with a weak secret key, in debug mode as well. A key is weak when it is shorter than 32 characters or is a well-known value, such as the `secret_key` of the bundled `auth_config.json`. Use a generated secret key.
 
 ## HTTPS Requirement
 
@@ -225,3 +233,5 @@ To allow HTTP connections during development (not recommended for production):
 ```bash
 export SAPPORO_ALLOW_INSECURE_IDP=true
 ```
+
+While `SAPPORO_ALLOW_INSECURE_IDP` is set, sapporo logs a warning at startup.

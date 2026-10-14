@@ -84,6 +84,8 @@ Customize the response of `GET /service-info` by providing a JSON file via `--se
 
 The file is **partially merged** with built-in defaults: fields present in the file override the defaults, while missing fields fall back to built-in values. This means you only need to specify the fields you want to customize.
 
+`POST /runs` rejects `workflow_engine_parameters` that contain `;`, `|`, `&`, `$`, `` ` ``, `(`, `)`, `{`, `}`, `!`, a newline, a carriage return or a NUL character. The `name` and `default_value` of `default_workflow_engine_parameters` must not contain these characters either, because `run.sh` receives the defaults in the same way. If a default contains one of them, sapporo does not start.
+
 ## executable_workflows.json
 
 Restrict which workflows can be executed using `--executable-workflows` or `SAPPORO_EXECUTABLE_WORKFLOWS`.

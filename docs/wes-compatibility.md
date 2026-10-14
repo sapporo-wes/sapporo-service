@@ -156,6 +156,8 @@ Optional field containing a JSON array of `FileObject` to download remote files:
 ]
 ```
 
+`file_url` must use `http` or `https`. `POST /runs` returns 400 for any other scheme.
+
 ### Unimplemented Endpoints
 
 | Endpoint | WES 1.1.0 operation | sapporo status |

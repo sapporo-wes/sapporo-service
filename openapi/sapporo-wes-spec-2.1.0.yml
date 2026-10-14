@@ -2351,11 +2351,12 @@ paths:
         - **Sapporo IdP mode**: Authenticates against local user credentials defined\
         \ in `auth_config.json`.\n  Passwords are verified using Argon2 hash comparison.\n\
         - **External IdP mode (confidential client)**: Forwards credentials to the\
-        \ external IdP's token endpoint.\n\nThe returned JWT token should be included\
-        \ in subsequent requests using the `Authorization: Bearer <token>` header.\n\
-        \n**Security notes:**\n- Tokens have a configurable expiration time (default:\
-        \ 24 hours, max: 168 hours)\n- All tokens include `iat` (issued at) and `exp`\
-        \ (expiration) claims\n- Passwords are never logged or stored in plaintext"
+        \ external IdP's token endpoint.\n\nWhen authentication is disabled, this\
+        \ endpoint returns 400.\n\nThe returned JWT token should be included in subsequent\
+        \ requests using the `Authorization: Bearer <token>` header.\n\n**Security\
+        \ notes:**\n- Tokens have a configurable expiration time (default: 24 hours,\
+        \ max: 168 hours)\n- All tokens include `iat` (issued at) and `exp` (expiration)\
+        \ claims\n- Passwords are never logged or stored in plaintext"
       operationId: create_token_token_post
       requestBody:
         content:

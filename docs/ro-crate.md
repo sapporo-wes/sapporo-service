@@ -194,7 +194,7 @@ Retrieve the RO-Crate metadata for a completed run.
 | `download=false` | JSON-LD | `application/ld+json` |
 | `download=true` | ZIP archive | `application/zip` |
 
-When `download=true`, the response is a ZIP archive containing all files referenced in the crate. When `download=false`, only the `ro-crate-metadata.json` content is returned as JSON-LD.
+When `download=true`, the response is a ZIP archive of `ro-crate-metadata.json`, `README.md`, and the files and directories that the crate lists as data entities. Files of the run directory that the crate does not list, such as `run.pid`, `run_request.json` and `username.txt`, are not included. A file directly under the run directory is included only when it is a regular file. A file below `outputs/` or `exe/` is included when the file, or the target of its symlink, lies inside the run directory. Before the crate is generated, the ZIP is empty. When `download=false`, only the `ro-crate-metadata.json` content is returned as JSON-LD.
 
 When [authentication](authentication.md) is enabled, this endpoint is protected and requires a valid JWT token.
 
