@@ -52,6 +52,11 @@ function run_fake_docker() {{
     local -a cmd_arr=(docker run --rm --cidfile "${{engine_cid}}" fake-image sleep 20)
     _write_and_run cmd_arr
 }}
+function run_fake_args() {{
+    printf '%s\n' "${{extra_docker_args[@]+"${{extra_docker_args[@]}}"}}" >"${{run_dir}}/extra_args.txt"
+    local -a cmd_arr=(true)
+    _write_and_run cmd_arr
+}}
 function generate_ro_crate() {{
     echo '{{}}' >"${{ro_crate}}"
 }}
@@ -92,16 +97,18 @@ esac
 """
 
 
-def _script_with_fake_engines(tmp_path: Path) -> Path:
+def _script_with_fake_engines(tmp_path: Path, extra_script: str = "") -> Path:
     text = RUN_SH.read_text(encoding="utf-8")
     anchor = "trap 'desc_error' ERR\n"
     assert anchor in text
     script = tmp_path / "run.sh"
-    script.write_text(text.replace(anchor, FAKE_ENGINES + anchor, 1), encoding="utf-8")
+    script.write_text(text.replace(anchor, FAKE_ENGINES + extra_script + anchor, 1), encoding="utf-8")
     return script
 
 
-def _prepare_run_dir(tmp_path: Path, engine: str, state: str = "QUEUED") -> Path:
+def _prepare_run_dir(
+    tmp_path: Path, engine: str, state: str = "QUEUED", wf_url: str = "https://example.com/wf.cwl"
+) -> Path:
     request: dict[str, Any] = {
         "workflow_params": {},
         "workflow_type": "CWL",
@@ -110,7 +117,7 @@ def _prepare_run_dir(tmp_path: Path, engine: str, state: str = "QUEUED") -> Path
         "workflow_engine": engine,
         "workflow_engine_version": None,
         "workflow_engine_parameters": None,
-        "workflow_url": "https://example.com/wf.cwl",
+        "workflow_url": wf_url,
         "workflow_attachment": [],
         "workflow_attachment_obj": [],
     }
@@ -159,8 +166,11 @@ class RunSh:
         grace_seconds: int = 30,
         fake_docker_workdir: str | None = None,
         before_start: Callable[[Path], None] | None = None,
+        extra_env: dict[str, str] | None = None,
+        extra_script: str = "",
+        wf_url: str = "https://example.com/wf.cwl",
     ) -> None:
-        self.run_dir = _prepare_run_dir(tmp_path, engine, state)
+        self.run_dir = _prepare_run_dir(tmp_path, engine, state, wf_url)
         if before_start is not None:
             before_start(self.run_dir)
         self.fake_docker_dir = tmp_path / "fake-docker"
@@ -176,10 +186,11 @@ class RunSh:
         env["FAKE_DOCKER_DIR"] = str(self.fake_docker_dir)
         env["FAKE_DOCKER_WORKDIR"] = fake_docker_workdir or str(self.run_dir / RUN_DIR_STRUCTURE["exe_dir"])
         env.pop("SAPPORO_EXTRA_DOCKER_ARGS", None)
+        env.update(extra_env or {})
         self.stderr_path = tmp_path / "run_sh.stderr"
         with self.stderr_path.open("w", encoding="utf-8") as stderr:
             self.process = subprocess.Popen(
-                ["/bin/bash", str(_script_with_fake_engines(tmp_path)), str(self.run_dir)],
+                ["/bin/bash", str(_script_with_fake_engines(tmp_path, extra_script)), str(self.run_dir)],
                 env=env,
                 stdout=subprocess.DEVNULL,
                 stderr=stderr,
@@ -218,8 +229,9 @@ def run_sh(tmp_path: Path) -> Iterator[Callable[..., RunSh]]:
         grace_seconds: int = 30,
         fake_docker_workdir: str | None = None,
         before_start: Callable[[Path], None] | None = None,
+        **kwargs: Any,
     ) -> RunSh:
-        instance = RunSh(tmp_path, engine, state, grace_seconds, fake_docker_workdir, before_start)
+        instance = RunSh(tmp_path, engine, state, grace_seconds, fake_docker_workdir, before_start, **kwargs)
         started.append(instance)
         return instance
 
@@ -382,3 +394,65 @@ def test_run_sh_replaces_a_symlinked_control_file_instead_of_writing_through_it(
     assert not state.is_symlink()
     assert _read(run.run_dir, "state") == "COMPLETE"
     assert target.read_text(encoding="utf-8") == "QUEUED"
+
+
+# === docker run arguments of the bundled engines ===
+
+
+def test_run_sh_passes_sapporo_extra_docker_args_to_every_run(run_sh: Callable[..., RunSh]) -> None:
+    run = run_sh("fake_args", extra_env={"SAPPORO_EXTRA_DOCKER_ARGS": "-v /data:/data:ro  --memory 1g"})
+
+    assert run.wait() == 0
+    lines = (run.run_dir / "extra_args.txt").read_text(encoding="utf-8").splitlines()
+    assert lines == ["-v", "/data:/data:ro", "--memory", "1g"]
+
+
+def test_run_sh_uses_set_extra_docker_args_edited_by_the_administrator(run_sh: Callable[..., RunSh]) -> None:
+    edited = """
+function set_extra_docker_args() {
+    extra_docker_args=(-v "/data/${wf_engine}:/data:ro")
+}
+"""
+    run = run_sh(
+        "fake_args", extra_env={"SAPPORO_EXTRA_DOCKER_ARGS": "-v /everything:/everything"}, extra_script=edited
+    )
+
+    assert run.wait() == 0
+    lines = (run.run_dir / "extra_args.txt").read_text(encoding="utf-8").splitlines()
+    assert lines == ["-v", "/data/fake_args:/data:ro"]
+
+
+ENGINES_WITH_RUN_TMP = {"cwltool", "cromwell", "ep3", "streamflow"}
+
+
+@pytest.mark.parametrize("engine", ["cwltool", "nextflow", "toil", "cromwell", "snakemake", "ep3", "streamflow"])
+def test_run_sh_mounts_only_exe_outputs_and_run_tmp_into_the_engine_container(
+    run_sh: Callable[..., RunSh], engine: str
+) -> None:
+    # The fake docker fails on the real engine images, so run.sh stops after writing cmd.txt.
+    # A relative workflow_url keeps snakemake from downloading it.
+    run = run_sh(engine, wf_url="Snakefile" if engine == "snakemake" else "wf.cwl")
+
+    run.wait()
+    rd = run.run_dir
+    exe = rd / RUN_DIR_STRUCTURE["exe_dir"]
+    outputs = rd / RUN_DIR_STRUCTURE["outputs_dir"]
+    tmp = rd / "tmp"
+    cmd = (rd / RUN_DIR_STRUCTURE["cmd"]).read_text(encoding="utf-8")
+
+    assert cmd.startswith("docker run ")
+    assert f"-v {exe}:{exe} " in cmd
+    assert f"-v {outputs}:{outputs} " in cmd
+    assert f"-v {rd}:{rd} " not in cmd
+    assert "-v /tmp:/tmp " not in cmd
+    assert "bash -c" not in cmd
+    if engine in ENGINES_WITH_RUN_TMP:
+        assert f"-v {tmp}:{tmp} " in cmd
+        assert f"-e TMPDIR={tmp} " in cmd
+    else:
+        assert f"{tmp}" not in cmd
+    if engine == "cromwell":
+        assert f"-Djava.io.tmpdir={tmp} " in cmd
+    if engine == "nextflow":
+        assert f"NXF_HOME={exe}/nxf_home " in cmd
+    assert tmp.is_dir()

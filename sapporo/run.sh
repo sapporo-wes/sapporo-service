@@ -9,6 +9,11 @@ set -m
 function run_wf() {
     check_canceling
     _write_control_file "${state}" "RUNNING"
+    set_extra_docker_args
+    # cwltool, cromwell, ep3 and streamflow keep their temporary files here instead of in the host /tmp,
+    # so that runs do not see each other's files and the files are deleted with the run
+    mkdir -p "${tmp_dir}"
+    chmod 0775 "${tmp_dir}"
 
     # Call the appropriate function based on the workflow engine
     local function_name="run_${wf_engine}"
@@ -52,8 +57,10 @@ function run_cwltool() {
         -v /var/run/docker.sock:/var/run/docker.sock
         -e DOCKER_HOST=unix:///var/run/docker.sock
         -e DOCKER_API_VERSION=1.44
-        -v /tmp:/tmp
-        -v "${run_dir}:${run_dir}"
+        -v "${exe_dir}:${exe_dir}"
+        -v "${outputs_dir}:${outputs_dir}"
+        -v "${tmp_dir}:${tmp_dir}"
+        -e "TMPDIR=${tmp_dir}"
         "${extra_docker_args[@]+"${extra_docker_args[@]}"}"
         "-w=${exe_dir}"
         # The image's entrypoint script runs cwltool as a child without exec, so SIGTERM would stop at the
@@ -68,12 +75,12 @@ function run_cwltool() {
 
 function run_nextflow() {
     local container="nextflow/nextflow:26.10.0"
-    # Store NXF_HOME inside the run_dir so pipeline assets (bin/ scripts, etc.)
+    # Store NXF_HOME inside the exe_dir so pipeline assets (bin/ scripts, etc.)
     # are on the host-mounted filesystem. Without this, Nextflow caches assets
     # inside the container at /.nextflow/, which is not visible to the host.
     # When child process containers are spawned, Nextflow tries to bind-mount
     # those asset paths from the host, causing "mounts denied" errors.
-    local nxf_home="${run_dir}/nxf_home"
+    local nxf_home="${exe_dir}/nxf_home"
     mkdir -p "${nxf_home}"
     # Write a Nextflow config that propagates DOCKER_API_VERSION into child containers.
     # This is required on Docker Desktop >= 4.x where the minimum supported API version
@@ -88,7 +95,8 @@ NFCFG
         -e DOCKER_API_VERSION=1.44
         -e "NXF_HOME=${nxf_home}"
         -e "NXF_ASSETS=${nxf_home}/assets"
-        -v "${run_dir}:${run_dir}"
+        -v "${exe_dir}:${exe_dir}"
+        -v "${outputs_dir}:${outputs_dir}"
         "${extra_docker_args[@]+"${extra_docker_args[@]}"}"
         "-w=${exe_dir}"
         "${container}"
@@ -104,7 +112,8 @@ function run_toil() {
         -v /var/run/docker.sock:/var/run/docker.sock
         -e DOCKER_HOST=unix:///var/run/docker.sock
         -e DOCKER_API_VERSION=1.44
-        -v "${run_dir}:${run_dir}"
+        -v "${exe_dir}:${exe_dir}"
+        -v "${outputs_dir}:${outputs_dir}"
         "${extra_docker_args[@]+"${extra_docker_args[@]}"}"
         "-w=${exe_dir}"
         -e "TOIL_WORKDIR=${exe_dir}"
@@ -120,15 +129,17 @@ function run_cromwell() {
     local -a cmd_arr=(docker run --rm --cidfile "${engine_cid}"
         -v /var/run/docker.sock:/var/run/docker.sock
         -e DOCKER_HOST=unix:///var/run/docker.sock
-        -v /tmp:/tmp
-        -v "${run_dir}:${run_dir}"
+        -v "${exe_dir}:${exe_dir}"
+        -v "${outputs_dir}:${outputs_dir}"
+        -v "${tmp_dir}:${tmp_dir}"
+        -e "TMPDIR=${tmp_dir}"
         "${extra_docker_args[@]+"${extra_docker_args[@]}"}"
         "-w=${exe_dir}"
         # The image's entrypoint is a shell that runs java as a child without exec, so SIGTERM would stop at
         # the shell. Cromwell in run mode aborts its jobs on SIGTERM when java receives it.
         --entrypoint java
         "${container}"
-        --add-opens=java.base/sun.security.util=ALL-UNNAMED -jar /app/cromwell.jar run)
+        --add-opens=java.base/sun.security.util=ALL-UNNAMED "-Djava.io.tmpdir=${tmp_dir}" -jar /app/cromwell.jar run)
     _append_engine_params cmd_arr
     cmd_arr+=("${wf_url}" -i "${wf_params}" -m "${exe_dir}/metadata.json")
     _write_and_run cmd_arr
@@ -157,26 +168,21 @@ function run_snakemake() {
     fi
 
     local container="snakemake/snakemake:v9.27.0"
-    local -a cmd_arr=(docker run --rm --cidfile "${engine_cid}"
-        -v "${run_dir}:${run_dir}"
+    local -a docker_arr=(docker run --rm --cidfile "${engine_cid}"
+        -v "${exe_dir}:${exe_dir}"
+        -v "${outputs_dir}:${outputs_dir}"
         "${extra_docker_args[@]+"${extra_docker_args[@]}"}"
         "-w=${exe_dir}"
-        "${container}"
-        bash -c)
-    # Build the inner shell command as a single string for bash -c
-    local -a smk_parts=(snakemake)
-    _append_engine_params smk_parts
-    smk_parts+=(--configfile "${wf_params}" --snakefile "${wf_url_local}")
-    local smk_run
-    smk_run=$(printf '%q ' "${smk_parts[@]}")
-    local wf_params_q wf_url_q exe_dir_q
-    wf_params_q=$(printf '%q' "${wf_params}")
-    wf_url_q=$(printf '%q' "${wf_url_local}")
-    exe_dir_q=$(printf '%q' "${exe_dir}")
-    local inner_cmd="${smk_run} && snakemake --configfile ${wf_params_q} --snakefile ${wf_url_q} --summary 2>/dev/null | tail -n +2 | cut -f 1 > ${exe_dir_q}/.snakemake_outputs"
-    cmd_arr+=("${inner_cmd}")
+        "${container}")
+    local -a cmd_arr=("${docker_arr[@]}" snakemake)
+    _append_engine_params cmd_arr
+    cmd_arr+=(--configfile "${wf_params}" --snakefile "${wf_url_local}")
     _write_and_run cmd_arr
 
+    # The output files are listed by a second container and filtered here, so that no shell inside the
+    # container receives the engine parameters. A failed listing leaves outputs/ empty.
+    local -a summary_arr=("${docker_arr[@]}" snakemake --configfile "${wf_params}" --snakefile "${wf_url_local}" --summary)
+    rm -f "${engine_cid}"
     while read -r file_path; do
         if [[ -z "${file_path}" ]] || [[ "${file_path}" == *".."* ]] || [[ "${file_path}" == /* ]]; then
             echo "Warning: Skipping suspicious output path: ${file_path}" >>"${stderr}"
@@ -186,8 +192,7 @@ function run_snakemake() {
         dir_path=$(dirname "${file_path}")
         mkdir -p "${outputs_dir}/${dir_path}"
         cp "${exe_dir}/${file_path}" "${outputs_dir}/${file_path}" 2>/dev/null || true
-    done < "${exe_dir}/.snakemake_outputs"
-    rm -f "${exe_dir}/.snakemake_outputs"
+    done < <("${summary_arr[@]}" 2>/dev/null | tail -n +2 | cut -f 1 || true)
 }
 
 function run_ep3() {
@@ -196,8 +201,10 @@ function run_ep3() {
         -v /var/run/docker.sock:/var/run/docker.sock
         -e DOCKER_HOST=unix:///var/run/docker.sock
         -e DOCKER_API_VERSION=1.44
-        -v /tmp:/tmp
-        -v "${run_dir}:${run_dir}"
+        -v "${exe_dir}:${exe_dir}"
+        -v "${outputs_dir}:${outputs_dir}"
+        -v "${tmp_dir}:${tmp_dir}"
+        -e "TMPDIR=${tmp_dir}"
         "${extra_docker_args[@]+"${extra_docker_args[@]}"}"
         "-w=${exe_dir}"
         "${container}"
@@ -219,8 +226,10 @@ function run_streamflow() {
         -v /var/run/docker.sock:/var/run/docker.sock
         -e DOCKER_HOST=unix:///var/run/docker.sock
         -v "${docker_stage}:/usr/bin/docker:ro"
-        -v /tmp:/tmp
-        -v "${run_dir}:${run_dir}"
+        -v "${exe_dir}:${exe_dir}"
+        -v "${outputs_dir}:${outputs_dir}"
+        -v "${tmp_dir}:${tmp_dir}"
+        -e "TMPDIR=${tmp_dir}"
         "${extra_docker_args[@]+"${extra_docker_args[@]}"}"
         "-w=${exe_dir}"
         "${container}"
@@ -273,6 +282,17 @@ function upload() {
     :
 }
 
+function set_extra_docker_args() {
+    # Edit this function to choose extra `docker run` flags for each run, for example to mount only the
+    # data that the workflow of this run may read. ${wf_engine}, ${wf_url} and ${run_dir}/username.txt
+    # (written when authentication is enabled) describe the run. The default splits
+    # SAPPORO_EXTRA_DOCKER_ARGS on whitespace and applies it to every run.
+    extra_docker_args=()
+    if [[ -n "${SAPPORO_EXTRA_DOCKER_ARGS:-}" ]]; then
+        read -ra extra_docker_args <<< "${SAPPORO_EXTRA_DOCKER_ARGS}"
+    fi
+}
+
 # ==============================================================
 # If you are not familiar with sapporo, please don't edit below.
 
@@ -296,6 +316,7 @@ cmd="${run_dir}/cmd.txt"
 system_logs="${run_dir}/system_logs.json"
 ro_crate="${run_dir}/ro-crate-metadata.json"
 engine_cid="${run_dir}/engine.cid"
+tmp_dir="${run_dir}/tmp"
 
 # Extract workflow engine and URL from the run request
 wf_engine=$(jq -r ".workflow_engine" "${run_request}")
@@ -305,11 +326,8 @@ wf_engine_params=$(head -n 1 "${wf_engine_params_file}")
 # Seconds between SIGTERM and SIGKILL when a run is canceled or run.sh is shut down
 cancel_grace_seconds="${SAPPORO_CANCEL_GRACE_SECONDS:-30}"
 
-# Parse SAPPORO_EXTRA_DOCKER_ARGS once for all engines
+# Set by set_extra_docker_args when run_wf starts
 extra_docker_args=()
-if [[ -n "${SAPPORO_EXTRA_DOCKER_ARGS:-}" ]]; then
-    read -ra extra_docker_args <<< "${SAPPORO_EXTRA_DOCKER_ARGS}"
-fi
 
 function generate_outputs_list() {
     sapporo-cli dump-outputs "${run_dir}" || { executor_error $?; }

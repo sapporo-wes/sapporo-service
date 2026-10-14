@@ -48,9 +48,12 @@ The [`run.sh`](https://github.com/sapporo-wes/sapporo-service/blob/main/sapporo/
 Each engine function constructs a `docker run` command that:
 
 1. Mounts the Docker socket (`-v /var/run/docker.sock:...`) so that the engine can start one container per workflow step (all engines except snakemake, which runs its steps inside its own container)
-2. Mounts the run directory (`-v ${run_dir}:${run_dir}`)
-3. Sets the working directory to the execution directory (`-w=${exe_dir}`)
-4. Runs the engine-specific command with the workflow URL and parameters
+2. Mounts `exe/` and `outputs/` of the run directory at the same paths as on the host (`-v ${exe_dir}:${exe_dir}`). The control files directly under the run directory are not mounted. cwltool, cromwell, ep3 and streamflow also get the `tmp/` directory of the run as their temporary directory instead of the host `/tmp`
+3. Adds the flags that `set_extra_docker_args()` chose for the run (see [Configuration - Environment Variables](configuration.md#environment-variables))
+4. Sets the working directory to the execution directory (`-w=${exe_dir}`)
+5. Runs the engine-specific command with the workflow URL and parameters
+
+The paths are the same as on the host because an engine passes paths under them to the containers that it starts for workflow steps, and the Docker daemon resolves those paths on the host.
 
 Override the default `run.sh` location using `--run-sh` or `SAPPORO_RUN_SH`. See [Configuration - Custom run.sh](configuration.md#custom-runsh) for details.
 
@@ -91,7 +94,7 @@ RO-Crate metadata is generated on the `COMPLETE` and `EXECUTOR_ERROR` paths. For
 
 To add a new workflow engine, define a `run_<engine>()` function in `run.sh` that constructs the appropriate `docker run` command. The function must:
 
-1. Build a `docker run` command that mounts the Docker socket and run directory
+1. Build a `docker run` command that mounts `exe/` and `outputs/` at the same paths as on the host (`-v "${exe_dir}:${exe_dir}"` and `-v "${outputs_dir}:${outputs_dir}"`), adds `"${extra_docker_args[@]+"${extra_docker_args[@]}"}"`, and mounts the Docker socket if the engine starts containers for workflow steps. Do not mount the whole run directory, so that the workflow cannot write the control files. If the engine keeps temporary files that it passes to step containers, mount `${tmp_dir}` at the same path and point the engine at it, for example with `-e "TMPDIR=${tmp_dir}"`, instead of mounting the host `/tmp`
 2. Pass the command array to `_write_and_run()`, which writes the command to `${cmd}`, runs it with stdout/stderr redirected to `${stdout}` and `${stderr}`, and calls `executor_error $?` on non-zero exit
 
 Pass `--cidfile "${engine_cid}"` to `docker run` so that `cancel_docker_engine()` can stop the container. Start the engine so that it receives the `SIGTERM` of `docker stop`: when the image entrypoint is a shell script that does not `exec` the engine, pass `--entrypoint` to run the engine directly. Otherwise the engine cannot stop the containers it started for workflow steps. If cancel needs more than that (for example `scancel` for a Slurm job), define `cancel_<engine>()`. `cancel()` calls it before stopping the process group.
@@ -127,6 +130,7 @@ runs/
 │       ├── stderr.log
 │       ├── stdout.log
 │       ├── system_logs.json
+│       ├── tmp/
 │       ├── username.txt
 │       └── workflow_engine_params.txt
 ├── 2d/
@@ -152,6 +156,7 @@ runs/
 | `run.pid` | PID of the `run.sh` process, written by `run.sh` after it has set its signal handlers. A value of 1 or less is ignored |
 | `runtime_info.json` | Runtime metadata |
 | `system_logs.json` | System-level logs |
+| `tmp/` | Temporary directory of cwltool, cromwell, ep3 and streamflow, created by `run.sh`. It takes the place of the host `/tmp`, so that runs do not share temporary files, and it is removed when the run is deleted |
 | `workflow_engine_params.txt` | Engine-specific parameters |
 | `ro-crate-metadata.json` / `README.md` | RO-Crate metadata and its README, written after the run ends (see [RO-Crate](ro-crate.md)) |
 | `multiqc_general_stats.json` | MultiQC statistics, written during RO-Crate generation when MultiQC finds supported tool outputs |
@@ -160,13 +165,13 @@ sapporo reads each file in this table only when it is a regular file. See [Trust
 
 ### Trust Boundary
 
-The bundled `run.sh` mounts the whole run directory into the engine container with read-write access. Everything that the workflow starts can therefore read and write every file in the run directory, including the control files that sapporo reads.
+The `run.sh` that the administrator deploys decides what the engine container can reach. The bundled `run.sh` mounts `exe/`, `outputs/` and, for some engines, `tmp/` of the run into the engine container with read-write access. The control files directly under the run directory, such as `state.txt` and `run.pid`, are not mounted.
 
-The `run.sh` that the administrator deploys decides what the engine container can reach. The bundled `run_<engine>()` functions for cwltool, nextflow, toil, cromwell, ep3 and streamflow also pass the Docker socket to the engine container, so a workflow on one of these engines has the same access to the host as the sapporo service itself. The snakemake function does not pass the socket, so for snakemake the run directory mount is the only path from the workflow back to the service.
+The bundled `run_<engine>()` functions for cwltool, nextflow, toil, cromwell, ep3 and streamflow also pass the Docker socket to the engine container, so a workflow on one of these engines has the same access to the host as the sapporo service itself. Through the socket, such a workflow can start a container that mounts the whole run directory or any other host path. The snakemake function does not pass the socket, so a snakemake workflow reaches only `exe/` and `outputs/` of its own run.
 
 sapporo reads a control file only when it is a regular file. The files in the table above are opened with `O_NOFOLLOW`, and a symlink, a FIFO or a directory in their place is logged and treated as missing. A symlinked `state.txt` is reported as `UNKNOWN`, and a symlinked `stdout.log` is returned as `null` in `GET /runs/{run_id}` and left out of the RO-Crate. When sapporo or the bundled `run.sh` writes a control file, it replaces a symlink by a regular file instead of writing through it. Files under `outputs/` and `exe/` follow a different rule: a symlink is accepted when its target lies inside the run directory (see [Output File Download](configuration.md#output-file-download)).
 
-The workflow can still write `state.txt` and the other control files, and sapporo believes their content. This affects only the run that the workflow belongs to.
+A workflow that reaches the control files, through the Docker socket or through a custom `run.sh` that mounts them, can write `state.txt` and the other control files. sapporo believes their content, so the workflow can change what sapporo reports for that run.
 
 URLs that sapporo fetches on behalf of a request (`workflow_attachment_obj`, and `workflow_url` for snakemake through `sapporo-cli download`) must use `http` or `https` and must not point to a cloud metadata service. sapporo rejects the link-local ranges (`169.254.0.0/16`, `fe80::/10`), the IPv6 address of the AWS instance metadata service (`fd00:ec2::254`) and the Alibaba Cloud metadata address (`100.100.100.200`), both as IP literals and as DNS results. Redirects are followed one hop at a time, and every hop is checked in the same way. Private networks such as `10.0.0.0/8` and `127.0.0.0/8` are allowed, because local file servers are common. A hostname that changes its address between the check and the connection (DNS rebinding) is not covered.
 
