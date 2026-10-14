@@ -1093,6 +1093,66 @@ def test_init_db_incremental_sync_updates_terminal_run_that_was_deleted(
     assert json.loads(run.tags) == {}
 
 
+# run.sh writes end_time.txt with `date -u +"%Y-%m-%dT%H:%M:%S"`, which has no UTC offset
+RUN_SH_END_TIME = "2026-10-13T12:38:14"
+
+
+def test_init_db_full_rebuild_indexes_run_with_end_time_written_by_run_sh(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    config = AppConfig(run_dir=tmp_path)
+    mock_get_config(mocker, config)
+
+    run_id = "aabbccdd-0000-0000-0000-000000000a20"
+    create_run_dir(tmp_path, run_id, state="COMPLETE", end_time=RUN_SH_END_TIME)
+
+    init_db()
+
+    run = _indexed_run(run_id)
+    assert run.end_time == datetime(2026, 10, 13, 12, 38, 14, tzinfo=UTC)
+
+
+def test_init_db_incremental_sync_updates_run_that_ended_with_end_time_written_by_run_sh(
+    mocker: "MockerFixture", tmp_path: Path
+) -> None:
+    config = AppConfig(run_dir=tmp_path)
+    mock_get_config(mocker, config)
+
+    run_id = "aabbccdd-0000-0000-0000-000000000a21"
+    create_run_dir(tmp_path, run_id, state="RUNNING")
+    init_db()
+
+    rd = tmp_path.joinpath(run_id[:2], run_id)
+    rd.joinpath(RUN_DIR_STRUCTURE["state"]).write_text("COMPLETE", encoding="utf-8")
+    rd.joinpath(RUN_DIR_STRUCTURE["end_time"]).write_text(RUN_SH_END_TIME + "\n", encoding="utf-8")
+
+    init_db()
+
+    run = _indexed_run(run_id)
+    assert run.state == State.COMPLETE
+    assert run.end_time == datetime(2026, 10, 13, 12, 38, 14, tzinfo=UTC)
+
+
+def test_sync_run_db_refreshes_run_with_end_time_written_by_run_sh(mocker: "MockerFixture", tmp_path: Path) -> None:
+    config = AppConfig(run_dir=tmp_path)
+    mock_get_config(mocker, config)
+
+    run_id = "aabbccdd-0000-0000-0000-000000000a22"
+    create_run_dir(tmp_path, run_id, state="RUNNING")
+    init_db()
+    rd = tmp_path.joinpath(run_id[:2], run_id)
+    rd.joinpath(RUN_DIR_STRUCTURE["state"]).write_text("CANCELED", encoding="utf-8")
+    rd.joinpath(RUN_DIR_STRUCTURE["end_time"]).write_text(RUN_SH_END_TIME, encoding="utf-8")
+
+    from sapporo.database import sync_run_db
+
+    sync_run_db(run_id)
+
+    run = _indexed_run(run_id)
+    assert run.state == State.CANCELED
+    assert run.end_time == datetime(2026, 10, 13, 12, 38, 14, tzinfo=UTC)
+
+
 def test_init_db_incremental_sync_does_not_reread_unchanged_terminal_run(
     mocker: "MockerFixture", tmp_path: Path
 ) -> None:

@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: dev
     image: sapporo-service-dev
     container_name: sapporo-service-dev
     environment:

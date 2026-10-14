@@ -848,7 +848,8 @@ def add_multiqc_stats(crate: ROCrate, run_dir: Path, create_action_ins: ContextE
         "/work",
     ]
     try:
-        proc = subprocess.run(cmd, capture_output=True, check=False, timeout=300)
+        # A fixed docker command: file names are separate arguments and no shell is involved
+        proc = subprocess.run(cmd, capture_output=True, check=False, timeout=300)  # noqa: S603
     except subprocess.TimeoutExpired:
         LOGGER.warning("MultiQC Docker command timed out after 300s")
         return
@@ -913,7 +914,8 @@ def add_samtools_stats(crate: ROCrate, file_ins: File) -> None:
         source.name,
     ]
     try:
-        proc = subprocess.run(cmd, capture_output=True, check=False, timeout=300)
+        # A fixed docker command: file names are separate arguments and no shell is involved
+        proc = subprocess.run(cmd, capture_output=True, check=False, timeout=300)  # noqa: S603
     except subprocess.TimeoutExpired:
         LOGGER.warning("samtools Docker command timed out for %s after 300s", file_ins.id)
         return
@@ -973,7 +975,8 @@ def add_vcftools_stats(crate: ROCrate, file_ins: File) -> None:
         source.name,
     ]
     try:
-        proc = subprocess.run(cmd, capture_output=True, check=False, timeout=300)
+        # A fixed docker command: file names are separate arguments and no shell is involved
+        proc = subprocess.run(cmd, capture_output=True, check=False, timeout=300)  # noqa: S603
     except subprocess.TimeoutExpired:
         LOGGER.warning("vcftools Docker command timed out for %s after 300s", file_ins.id)
         return
@@ -1101,7 +1104,8 @@ def add_tataki_edam(crate: ROCrate, run_dir: Path) -> None:
         *[f"/work/{rel}" for rel in rel_paths],
     ]
     try:
-        proc = subprocess.run(cmd, capture_output=True, check=False, timeout=300)
+        # A fixed docker command: file names are separate arguments and no shell is involved
+        proc = subprocess.run(cmd, capture_output=True, check=False, timeout=300)  # noqa: S603
     except subprocess.TimeoutExpired:
         LOGGER.warning("tataki Docker command timed out after 300s")
         return

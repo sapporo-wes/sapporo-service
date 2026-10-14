@@ -13,7 +13,7 @@ docker compose -f compose.dev.yml exec app bash
 
 The development compose file:
 
-- Builds from the local Dockerfile
+- Builds the `dev` target of the local Dockerfile, which adds the `tests` extra and the `dev` dependency group to the runtime dependencies. The default target is the image that CI publishes, and it contains only the runtime dependencies
 - Mounts the source tree at `/app`
 - Uses a named volume for `.venv` (avoids host/container venv conflicts)
 - Runs `sleep infinity` so you can exec into the container and start the service manually

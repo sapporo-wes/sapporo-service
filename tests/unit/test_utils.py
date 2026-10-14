@@ -1,7 +1,7 @@
 import logging
 import os
 import socket
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -52,6 +52,29 @@ def test_time_str_to_dt_parses_rfc3339_with_z() -> None:
     assert dt.minute == 30
     assert dt.second == 0
     assert dt.tzinfo is not None
+
+
+def test_time_str_to_dt_reads_time_without_offset_as_utc() -> None:
+    assert time_str_to_dt("2026-10-13T12:38:14") == datetime(2026, 10, 13, 12, 38, 14, tzinfo=UTC)
+
+
+def test_time_str_to_dt_keeps_explicit_offset() -> None:
+    dt = time_str_to_dt("2026-10-13T21:38:14+09:00")
+    assert dt.utcoffset() == timedelta(hours=9)
+    assert dt == datetime(2026, 10, 13, 12, 38, 14, tzinfo=UTC)
+
+
+@given(
+    st.datetimes(
+        min_value=datetime(2000, 1, 1),  # noqa: DTZ001 (hypothesis requires naive min_value)
+        max_value=datetime(2099, 12, 31),  # noqa: DTZ001 (hypothesis requires naive max_value)
+    )
+)
+def test_time_str_to_dt_always_returns_aware_utc_for_naive_time(dt: datetime) -> None:
+    result = time_str_to_dt(dt.isoformat(timespec="seconds"))
+    assert result.tzinfo is not None
+    assert result.utcoffset() == timedelta(0)
+    assert result.replace(tzinfo=None) == dt.replace(microsecond=0)
 
 
 def test_dt_to_time_str_formats_utc_with_z() -> None:

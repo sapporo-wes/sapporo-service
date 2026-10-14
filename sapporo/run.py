@@ -356,7 +356,8 @@ def fork_run(run_id: str) -> "Popen[str]":
     env["SAPPORO_CANCEL_GRACE_SECONDS"] = str(get_config().cancel_grace_seconds)
     write_file(run_id, "state", State.QUEUED)
     with stdout.open(mode="w", encoding="utf-8") as f_stdout, stderr.open(mode="w", encoding="utf-8") as f_stderr:
-        process = Popen(cmd, cwd=str(run_dir), env=env, encoding="utf-8", stdout=f_stdout, stderr=f_stderr)
+        # The configured run.sh with the run directory as its only argument, without a shell
+        process = Popen(cmd, cwd=str(run_dir), env=env, encoding="utf-8", stdout=f_stdout, stderr=f_stderr)  # noqa: S603
     # Reap the child process in a background thread to prevent zombie processes
     reaper = Thread(target=process.wait, daemon=True)
     reaper.start()

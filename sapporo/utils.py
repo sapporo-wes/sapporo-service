@@ -30,7 +30,13 @@ def now_str() -> str:
 
 
 def time_str_to_dt(time_str: str) -> datetime:
-    return datetime.fromisoformat(time_str)
+    """Parse a time of a run directory into an aware datetime.
+
+    A time without a UTC offset is read as UTC: run.sh writes end_time.txt with `date -u` and no
+    offset, and the index stores only aware datetimes.
+    """
+    dt = datetime.fromisoformat(time_str)
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
 
 
 def dt_to_time_str(dt: datetime) -> str:
