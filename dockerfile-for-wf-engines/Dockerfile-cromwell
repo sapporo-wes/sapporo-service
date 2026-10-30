@@ -1,2 +1,17 @@
-FROM broadinstitute/cromwell:92
-COPY --from=docker:27-cli /usr/local/bin/docker /usr/local/bin/docker
+FROM eclipse-temurin:17-jre-resolute
+
+# Ubuntu can publish security updates between the rebuilds of the base image tag
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# The release URL and the checksum pin the Cromwell version
+ADD --chmod=644 --checksum=sha256:e0e3a050d4124e81369a79059e5774142b2f06bd89df4a0b035f559db85cedf5 \
+    https://github.com/broadinstitute/cromwell/releases/download/92/cromwell-92.jar /app/cromwell.jar
+
+COPY --from=docker:29-cli /usr/local/bin/docker /usr/local/bin/docker
+
+ENTRYPOINT ["java", "--add-opens=java.base/sun.security.util=ALL-UNNAMED", "-jar", "/app/cromwell.jar"]

@@ -14,6 +14,7 @@ docker compose -f compose.dev.yml exec app bash
 The development compose file:
 
 - Builds the `dev` target of the local Dockerfile, which adds the `tests` extra and the `dev` dependency group to the runtime dependencies. The default target is the image that CI publishes, and it contains only the runtime dependencies
+- Pulls the base images on each build. The Dockerfile names each base image by a tag that the registry rebuilds with security updates (for example `python:3.14-slim-trixie` and `docker:29-cli`), so do not pin a patch version or a digest
 - Mounts the source tree at `/app`
 - Uses a named volume for `.venv` (avoids host/container venv conflicts)
 - Runs `sleep infinity` so you can exec into the container and start the service manually
@@ -202,7 +203,7 @@ GitHub Actions runs the following workflows (`.github/workflows/`):
 
 3. The tag push triggers `release.yml` automatically:
    - Publish PyPI package (Trusted Publishing)
-   - Build and push multi-architecture Docker image (ghcr.io)
+   - Build and push multi-architecture Docker image (ghcr.io) with the newest base images
    - Create GitHub Release (auto-generated release notes)
 
 ### Differences from 1.x
