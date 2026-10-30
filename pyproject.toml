@@ -37,7 +37,9 @@ dependencies = [
     "python-multipart>=0.0.5",
     "pyyaml>=6,<7",
     "rocrate>=0.15,<1",
+    "sqlalchemy>=2,<3",
     "sqlmodel>=0.0.14,<1",
+    "starlette>=0.27,<2",
     "uvicorn[standard]>=0.20,<1",
     "zipstream-ng>=1,<2",
 ]
@@ -59,7 +61,6 @@ tests = [
     "pytest",
     "roc-validator",
     "ruff",
-    "runcrate",
     "types-cachetools",
     "types-PyYAML",
 ]

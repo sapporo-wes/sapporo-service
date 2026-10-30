@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: dev
+      pull: true
     image: sapporo-service-dev
     container_name: sapporo-service-dev
     environment:

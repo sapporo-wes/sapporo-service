@@ -135,8 +135,8 @@ function run_cromwell() {
         -e "TMPDIR=${tmp_dir}"
         "${extra_docker_args[@]+"${extra_docker_args[@]}"}"
         "-w=${exe_dir}"
-        # The image's entrypoint is a shell that runs java as a child without exec, so SIGTERM would stop at
-        # the shell. Cromwell in run mode aborts its jobs on SIGTERM when java receives it.
+        # java runs as the entrypoint, so that it receives SIGTERM and takes the JVM options before -jar.
+        # Cromwell in run mode aborts its jobs on SIGTERM.
         --entrypoint java
         "${container}"
         --add-opens=java.base/sun.security.util=ALL-UNNAMED "-Djava.io.tmpdir=${tmp_dir}" -jar /app/cromwell.jar run)
