@@ -8,15 +8,18 @@ on:
     - cron: "0 2 * * 1"
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 jobs:
   test-latest:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v10.3.3
         with:
           python-version: "3.12"
 
